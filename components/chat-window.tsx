@@ -218,14 +218,14 @@ export function ChatWindow() {
       {/* 输入区 */}
       <div className="border-t border-border/60 bg-background/80 backdrop-blur-sm px-4 py-3 md:px-8">
         <div className="mx-auto max-w-3xl">
-          <div className="flex items-end gap-2 rounded-xl border border-border bg-background shadow-sm px-3 py-2">
+          <div className="flex items-end gap-2 rounded-2xl border border-border/50 bg-background/95 px-1 py-1.5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
             <Tooltip>
               <TooltipTrigger
                 className={cn(
-                  'h-8 w-8 shrink-0 mb-0.5 inline-flex items-center justify-center rounded-lg transition-colors disabled:opacity-50',
+                  'h-9 w-9 shrink-0 inline-flex items-center justify-center rounded-full border border-border/40 transition-all disabled:opacity-50',
                   thinkingEnabled
-                    ? 'bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400'
-                    : 'hover:bg-accent'
+                    ? 'bg-primary/10 text-primary border-primary/30'
+                    : 'hover:bg-muted hover:border-border'
                 )}
                 onClick={() => setThinkingEnabled((v) => !v)}
                 disabled={isLoading}
@@ -251,7 +251,7 @@ export function ChatWindow() {
             <Button
               size="icon"
               className={cn(
-                'h-8 w-8 shrink-0 mb-0.5 rounded-lg transition-all',
+                'h-9 w-9 shrink-0 rounded-full transition-all hover:translate-y-[-1px]',
                 isLoading && 'bg-destructive hover:bg-destructive/90 text-destructive-foreground'
               )}
               onClick={isLoading ? stop : handleSend}
