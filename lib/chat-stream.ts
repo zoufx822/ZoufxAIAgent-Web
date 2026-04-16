@@ -1,0 +1,118 @@
+/** 解析 SSE buffer，返回完整事件列表和剩余未处理数据 */
+function parseSSE(buffer: string) {
+  const items: { event: string; data: string }[] = []
+  const blocks = buffer.split(/\r?\n\r?\n/)
+  const remaining = blocks.pop() ?? ''
+
+  for (const block of blocks) {
+    if (!block.trim()) continue
+    let event = 'content'
+    const dataLines: string[] = []
+
+    for (const line of block.split(/\r?\n/)) {
+      if (line.startsWith('event:')) {
+        event = line.slice(6).trim()
+      } else if (line.startsWith('data:')) {
+        dataLines.push(line.slice(5))
+      }
+    }
+
+    if (dataLines.length > 0) {
+      let data = dataLines.join('\n')
+      const hasEscaped = data.includes('\\n')
+      const hasReal = data.includes('\n')
+      if (hasEscaped && !hasReal) {
+        data = data.replace(/(?<!\\)\\n/g, '\n')
+      }
+      if (data !== '') items.push({ event, data })
+    }
+  }
+
+  return { items, remaining }
+}
+
+export interface StreamChatOptions {
+  message: string
+  sessionId: string
+  thinking: boolean
+  signal?: AbortSignal
+  onThinking?: (chunk: string) => void
+  onContent?: (chunk: string) => void
+  onComplete?: () => void
+  onError?: (err: Error) => void
+}
+
+const API_URL = `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080'}/ai/chat`
+
+/** 解析后端 error 事件的 data，提取用户友好文案 */
+function parseErrorData(data: string): Error {
+  try {
+    const obj = JSON.parse(data)
+    const msg = obj?.error?.message ?? obj?.message ?? data
+    return new Error(msg)
+  } catch {
+    return new Error(data)
+  }
+}
+
+export async function streamChat(opts: StreamChatOptions) {
+  const { message, sessionId, thinking, signal, onThinking, onContent, onComplete, onError } = opts
+
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: message, sessionId, thinking }),
+      signal,
+    })
+
+    if (!res.ok) {
+      const statusMap: Record<number, string> = {
+        401: '认证失败，请刷新页面重试',
+        403: '认证失败，请刷新页面重试',
+        404: '请求的资源不存在',
+        429: '请求过于频繁，请稍后重试',
+      }
+      const msg = statusMap[res.status] ?? (res.status >= 500 ? `服务器内部错误 (${res.status})` : `请求失败 (${res.status})`)
+      throw new Error(msg)
+    }
+
+    const reader = res.body!.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const { items, remaining } = parseSSE(buffer)
+      buffer = remaining
+      for (const { event, data } of items) {
+        if (event === 'thinking') onThinking?.(data)
+        else if (event === 'error') { onError?.(parseErrorData(data)); return }
+        else onContent?.(data)
+      }
+    }
+
+    // 处理末尾残留
+    if (buffer.trim() && /^(event:|data:)/m.test(buffer)) {
+      const { items } = parseSSE(buffer + '\n\n')
+      for (const { event, data } of items) {
+        if (event === 'thinking') onThinking?.(data)
+        else if (event === 'error') { onError?.(parseErrorData(data)); return }
+        else onContent?.(data)
+      }
+    }
+
+    onComplete?.()
+  } catch (err) {
+    const e = err as Error
+    if (e.name === 'AbortError' || (err instanceof DOMException && e.name === 'AbortError')) {
+      onComplete?.()
+      return
+    }
+    let msg = e.message || '请求出错'
+    if (e.name === 'TypeError' && e.message.includes('fetch')) msg = '网络连接失败，请检查网络连接'
+    onError?.(new Error(msg))
+  }
+}
