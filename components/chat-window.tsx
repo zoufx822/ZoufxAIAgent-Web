@@ -1,22 +1,23 @@
 'use client'
 
 import { useRef, useEffect, useCallback, useState } from 'react'
-import { ArrowUp, Square, Brain } from 'lucide-react'
+import { ArrowUp, Square, Sparkles } from 'lucide-react'
 import { Textarea } from '@/components/ui/textarea'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { MessageItem } from '@/components/message-item'
 import { useChatStream } from '@/hooks/use-chat-stream'
+import { useSmartScroll } from '@/hooks/use-smart-scroll'
 import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
 const SUGGESTIONS = [
-  '用 Python 写一个快速排序',
-  '解释 React useEffect',
-  '写一首关于秋天的短诗',
-  '推荐几本经典科幻小说',
+  '帮我梳理一个方案',
+  '把这段内容写得更好',
+  '解释一个复杂概念',
+  '开始一次深度分析',
 ]
 
-/* ── 输入框组件（Kimi 风格两行布局） ── */
+/* ── 输入框组件 ── */
 function ChatInput({
   input,
   setInput,
@@ -61,7 +62,17 @@ function ChatInput({
   const canSend = input.trim().length > 0
 
   return (
-    <div className={cn('rounded-2xl border border-border bg-background shadow-sm transition-colors focus-within:border-foreground/20', className)}>
+    <div
+      className={cn(
+        'surface-line relative overflow-hidden rounded-[2rem] bg-card transition-colors focus-within:border-primary/25 focus-within:shadow-[0_18px_36px_oklch(0.25_0.01_256_/_0.08)]',
+        isLoading && 'bg-muted/80',
+        className
+      )}
+    >
+      {isLoading && (
+        <div className="pointer-events-none absolute inset-0 rounded-[inherit] bg-muted/55" />
+      )}
+
       {/* 上层：textarea */}
       <Textarea
         ref={textareaRef}
@@ -71,23 +82,31 @@ function ChatInput({
         placeholder="尽管问..."
         disabled={isLoading}
         rows={1}
-        className="resize-none border-0 bg-transparent px-4 pt-3 pb-2 shadow-none focus-visible:ring-0 text-sm leading-relaxed min-h-[44px] max-h-[160px] placeholder:text-muted-foreground/50"
+        className={cn(
+          'relative z-10 min-h-[58px] max-h-[160px] resize-none border-0 bg-transparent px-6 pt-5 pb-2 text-base leading-relaxed shadow-none focus-visible:ring-0 placeholder:text-muted-foreground/58 disabled:bg-transparent disabled:opacity-100',
+          isLoading && 'opacity-60'
+        )}
       />
 
       {/* 下层：工具栏 */}
-      <div className="flex items-center gap-1 px-3 pb-2.5">
+      <div
+        className={cn(
+          'relative z-10 flex items-center gap-2 px-5 pb-4',
+          isLoading && 'opacity-60'
+        )}
+      >
         <Tooltip>
           <TooltipTrigger
             className={cn(
-              'inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs transition-all disabled:opacity-50',
+              'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs transition-all disabled:opacity-50',
               thinkingEnabled
                 ? 'bg-primary/10 text-primary font-medium'
-                : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                : 'text-muted-foreground hover:bg-accent/55 hover:text-foreground'
             )}
             onClick={() => setThinkingEnabled((v) => !v)}
             disabled={isLoading}
           >
-            <Brain className="size-3.5" />
+            <Sparkles className="size-3.5" strokeWidth={2} />
             <span>思考</span>
           </TooltipTrigger>
           <TooltipContent side="top">
@@ -100,11 +119,11 @@ function ChatInput({
         {/* 发送 / 停止 */}
         <button
           className={cn(
-            'size-8 inline-flex items-center justify-center rounded-full transition-all',
+            'mb-0.5 mr-0.5 inline-flex size-10 items-center justify-center rounded-full transition-all',
             isLoading
               ? 'bg-foreground text-background hover:opacity-80'
               : canSend
-                ? 'bg-foreground text-background hover:opacity-80'
+                ? 'bg-foreground text-background shadow-[0_10px_24px_oklch(0.25_0.01_256_/_0.16)] hover:opacity-90'
                 : 'bg-muted text-muted-foreground cursor-not-allowed'
           )}
           onClick={isLoading ? onStop : onSend}
@@ -129,72 +148,8 @@ export function ChatWindow() {
   const [input, setInput] = useState('')
   const [thinkingEnabled, setThinkingEnabled] = useState(false)
 
-  const scrollRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-
-  // ── SmartScroll ──
-  const isPausedRef = useRef(false)
-  const pendingScrollEventsRef = useRef(0)
-  const lastScrollTopRef = useRef(0)
-  const touchStartYRef = useRef(0)
-
-  const scrollToBottom = useCallback(() => {
-    const el = scrollRef.current
-    if (!el || isPausedRef.current) return
-    const before = el.scrollTop
-    el.scrollTop = el.scrollHeight
-    if (el.scrollTop !== before) pendingScrollEventsRef.current++
-  }, [])
-
-  const forceScrollToBottom = useCallback(() => {
-    const el = scrollRef.current
-    if (!el) return
-    isPausedRef.current = false
-    const before = el.scrollTop
-    el.scrollTop = el.scrollHeight
-    if (el.scrollTop !== before) pendingScrollEventsRef.current++
-  }, [])
-
-  useEffect(() => {
-    const el = scrollRef.current
-    if (!el) return
-    lastScrollTopRef.current = el.scrollTop
-
-    const onWheel = (e: WheelEvent) => {
-      if (e.deltaY < 0) isPausedRef.current = true
-    }
-    const onTouchStart = (e: TouchEvent) => {
-      touchStartYRef.current = e.touches[0].clientY
-    }
-    const onTouchMove = (e: TouchEvent) => {
-      if (e.touches[0].clientY > touchStartYRef.current) isPausedRef.current = true
-    }
-    const onScroll = () => {
-      if (pendingScrollEventsRef.current > 0) {
-        pendingScrollEventsRef.current--
-        lastScrollTopRef.current = el.scrollTop
-        return
-      }
-      const { scrollTop, scrollHeight, clientHeight } = el
-      const scrollingDown = scrollTop > lastScrollTopRef.current
-      const dist = scrollHeight - scrollTop - clientHeight
-      if (isPausedRef.current && scrollingDown && dist <= 5) {
-        isPausedRef.current = false
-      }
-      lastScrollTopRef.current = scrollTop
-    }
-
-    el.addEventListener('wheel', onWheel, { passive: true })
-    el.addEventListener('touchstart', onTouchStart, { passive: true })
-    el.addEventListener('touchmove', onTouchMove, { passive: true })
-    el.addEventListener('scroll', onScroll, { passive: true })
-    return () => {
-      el.removeEventListener('wheel', onWheel)
-      el.removeEventListener('touchstart', onTouchStart)
-      el.removeEventListener('touchmove', onTouchMove)
-      el.removeEventListener('scroll', onScroll)
-    }
-  }, [])
+  const { scrollRef, scrollToBottom, forceScrollToBottom } = useSmartScroll()
 
   useEffect(() => { scrollToBottom() }, [messages, scrollToBottom])
   useEffect(() => {
@@ -225,12 +180,16 @@ export function ChatWindow() {
     <div className="flex h-full flex-col">
       {isEmpty ? (
         /* ── 空状态：居中布局 ── */
-        <div className="flex flex-1 flex-col items-center justify-center px-4 md:px-8">
-          <div className="w-full max-w-2xl">
-            {/* 大标题 */}
-            <h1 className="text-center text-4xl font-bold tracking-tight mb-8">
-              Zoufx AI
-            </h1>
+        <div className="relative flex flex-1 flex-col items-center justify-center px-4 md:px-8">
+          <div className="w-full max-w-3xl -translate-y-6">
+            <div className="mb-8 text-left">
+              <p className="text-[1.9rem] font-medium tracking-tight text-foreground/88 md:text-[2.35rem]">
+                你好，
+              </p>
+              <h2 className="mt-1 text-4xl font-medium tracking-tight text-foreground md:text-6xl">
+                需要我为你做些什么？
+              </h2>
+            </div>
 
             {/* 输入框 */}
             <ChatInput
@@ -245,13 +204,13 @@ export function ChatWindow() {
             />
 
             {/* 建议 */}
-            <div className="flex flex-wrap justify-center gap-2 mt-5">
+            <div className="mt-6 flex flex-wrap gap-3">
               {SUGGESTIONS.map((s) => (
                 <button
                   key={s}
                   onClick={() => handleSuggestion(s)}
                   disabled={isLoading}
-                  className="rounded-full border border-border px-4 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:border-foreground/20 hover:bg-accent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="surface-line rounded-full bg-card px-4 py-2.5 text-sm text-foreground/72 transition-colors hover:bg-background disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {s}
                 </button>
@@ -259,15 +218,15 @@ export function ChatWindow() {
             </div>
           </div>
 
-          <p className="mt-auto pb-4 text-center text-[11px] text-muted-foreground/60">
+          <p className="mt-auto pb-5 text-center text-[11px] text-muted-foreground/60">
             AI 可能会犯错，请核实重要信息
           </p>
         </div>
       ) : (
         /* ── 对话状态 ── */
         <>
-          <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 md:px-8">
-            <div className="mx-auto max-w-3xl">
+          <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 pt-3 md:px-8 md:pt-4">
+            <div className="mx-auto max-w-4xl">
               {messages.map((msg, i) => (
                 <MessageItem
                   key={msg.id ?? i}
@@ -281,8 +240,8 @@ export function ChatWindow() {
           </div>
 
           {/* 底部输入 */}
-          <div className="px-4 py-3 md:px-8">
-            <div className="mx-auto max-w-3xl">
+          <div className="px-4 py-4 md:px-8">
+            <div className="mx-auto max-w-4xl">
               <ChatInput
                 input={input}
                 setInput={setInput}
