@@ -30,6 +30,7 @@ interface Store {
   addMessage: (sessionId: string, msg: Message) => void
   updateLastAssistantMessage: (sessionId: string, patch: Partial<Message>) => void
   removeLastMessage: (sessionId: string) => void
+  toggleThinking: (sessionId: string) => void
   setLoading: (v: boolean) => void
 }
 
@@ -131,6 +132,19 @@ export const useStore = create<Store>()(
           sessions: state.sessions.map((s) => {
             if (s.id !== sessionId) return s
             return { ...s, messages: s.messages.slice(0, -1) }
+          }),
+        }))
+      },
+
+      toggleThinking: (sessionId) => {
+        set((state) => ({
+          sessions: state.sessions.map((s) => {
+            if (s.id !== sessionId) return s
+            const msgs = [...s.messages]
+            const last = msgs[msgs.length - 1]
+            if (!last || last.role !== 'assistant') return s
+            msgs[msgs.length - 1] = { ...last, thinkingExpanded: !last.thinkingExpanded }
+            return { ...s, messages: msgs }
           }),
         }))
       },

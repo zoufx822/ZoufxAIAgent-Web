@@ -17,6 +17,7 @@ const TW_INTERVAL = 25
 export function StreamMarkdown({ content, isStreaming, onScrollNeeded }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const parserRef = useRef<ReturnType<typeof smd.parser> | null>(null)
+  const writtenLenRef = useRef(0)
   const [mounted, setMounted] = useState(false)
 
   // 打字机状态
@@ -76,44 +77,59 @@ export function StreamMarkdown({ content, isStreaming, onScrollNeeded }: Props) 
     }
   }, [content, isStreaming, mounted])
 
-  // 渲染 Markdown
+  // 初始化 parser（仅在 mounted 时创建一次）
   useEffect(() => {
     if (!mounted) return
-
     const el = containerRef.current
     if (!el) return
 
-    // 清除之前的内容
     el.innerHTML = ''
+    writtenLenRef.current = 0
+    const renderer = smd.default_renderer(el)
+    parserRef.current = smd.parser(renderer)
+
+    return () => {
+      parserRef.current = null
+    }
+  }, [mounted])
+
+  // 增量写入新字符到 parser
+  useEffect(() => {
+    if (!mounted) return
+    const p = parserRef.current
+    if (!p) return
+
+    const newChars = content.slice(writtenLenRef.current, displayedLen)
+    if (newChars) {
+      try {
+        smd.parser_write(p, newChars)
+      } catch (e) {
+        console.error('StreamMarkdown incremental write error:', e)
+      }
+      writtenLenRef.current = displayedLen
+    }
+  }, [displayedLen, content, mounted])
+
+  // 流结束时：结束 parser + 应用 Shiki
+  useEffect(() => {
+    if (!mounted || isStreaming) return
+    if (displayedLen < content.length) return
+
+    const p = parserRef.current
+    if (!p) return
 
     try {
-      // 每次创建新的解析器
-      const renderer = smd.default_renderer(el)
-      const p = smd.parser(renderer)
-      parserRef.current = p
-
-      // 写入当前显示的内容
-      const toRender = content.slice(0, displayedLen)
-      if (toRender) {
-        smd.parser_write(p, toRender)
-      }
-
-      // 如果流结束了，完成解析并应用 Shiki
-      if (!isStreaming) {
-        smd.parser_end(p)
-        // 延迟执行 Shiki
-        setTimeout(() => {
-          if (containerRef.current) {
-            applyShiki(containerRef.current)
-          }
-        }, 100)
-      }
-    } catch (e) {
-      console.error('StreamMarkdown render error:', e)
-      // 回退：直接显示文本
-      el.textContent = content.slice(0, displayedLen)
+      smd.parser_end(p)
+    } catch {
+      // parser 可能已结束
     }
-  }, [content, displayedLen, isStreaming, mounted])
+
+    requestAnimationFrame(() => {
+      if (containerRef.current) {
+        applyShiki(containerRef.current)
+      }
+    })
+  }, [isStreaming, displayedLen, content.length, mounted])
 
   // 滚动通知
   useEffect(() => {

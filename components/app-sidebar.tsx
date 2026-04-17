@@ -20,7 +20,7 @@ export function AppSidebar() {
   const { sessions, currentSessionId, isLoading, createSession, switchSession, deleteSession } = useStore()
 
   return (
-    <div className="flex h-full w-64 flex-col border-r border-border/60 bg-sidebar">
+    <div className="flex h-full w-64 flex-col border-r border-border bg-sidebar">
       {/* 标题 + 新建 */}
       <div className="flex items-center justify-between px-4 py-4">
         <span className="text-sm font-semibold text-foreground">会话列表</span>
@@ -36,7 +36,7 @@ export function AppSidebar() {
         </Tooltip>
       </div>
 
-      <Separator className="opacity-50" />
+      <Separator className="opacity-70" />
 
       {/* 会话列表 */}
       <ScrollArea className="flex-1 py-2">
@@ -47,7 +47,7 @@ export function AppSidebar() {
               className={cn(
                 'group flex items-center gap-2 rounded-lg px-2 py-2 cursor-pointer transition-colors',
                 session.id === currentSessionId
-                  ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                  ? 'bg-sidebar-accent text-sidebar-accent-foreground shadow-[inset_3px_0_0_var(--primary)]'
                   : 'hover:bg-sidebar-accent/50 text-sidebar-foreground'
               )}
               onClick={() => !isLoading && switchSession(session.id)}
@@ -84,9 +84,9 @@ export function AppSidebar() {
       </ScrollArea>
 
       {/* 底部 */}
-      <Separator className="opacity-50" />
+      <Separator className="opacity-70" />
       <div className="px-4 py-3">
-        <p className="text-[10px] text-muted-foreground/40 text-center">
+        <p className="text-[11px] text-muted-foreground/60 text-center">
           Zoufx AI · Powered by MiniMax
         </p>
       </div>

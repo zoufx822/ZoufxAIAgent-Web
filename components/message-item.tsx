@@ -23,7 +23,7 @@ export function MessageItem({ message, onToggleThinking, onScrollNeeded }: Props
       className={cn('flex w-full gap-3 py-4', isUser && 'justify-end')}
     >
       {!isUser && (
-        <div className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">
+        <div className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold shadow-sm">
           AI
         </div>
       )}
@@ -31,7 +31,7 @@ export function MessageItem({ message, onToggleThinking, onScrollNeeded }: Props
       <div className={cn('flex max-w-[80%] flex-col gap-2', isUser && 'items-end')}>
         {/* 用户消息气泡 */}
         {isUser && (
-          <div className="rounded-2xl rounded-tr-sm bg-primary px-4 py-2.5 text-primary-foreground text-sm leading-relaxed whitespace-pre-wrap">
+          <div className="rounded-2xl rounded-br-md bg-primary px-4 py-2.5 text-primary-foreground text-sm leading-relaxed whitespace-pre-wrap shadow-sm">
             {message.content}
           </div>
         )}
@@ -46,9 +46,9 @@ export function MessageItem({ message, onToggleThinking, onScrollNeeded }: Props
                   onClick={onToggleThinking}
                   className="flex w-full items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  <Brain className="h-3.5 w-3.5 shrink-0 text-violet-500" />
+                  <Brain className="h-3.5 w-3.5 shrink-0 text-primary" />
                   <span className="font-medium">思考过程</span>
-                  <span className="ml-auto text-muted-foreground/60">
+                  <span className="ml-auto text-muted-foreground/70">
                     {message.thinking.length} 字
                   </span>
                   {message.thinkingExpanded ? (
@@ -78,12 +78,12 @@ export function MessageItem({ message, onToggleThinking, onScrollNeeded }: Props
 
             {/* 等待首字节：弹跳加载点 */}
             {message.isStreaming && !message.content && !message.thinking && (
-              <div className="flex items-center gap-1 py-1">
+              <div className="flex items-center gap-1.5 py-2">
                 {[0, 1, 2].map((i) => (
                   <span
                     key={i}
-                    className="h-2 w-2 rounded-full bg-primary/40 animate-bounce"
-                    style={{ animationDelay: `${i * 0.15}s` }}
+                    className="h-1.5 w-1.5 rounded-full bg-primary/60 animate-pulse"
+                    style={{ animationDelay: `${i * 0.2}s`, animationDuration: '1.2s' }}
                   />
                 ))}
               </div>
