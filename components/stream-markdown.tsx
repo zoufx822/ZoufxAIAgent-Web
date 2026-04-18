@@ -11,8 +11,9 @@ interface Props {
   onScrollNeeded?: () => void
 }
 
-// 打字机速度：25ms/字符
-const TW_INTERVAL = 25
+// 打字机速度：16ms/帧，每帧推进 3 字符 ≈ 187 字符/秒
+const TW_INTERVAL = 16
+const TW_STEP = 3
 
 export function StreamMarkdown({ content, isStreaming, onScrollNeeded }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -65,7 +66,7 @@ export function StreamMarkdown({ content, isStreaming, onScrollNeeded }: Props) 
           }
           return prev
         }
-        return Math.min(prev + 1, currentFull.length)
+        return Math.min(prev + TW_STEP, currentFull.length)
       })
     }, TW_INTERVAL)
 
