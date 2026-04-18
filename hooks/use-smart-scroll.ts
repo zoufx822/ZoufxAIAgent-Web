@@ -1,83 +1,77 @@
 'use client'
 
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useRef } from 'react'
+
+const BOTTOM_THRESHOLD = 32
+const INTENT_WINDOW_MS = 300
 
 export function useSmartScroll() {
-  const scrollRef = useRef<HTMLDivElement>(null)
-
+  const elRef = useRef<HTMLDivElement | null>(null)
   const shouldAutoScrollRef = useRef(true)
-  const pendingScrollEventsRef = useRef(0)
-  const lastScrollTopRef = useRef(0)
-  const touchStartYRef = useRef(0)
-  const bottomThreshold = 24
+  const cleanupRef = useRef<(() => void) | null>(null)
+  const intentUntilRef = useRef(0)
 
-  const scrollToBottom = useCallback(() => {
-    const el = scrollRef.current
-    if (!el || !shouldAutoScrollRef.current) return
-    const before = el.scrollTop
-    el.scrollTop = el.scrollHeight
-    if (el.scrollTop !== before) pendingScrollEventsRef.current++
-  }, [])
+  // 用 callback ref：聊天容器是条件渲染，useEffect([]) 会在节点还不存在时
+  // early return，导致监听器永远挂不上——这才是"无法向上滚动"的根因。
+  const scrollRef = useCallback((node: HTMLDivElement | null) => {
+    cleanupRef.current?.()
+    cleanupRef.current = null
+    elRef.current = node
+    if (!node) return
 
-  const forceScrollToBottom = useCallback(() => {
-    const el = scrollRef.current
-    if (!el) return
-    shouldAutoScrollRef.current = true
-    const before = el.scrollTop
-    el.scrollTop = el.scrollHeight
-    if (el.scrollTop !== before) pendingScrollEventsRef.current++
-  }, [])
-
-  useEffect(() => {
-    const el = scrollRef.current
-    if (!el) return
-    lastScrollTopRef.current = el.scrollTop
-
+    // 用户明确向上：立即暂停自动跟随，必须同步抢在下一次 scrollToBottom 之前。
+    // 并开一个"意图窗口"：浏览器平滑滚动会连发一串小幅 scroll 事件，
+    // 若让 onScroll 立即按位置重置状态，单次滚轮会被误判为"仍在底部"而恢复跟随。
     const onWheel = (e: WheelEvent) => {
       if (e.deltaY < 0) {
         shouldAutoScrollRef.current = false
+        intentUntilRef.current = performance.now() + INTENT_WINDOW_MS
       }
     }
 
+    let touchStartY = 0
     const onTouchStart = (e: TouchEvent) => {
-      touchStartYRef.current = e.touches[0].clientY
+      touchStartY = e.touches[0].clientY
     }
-
     const onTouchMove = (e: TouchEvent) => {
-      if (e.touches[0].clientY > touchStartYRef.current) {
+      if (e.touches[0].clientY - touchStartY > 4) {
         shouldAutoScrollRef.current = false
+        intentUntilRef.current = performance.now() + INTENT_WINDOW_MS
       }
     }
 
+    // 意图窗口内不按位置重置；窗口外再根据"是否贴底"维护状态，
+    // 这样滚动条拖拽这种不走 wheel/touch 的路径也能正确处理。
     const onScroll = () => {
-      if (pendingScrollEventsRef.current > 0) {
-        pendingScrollEventsRef.current--
-        lastScrollTopRef.current = el.scrollTop
-        return
-      }
-
-      const { scrollTop, scrollHeight, clientHeight } = el
-      const dist = scrollHeight - scrollTop - clientHeight
-
-      if (dist <= bottomThreshold) {
-        shouldAutoScrollRef.current = true
-      } else if (scrollTop < lastScrollTopRef.current) {
-        shouldAutoScrollRef.current = false
-      }
-
-      lastScrollTopRef.current = scrollTop
+      if (performance.now() < intentUntilRef.current) return
+      const dist = node.scrollHeight - node.scrollTop - node.clientHeight
+      shouldAutoScrollRef.current = dist <= BOTTOM_THRESHOLD
     }
 
-    el.addEventListener('wheel', onWheel, { passive: true })
-    el.addEventListener('touchstart', onTouchStart, { passive: true })
-    el.addEventListener('touchmove', onTouchMove, { passive: true })
-    el.addEventListener('scroll', onScroll, { passive: true })
-    return () => {
-      el.removeEventListener('wheel', onWheel)
-      el.removeEventListener('touchstart', onTouchStart)
-      el.removeEventListener('touchmove', onTouchMove)
-      el.removeEventListener('scroll', onScroll)
+    node.addEventListener('wheel', onWheel, { passive: true })
+    node.addEventListener('touchstart', onTouchStart, { passive: true })
+    node.addEventListener('touchmove', onTouchMove, { passive: true })
+    node.addEventListener('scroll', onScroll, { passive: true })
+
+    cleanupRef.current = () => {
+      node.removeEventListener('wheel', onWheel)
+      node.removeEventListener('touchstart', onTouchStart)
+      node.removeEventListener('touchmove', onTouchMove)
+      node.removeEventListener('scroll', onScroll)
     }
+  }, [])
+
+  const scrollToBottom = useCallback(() => {
+    const el = elRef.current
+    if (!el || !shouldAutoScrollRef.current) return
+    el.scrollTop = el.scrollHeight
+  }, [])
+
+  const forceScrollToBottom = useCallback(() => {
+    const el = elRef.current
+    if (!el) return
+    shouldAutoScrollRef.current = true
+    el.scrollTop = el.scrollHeight
   }, [])
 
   return {
