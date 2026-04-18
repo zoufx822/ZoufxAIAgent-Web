@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import * as smd from 'streaming-markdown'
 import { codeToHtml } from 'shiki'
 import { cn } from '@/lib/utils'
