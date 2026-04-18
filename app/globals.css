@@ -135,19 +135,6 @@
   }
 }
 
-@keyframes blink {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0; }
-}
-
-/* 打字机阶段光标（block cursor，与原版一致） */
-.streaming-cursor::after {
-  content: '▌';
-  color: var(--primary);
-  animation: blink 1s step-end infinite;
-  margin-left: 1px;
-  font-size: 0.9em;
-}
 
 .prose-zoufx {
   --tw-prose-body: color-mix(in oklab, var(--foreground) 92%, white 8%);

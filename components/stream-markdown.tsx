@@ -150,10 +150,7 @@ export function StreamMarkdown({ content, isStreaming, onScrollNeeded }: Props) 
   return (
     <div
       ref={containerRef}
-      className={cn(
-        'prose prose-sm prose-zoufx dark:prose-invert max-w-none text-[15px] leading-7 text-foreground/92',
-        isStreaming && displayedLen < content.length && 'streaming-cursor'
-      )}
+      className="prose prose-sm prose-zoufx dark:prose-invert max-w-none text-[15px] leading-7 text-foreground/92"
     />
   )
 }
