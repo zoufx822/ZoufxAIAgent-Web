@@ -107,18 +107,35 @@ export function MessageItem({ message, onToggleThinking, onToggleToolCall, onScr
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.18, ease: 'easeOut' }}
-      className={cn('flex w-full gap-3 py-5', isUser && 'justify-end')}
+      className={cn('flex w-full gap-3 py-6.5', isUser && 'justify-end')}
+      style={{
+        marginBottom: '6px',
+      }}
     >
       {!isUser && (
-        <div className="mt-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-semibold text-primary">
-          AI
+        <div
+          className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-black text-white flex-shrink-0"
+          style={{
+            backgroundColor: 'var(--accent)',
+          }}
+        >
+          Z
         </div>
       )}
 
-      <div className={cn('flex max-w-[88%] flex-col gap-2.5', isUser && 'items-end')}>
+      <div className={cn('flex max-w-[72%] flex-col gap-2.5', isUser && 'items-end')}>
         {/* 用户消息气泡 */}
         {isUser && (
-          <div className="rounded-[1.6rem] rounded-br-md bg-foreground px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap text-background shadow-[0_12px_28px_oklch(0.25_0.01_256_/_0.14)]">
+          <div
+            className="rounded-[18px] rounded-br-[5px] px-4 py-2.5 text-sm leading-[1.85] whitespace-pre-wrap"
+            style={{
+              backgroundColor: 'var(--accent-s)',
+              borderColor: 'var(--accent-r)',
+              borderWidth: '1px',
+              color: 'var(--t1)',
+              letterSpacing: '-0.005em',
+            }}
+          >
             {message.content}
           </div>
         )}
