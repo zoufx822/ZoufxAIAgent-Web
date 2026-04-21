@@ -18,12 +18,7 @@ function parseSSE(buffer: string) {
     }
 
     if (dataLines.length > 0) {
-      let data = dataLines.join('\n')
-      const hasEscaped = data.includes('\\n')
-      const hasReal = data.includes('\n')
-      if (hasEscaped && !hasReal) {
-        data = data.replace(/(?<!\\)\\n/g, '\n')
-      }
+      const data = dataLines.join('\n')
       if (data !== '') items.push({ event, data })
     }
   }
