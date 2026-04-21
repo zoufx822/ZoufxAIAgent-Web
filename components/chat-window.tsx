@@ -143,7 +143,7 @@ function ChatInput({
 /* ── 主组件 ── */
 export function ChatWindow() {
   const { messages, isLoading, send, stop } = useChatStream()
-  const { currentSessionId, toggleThinking } = useStore()
+  const { currentSessionId, toggleThinking, toggleToolCallExpanded } = useStore()
 
   const [input, setInput] = useState('')
   const [thinkingEnabled, setThinkingEnabled] = useState(false)
@@ -232,6 +232,7 @@ export function ChatWindow() {
                   key={msg.id ?? i}
                   message={msg}
                   onToggleThinking={() => toggleThinking(currentSessionId)}
+                  onToggleToolCall={(toolCallId) => toggleToolCallExpanded(currentSessionId, toolCallId)}
                   onScrollNeeded={scrollToBottom}
                 />
               ))}

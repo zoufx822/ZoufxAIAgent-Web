@@ -31,6 +31,17 @@ function parseSSE(buffer: string) {
   return { items, remaining }
 }
 
+export interface ToolCallPayload {
+  tool: string
+  query: string
+}
+
+export interface ToolResultPayload {
+  tool: string
+  count: number
+  resultPreview: string
+}
+
 export interface StreamChatOptions {
   message: string
   sessionId: string
@@ -38,6 +49,8 @@ export interface StreamChatOptions {
   signal?: AbortSignal
   onThinking?: (chunk: string) => void
   onContent?: (chunk: string) => void
+  onToolCall?: (payload: ToolCallPayload) => void
+  onToolResult?: (payload: ToolResultPayload) => void
   onComplete?: () => void
   onError?: (err: Error) => void
 }
@@ -55,8 +68,31 @@ function parseErrorData(data: string): Error {
   }
 }
 
+function dispatchEvent(
+  event: string,
+  data: string,
+  opts: StreamChatOptions,
+): 'continue' | 'terminated' {
+  const { onThinking, onContent, onToolCall, onToolResult, onError } = opts
+  if (event === 'thinking') {
+    onThinking?.(data)
+  } else if (event === 'tool_call') {
+    try { onToolCall?.(JSON.parse(data) as ToolCallPayload) }
+    catch (e) { console.warn('tool_call parse failed', e, data) }
+  } else if (event === 'tool_result') {
+    try { onToolResult?.(JSON.parse(data) as ToolResultPayload) }
+    catch (e) { console.warn('tool_result parse failed', e, data) }
+  } else if (event === 'error') {
+    onError?.(parseErrorData(data))
+    return 'terminated'
+  } else {
+    onContent?.(data)
+  }
+  return 'continue'
+}
+
 export async function streamChat(opts: StreamChatOptions) {
-  const { message, sessionId, thinking, signal, onThinking, onContent, onComplete, onError } = opts
+  const { message, sessionId, thinking, signal, onComplete, onError } = opts
 
   try {
     const res = await fetch(API_URL, {
@@ -88,9 +124,7 @@ export async function streamChat(opts: StreamChatOptions) {
       const { items, remaining } = parseSSE(buffer)
       buffer = remaining
       for (const { event, data } of items) {
-        if (event === 'thinking') onThinking?.(data)
-        else if (event === 'error') { onError?.(parseErrorData(data)); return }
-        else onContent?.(data)
+        if (dispatchEvent(event, data, opts) === 'terminated') return
       }
     }
 
@@ -98,9 +132,7 @@ export async function streamChat(opts: StreamChatOptions) {
     if (buffer.trim() && /^(event:|data:)/m.test(buffer)) {
       const { items } = parseSSE(buffer + '\n\n')
       for (const { event, data } of items) {
-        if (event === 'thinking') onThinking?.(data)
-        else if (event === 'error') { onError?.(parseErrorData(data)); return }
-        else onContent?.(data)
+        if (dispatchEvent(event, data, opts) === 'terminated') return
       }
     }
 

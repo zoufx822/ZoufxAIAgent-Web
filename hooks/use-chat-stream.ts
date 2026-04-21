@@ -14,6 +14,9 @@ export function useChatStream() {
     updateLastAssistantMessage,
     removeLastMessage,
     updateSessionTitle,
+    appendToolCall,
+    updateLastRunningToolCall,
+    markRunningToolCallsFailed,
     setLoading,
   } = useStore()
 
@@ -37,6 +40,7 @@ export function useChatStream() {
         content: text,
         thinking: '',
         thinkingExpanded: false,
+        toolCalls: [],
         isStreaming: false,
       })
 
@@ -49,6 +53,7 @@ export function useChatStream() {
         content: '',
         thinking: '',
         thinkingExpanded: false,
+        toolCalls: [],
         isStreaming: true,
       })
 
@@ -89,13 +94,33 @@ export function useChatStream() {
           }))
         },
 
+        onToolCall: (payload) => {
+          appendToolCall(sessionId, {
+            id: crypto.randomUUID(),
+            tool: payload.tool,
+            query: payload.query,
+            status: 'running',
+            expanded: false,
+          })
+        },
+
+        onToolResult: (payload) => {
+          updateLastRunningToolCall(sessionId, {
+            status: 'completed',
+            count: payload.count,
+            resultPreview: payload.resultPreview,
+          })
+        },
+
         onComplete: () => {
+          markRunningToolCallsFailed(sessionId)
           updateLastAssistantMessage(sessionId, { isStreaming: false })
           setLoading(false)
           ctrlRef.current = null
         },
 
         onError: (err) => {
+          markRunningToolCallsFailed(sessionId)
           // 移除空占位消息，用 toast 显示错误
           removeLastMessage(sessionId)
           toast.error(err.message || '请求出错，请稍后重试')
@@ -104,16 +129,17 @@ export function useChatStream() {
         },
       })
     },
-    [currentSessionId, isLoading, addMessage, updateLastAssistantMessage, removeLastMessage, updateSessionTitle, setLoading]
+    [currentSessionId, isLoading, addMessage, updateLastAssistantMessage, removeLastMessage, updateSessionTitle, appendToolCall, updateLastRunningToolCall, markRunningToolCallsFailed, setLoading]
   )
 
   const stop = useCallback(() => {
     ctrlRef.current?.abort()
     ctrlRef.current = null
     const sessionId = currentSessionId
+    markRunningToolCallsFailed(sessionId)
     updateLastAssistantMessage(sessionId, { isStreaming: false })
     setLoading(false)
-  }, [currentSessionId, updateLastAssistantMessage, setLoading])
+  }, [currentSessionId, markRunningToolCallsFailed, updateLastAssistantMessage, setLoading])
 
   return { messages, isLoading, send, stop }
 }
