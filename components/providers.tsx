@@ -7,13 +7,12 @@ import { Toaster } from '@/components/ui/sonner'
 import { useStore } from '@/lib/store'
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  // 客户端挂载后从 localStorage 恢复会话数据
   useEffect(() => {
     useStore.persist.rehydrate()
   }, [])
 
   return (
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+    <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
       <TooltipProvider>
         {children}
         <Toaster position="top-right" richColors />
