@@ -76,10 +76,6 @@ function ChatInput({
       onFocus={() => setFocused(true)}
       onBlur={() => setFocused(false)}
     >
-      {isLoading && (
-        <div className="pointer-events-none absolute inset-0 rounded-[inherit] bg-muted/55" />
-      )}
-
       {/* 上层：textarea */}
       <Textarea
         ref={textareaRef}
@@ -89,19 +85,11 @@ function ChatInput({
         placeholder="尽管问..."
         disabled={isLoading}
         rows={1}
-        className={cn(
-          'relative z-10 min-h-[58px] max-h-[160px] resize-none border-0 bg-transparent px-6 pt-5 pb-2 text-base leading-relaxed shadow-none focus-visible:ring-0 placeholder:text-muted-foreground/58 disabled:bg-transparent disabled:opacity-100',
-          isLoading && 'opacity-60'
-        )}
+        className="relative z-10 min-h-[58px] max-h-[160px] resize-none border-0 bg-transparent px-6 pt-5 pb-2 text-base leading-relaxed shadow-none focus-visible:ring-0 placeholder:text-muted-foreground/58 disabled:bg-transparent disabled:opacity-100 disabled:cursor-default"
       />
 
       {/* 下层：工具栏 */}
-      <div
-        className={cn(
-          'relative z-10 flex items-center gap-2 px-5 pb-4',
-          isLoading && 'opacity-60'
-        )}
-      >
+      <div className="relative z-10 flex items-center gap-2 px-5 pb-4">
         <Tooltip>
           <TooltipTrigger
             className={cn(
