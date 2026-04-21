@@ -1,15 +1,14 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { useTheme } from 'next-themes'
-import { AppSidebar } from '@/components/app-sidebar'
-import { ChatWindow } from '@/components/chat-window'
-import { cn } from '@/lib/utils'
+import {useEffect, useRef, useState} from 'react'
+import {useTheme} from 'next-themes'
+import {AppSidebar} from '@/components/app-sidebar'
+import {ChatWindow} from '@/components/chat-window'
 
 export function AppLayout() {
   const [mounted, setMounted] = useState(false)
   const [sidebarMode, setSidebarMode] = useState<'full' | 'compact' | 'hidden'>('full')
-  const [manualOverride, setManualOverride] = useState<'full' | 'compact' | 'hidden' | null>(null)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const { theme, setTheme } = useTheme()
   const rootRef = useRef<HTMLDivElement>(null)
@@ -38,22 +37,21 @@ export function AppLayout() {
     return () => observer.disconnect()
   }, [])
 
-  // 自动模式改变时清除手动覆盖
-  useEffect(() => {
-    setManualOverride(null)
-  }, [sidebarMode])
+  // 确定最终的侧边栏模式（响应式自动调整 + 用户手动折叠）
+  const finalMode = (() => {
+    if (sidebarMode === 'hidden') return 'hidden'
+    if (sidebarCollapsed) return 'compact'
+    return sidebarMode
+  })()
 
-  const finalMode = manualOverride || sidebarMode
   const isCompact = finalMode === 'compact'
   const isHidden = finalMode === 'hidden'
 
   const toggleSidebar = () => {
     if (isHidden) {
       setMobileOpen(!mobileOpen)
-    } else if (finalMode === 'full') {
-      setManualOverride('compact')
     } else {
-      setManualOverride('full')
+      setSidebarCollapsed(!sidebarCollapsed)
     }
   }
 

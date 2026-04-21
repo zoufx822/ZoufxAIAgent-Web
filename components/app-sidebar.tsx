@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
-import { useStore } from '@/lib/store'
+import {useEffect, useRef, useState} from 'react'
+import {useStore} from '@/lib/store'
 
 function relativeTime(ts: number) {
   const diff = Math.floor((Date.now() - ts) / 1000)
@@ -176,17 +176,20 @@ export function AppSidebar({ compact = false, onToggleCompact }: AppSidebarProps
           borderColor: 'var(--border)',
         }}
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 min-w-0">
           <div
-            className="w-7 h-7 rounded-lg flex-shrink-0 flex items-center justify-center text-xs font-black text-white"
+            className="rounded-lg flex-shrink-0 flex items-center justify-center text-xs font-black text-white transition-all"
             style={{
               backgroundColor: 'var(--accent)',
+              width: compact ? '20px' : '28px',
+              height: compact ? '20px' : '28px',
+              fontSize: compact ? '9px' : '12px',
             }}
           >
             Z
           </div>
           {!compact && (
-            <span className="text-base font-semibold tracking-[-0.02em]" style={{ color: 'var(--t1)' }}>
+            <span className="text-base font-semibold tracking-[-0.02em] truncate" style={{ color: 'var(--t1)' }}>
               Zoufx
             </span>
           )}

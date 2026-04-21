@@ -1,14 +1,15 @@
 'use client'
 
-import { useRef, useEffect, useCallback, useState } from 'react'
-import { ArrowUp, Square, Sparkles } from 'lucide-react'
-import { Textarea } from '@/components/ui/textarea'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { MessageItem } from '@/components/message-item'
-import { useChatStream } from '@/hooks/use-chat-stream'
-import { useSmartScroll } from '@/hooks/use-smart-scroll'
-import { useStore } from '@/lib/store'
-import { cn } from '@/lib/utils'
+import {useCallback, useEffect, useRef, useState} from 'react'
+import {ArrowUp, Plus, Sparkles, Square} from 'lucide-react'
+import {Menu} from '@base-ui/react/menu'
+import {Textarea} from '@/components/ui/textarea'
+import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip'
+import {MessageItem} from '@/components/message-item'
+import {useChatStream} from '@/hooks/use-chat-stream'
+import {useSmartScroll} from '@/hooks/use-smart-scroll'
+import {useStore} from '@/lib/store'
+import {cn} from '@/lib/utils'
 
 const SUGGESTIONS = [
   '帮我梳理一个方案',
@@ -88,25 +89,69 @@ function ChatInput({
       />
 
       {/* 下层：工具栏 */}
-      <div className="relative z-10 flex items-center gap-2 px-5 pb-4">
-        <Tooltip>
-          <TooltipTrigger
-            className={cn(
-              'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs transition-all disabled:opacity-50',
-              thinkingEnabled
-                ? 'bg-primary/10 text-primary font-medium'
-                : 'text-muted-foreground hover:bg-accent/55 hover:text-foreground'
-            )}
-            onClick={() => setThinkingEnabled((v) => !v)}
-            disabled={isLoading}
-          >
-            <Sparkles className="size-3.5" strokeWidth={2} />
-            <span>思考</span>
-          </TooltipTrigger>
-          <TooltipContent side="top">
-            {thinkingEnabled ? '关闭思考模式' : '开启思考模式'}
-          </TooltipContent>
-        </Tooltip>
+      <div className="relative z-10 flex items-center gap-1.5 px-5 pb-4">
+        {/* + 菜单触发 */}
+        <Menu.Root>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Menu.Trigger
+                  disabled={isLoading}
+                  aria-label="更多选项"
+                  className="inline-flex size-8 items-center justify-center rounded-full text-muted-foreground transition-all hover:bg-accent/55 hover:text-foreground disabled:opacity-50 disabled:pointer-events-none"
+                />
+              }
+            >
+              <Plus className="size-4" strokeWidth={2} />
+            </TooltipTrigger>
+            <TooltipContent side="top">更多选项</TooltipContent>
+          </Tooltip>
+          <Menu.Portal>
+            <Menu.Positioner side="top" align="start" sideOffset={10} className="isolate z-50">
+              <Menu.Popup
+                className="min-w-[180px] rounded-xl border p-1.5 text-sm shadow-lg origin-(--transform-origin) data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95"
+                style={{
+                  backgroundColor: 'var(--surface)',
+                  borderColor: 'var(--border)',
+                }}
+              >
+                <Menu.Item
+                  onClick={() => setThinkingEnabled((v) => !v)}
+                  className={cn(
+                    'flex cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2 outline-none transition-colors',
+                    'data-[highlighted]:bg-accent/55',
+                    thinkingEnabled && 'text-primary'
+                  )}
+                >
+                  <Sparkles className="size-4" strokeWidth={2} />
+                  <span className="flex-1">思考一下</span>
+                  {thinkingEnabled && (
+                    <span className="size-1.5 rounded-full bg-primary" />
+                  )}
+                </Menu.Item>
+              </Menu.Popup>
+            </Menu.Positioner>
+          </Menu.Portal>
+        </Menu.Root>
+
+        {/* 已激活芯片：点击关闭 */}
+        {thinkingEnabled && (
+          <Tooltip>
+            <TooltipTrigger
+              className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-all hover:opacity-80 disabled:opacity-50"
+              style={{
+                color: 'var(--accent)',
+                backgroundColor: 'var(--accent-s)',
+              }}
+              onClick={() => setThinkingEnabled((v) => !v)}
+              disabled={isLoading}
+            >
+              <Sparkles className="size-3.5" strokeWidth={2} />
+              <span>思考</span>
+            </TooltipTrigger>
+            <TooltipContent side="top">点击关闭思考模式</TooltipContent>
+          </Tooltip>
+        )}
 
         <div className="flex-1" />
 
