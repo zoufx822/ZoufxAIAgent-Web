@@ -61,13 +61,20 @@ function ChatInput({
 
   const canSend = input.trim().length > 0
 
+  const [focused, setFocused] = useState(false)
+
   return (
     <div
-      className={cn(
-        'surface-line relative overflow-hidden rounded-[2rem] bg-card transition-colors focus-within:border-primary/25 focus-within:shadow-[0_18px_36px_oklch(0.25_0.01_256_/_0.08)]',
-        isLoading && 'bg-muted/80',
-        className
-      )}
+      className="transition-all duration-200"
+      style={{
+        backgroundColor: 'var(--surface)',
+        borderColor: focused ? 'var(--accent)' : 'var(--border)',
+        borderWidth: '1.5px',
+        borderRadius: '16px',
+        boxShadow: focused ? `0 0 0 4px var(--accent-s), var(--shadow-lg)` : 'var(--shadow)',
+      }}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
     >
       {isLoading && (
         <div className="pointer-events-none absolute inset-0 rounded-[inherit] bg-muted/55" />
@@ -180,37 +187,72 @@ export function ChatWindow() {
     <div className="flex h-full flex-col">
       {isEmpty ? (
         /* ── 空状态：居中布局 ── */
-        <div className="relative flex flex-1 flex-col items-center justify-center px-4 md:px-8">
-          <div className="w-full max-w-3xl -translate-y-6">
-            <div className="mb-8 text-left">
-              <p className="text-[1.9rem] font-medium tracking-tight text-foreground/88 md:text-[2.35rem]">
-                你好，
+        <div
+          className="relative flex flex-1 flex-col items-center justify-center px-12 py-24"
+          style={{ animation: 'up 0.3s ease both' }}
+        >
+          <div className="w-full max-w-2xl">
+            {/* 品牌名和副标题 */}
+            <div className="text-center mb-24">
+              <h1
+                className="font-bold mb-3.5 leading-none"
+                style={{
+                  fontSize: '64px',
+                  color: 'var(--accent)',
+                  letterSpacing: '-0.05em',
+                }}
+              >
+                Zoufx
+              </h1>
+              <p
+                className="text-base font-light leading-relaxed"
+                style={{
+                  color: 'var(--t2)',
+                  letterSpacing: '-0.01em',
+                }}
+              >
+                你好，需要我为你做些什么？
               </p>
-              <h2 className="mt-1 text-4xl font-medium tracking-tight text-foreground md:text-6xl">
-                需要我为你做些什么？
-              </h2>
             </div>
 
             {/* 输入框 */}
-            <ChatInput
-              input={input}
-              setInput={setInput}
-              isLoading={isLoading}
-              thinkingEnabled={thinkingEnabled}
-              setThinkingEnabled={setThinkingEnabled}
-              onSend={handleSend}
-              onStop={stop}
-              textareaRef={textareaRef}
-            />
+            <div className="mb-4">
+              <ChatInput
+                input={input}
+                setInput={setInput}
+                isLoading={isLoading}
+                thinkingEnabled={thinkingEnabled}
+                setThinkingEnabled={setThinkingEnabled}
+                onSend={handleSend}
+                onStop={stop}
+                textareaRef={textareaRef}
+              />
+            </div>
 
-            {/* 建议 */}
-            <div className="mt-6 flex flex-wrap gap-3">
+            {/* 建议 chips */}
+            <div className="flex flex-wrap justify-center gap-2">
               {SUGGESTIONS.map((s) => (
                 <button
                   key={s}
                   onClick={() => handleSuggestion(s)}
                   disabled={isLoading}
-                  className="surface-line rounded-full bg-card px-4 py-2.5 text-sm text-foreground/72 transition-colors hover:bg-background disabled:cursor-not-allowed disabled:opacity-50"
+                  className="px-4 py-1.5 rounded-full text-xs font-medium transition-all duration-150"
+                  style={{
+                    backgroundColor: 'var(--chip)',
+                    borderColor: 'var(--chip-brd)',
+                    borderWidth: '1px',
+                    color: 'var(--t2)',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--accent)'
+                    e.currentTarget.style.color = 'var(--accent)'
+                    e.currentTarget.style.backgroundColor = 'var(--accent-s)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--chip-brd)'
+                    e.currentTarget.style.color = 'var(--t2)'
+                    e.currentTarget.style.backgroundColor = 'var(--chip)'
+                  }}
                 >
                   {s}
                 </button>
@@ -218,9 +260,13 @@ export function ChatWindow() {
             </div>
           </div>
 
-          <p className="mt-auto pb-5 text-center text-[11px] text-muted-foreground/60">
-            AI 可能会犯错，请核实重要信息
-          </p>
+          {/* 免责文字 */}
+          <div
+            className="absolute bottom-5 text-xs"
+            style={{ color: 'var(--t3)' }}
+          >
+            AI 可能会出错，请核实重要信息
+          </div>
         </div>
       ) : (
         /* ── 对话状态 ── */
