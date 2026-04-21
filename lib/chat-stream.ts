@@ -116,21 +116,32 @@ export async function streamChat(opts: StreamChatOptions) {
     const reader = res.body!.getReader()
     const decoder = new TextDecoder()
     let buffer = ''
+    let lastEventTime = Date.now()
+    const STREAM_TIMEOUT = 60000 // 60 秒超时
 
     while (true) {
       const { done, value } = await reader.read()
       if (done) break
+
+      lastEventTime = Date.now()
       buffer += decoder.decode(value, { stream: true })
       const { items, remaining } = parseSSE(buffer)
       buffer = remaining
       for (const { event, data } of items) {
         if (dispatchEvent(event, data, opts) === 'terminated') return
       }
+
+      // 检查流超时（如果 30 秒没收到数据）
+      if (Date.now() - lastEventTime > 30000 && !done) {
+        throw new Error('流式输出超时，请稍后重试')
+      }
     }
 
-    // 处理末尾残留
-    if (buffer.trim() && /^(event:|data:)/m.test(buffer)) {
-      const { items } = parseSSE(buffer + '\n\n')
+    // 处理末尾残留数据
+    if (buffer.trim()) {
+      // 确保末尾有分隔符以正确解析最后一条消息
+      const normalized = buffer.endsWith('\n\n') ? buffer : buffer + '\n\n'
+      const { items } = parseSSE(normalized)
       for (const { event, data } of items) {
         if (dispatchEvent(event, data, opts) === 'terminated') return
       }
