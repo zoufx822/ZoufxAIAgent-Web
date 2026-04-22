@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import {useEffect, useRef, useState} from 'react'
 import * as smd from 'streaming-markdown'
-import { codeToHtml } from 'shiki'
-import { cn } from '@/lib/utils'
+import {codeToHtml} from 'shiki'
+import {cn} from '@/lib/utils'
 
 interface Props {
   content: string
@@ -147,9 +147,18 @@ export function StreamMarkdown({ content, isStreaming, onScrollNeeded }: Props) 
     )
   }
 
+  function handleClick(e: React.MouseEvent<HTMLDivElement>) {
+    const anchor = (e.target as HTMLElement).closest('a')
+    if (anchor?.href) {
+      e.preventDefault()
+      window.open(anchor.href, '_blank', 'noopener,noreferrer')
+    }
+  }
+
   return (
     <div
       ref={containerRef}
+      onClick={handleClick}
       className="prose prose-sm prose-zoufx dark:prose-invert max-w-none text-[15px] leading-7 text-foreground/92"
     />
   )

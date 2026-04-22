@@ -1,11 +1,11 @@
 'use client'
 
-import { useEffect } from 'react'
-import { motion, AnimatePresence } from 'motion/react'
-import { ChevronDown, ChevronRight, CheckCircle2, AlertTriangle, Loader2, Sparkles } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import type { Message, ToolCall } from '@/lib/store'
-import { StreamMarkdown } from './stream-markdown'
+import {useEffect} from 'react'
+import {AnimatePresence, motion} from 'motion/react'
+import {AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, Loader2, Sparkles} from 'lucide-react'
+import {cn} from '@/lib/utils'
+import type {Message, ToolCall} from '@/lib/store'
+import {StreamMarkdown} from '@/components/ui/stream-markdown'
 
 interface Props {
   message: Message
@@ -189,8 +189,8 @@ export function MessageItem({ message, onToggleThinking, onToggleToolCall, onScr
               />
             ))}
 
-            {/* 等待首字节：弹跳加载点 */}
-            {message.isStreaming && !message.content && !message.thinking && message.toolCalls.length === 0 && (
+            {/* 等待首字节：弹跳加载点（含工具执行后等待模型回复的间隙） */}
+            {message.isStreaming && !message.content && !message.thinking && message.toolCalls.every(tc => tc.status !== 'running') && (
               <div className="flex items-center gap-1.5 py-2">
                 {[0, 1, 2].map((i) => (
                   <span

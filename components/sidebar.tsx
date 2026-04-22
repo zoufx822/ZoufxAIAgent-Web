@@ -169,31 +169,31 @@ export function AppSidebar({ compact = false, onToggleCompact }: AppSidebarProps
     >
       {/* Header with logo */}
       <div
-        className="flex items-center gap-2 border-b flex-shrink-0 justify-between"
+        className={`flex items-center gap-2 border-b flex-shrink-0 ${compact ? 'justify-center' : 'justify-between'}`}
         style={{
           height: '58px',
           padding: compact ? '0 12px' : '0 16px 0 18px',
           borderColor: 'var(--border)',
         }}
       >
-        <div className="flex items-center gap-1.5 min-w-0">
-          <div
-            className="rounded-lg flex-shrink-0 flex items-center justify-center text-xs font-black text-white transition-all"
-            style={{
-              backgroundColor: 'var(--accent)',
-              width: compact ? '20px' : '28px',
-              height: compact ? '20px' : '28px',
-              fontSize: compact ? '9px' : '12px',
-            }}
-          >
-            Z
-          </div>
-          {!compact && (
+        {!compact && (
+          <div className="flex items-center gap-1.5 min-w-0">
+            <div
+              className="rounded-lg flex-shrink-0 flex items-center justify-center text-xs font-black text-white"
+              style={{
+                backgroundColor: 'var(--accent)',
+                width: '28px',
+                height: '28px',
+                fontSize: '12px',
+              }}
+            >
+              Z
+            </div>
             <span className="text-base font-semibold tracking-[-0.02em] truncate" style={{ color: 'var(--t1)' }}>
               Zoufx
             </span>
-          )}
-        </div>
+          </div>
+        )}
         <button
           onClick={onToggleCompact}
           className="p-1 rounded flex items-center justify-center flex-shrink-0 transition-colors"

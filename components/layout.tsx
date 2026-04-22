@@ -2,7 +2,7 @@
 
 import {useEffect, useRef, useState} from 'react'
 import {useTheme} from 'next-themes'
-import {AppSidebar} from '@/components/app-sidebar'
+import {AppSidebar} from '@/components/sidebar'
 import {ChatWindow} from '@/components/chat-window'
 
 export function AppLayout() {
