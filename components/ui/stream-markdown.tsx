@@ -11,9 +11,8 @@ interface Props {
   onScrollNeeded?: () => void
 }
 
-// 打字机速度：16ms/帧，每帧推进 3 字符 ≈ 187 字符/秒
-const TW_INTERVAL = 16
-const TW_STEP = 3
+// 目标打字速度（字符/秒），略慢于 LLM 输出速度以保持缓冲区非空
+const CHARS_PER_SEC = 60
 
 export function StreamMarkdown({ content, isStreaming, onScrollNeeded }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -21,64 +20,92 @@ export function StreamMarkdown({ content, isStreaming, onScrollNeeded }: Props) 
   const writtenLenRef = useRef(0)
   const [mounted, setMounted] = useState(false)
 
-  // 打字机状态
-  const [displayedLen, setDisplayedLen] = useState(0)
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const fullContentRef = useRef('')
-  const isStreamingRef = useRef(false)
+  // 历史消息（挂载时已非流式）直接从完整长度开始，跳过打字机路径
+  const [displayedLen, setDisplayedLenState] = useState(() => isStreaming ? 0 : content.length)
+  // ref 版本用于在 rAF 回调（非 React 渲染周期）中读取当前位置，避免闭包过期
+  const displayedLenRef = useRef(isStreaming ? 0 : content.length)
 
-  // 同步最新值
+  const setDisplayedLen = (v: number) => {
+    displayedLenRef.current = v
+    setDisplayedLenState(v)
+  }
+
+  const rafRef = useRef<number | null>(null)
+  const fullContentRef = useRef(content)
+  const isStreamingRef = useRef(isStreaming)
+  const lastTimeRef = useRef<number | null>(null)
+  const accumRef = useRef(0)
+
   fullContentRef.current = content
   isStreamingRef.current = isStreaming
 
-  // 客户端挂载后再初始化
   useEffect(() => {
     setMounted(true)
   }, [])
 
-  // 打字机效果
+  // 打字机：基于时间戳均速推进，副作用全部在 rAF 回调中，不进入 setState updater
   useEffect(() => {
     if (!mounted) return
 
-    // 流结束后，清除计时器并显示全部
     if (!isStreaming) {
-      if (timerRef.current) {
-        clearInterval(timerRef.current)
-        timerRef.current = null
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current)
+        rafRef.current = null
       }
       setDisplayedLen(content.length)
       return
     }
 
-    // 流式进行中
-    if (displayedLen >= content.length) return
+    if (displayedLenRef.current >= content.length) return
 
-    timerRef.current = setInterval(() => {
-      setDisplayedLen((prev) => {
-        const currentFull = fullContentRef.current
-        const currentStreaming = isStreamingRef.current
+    lastTimeRef.current = null
+    accumRef.current = 0
 
-        if (prev >= currentFull.length) {
-          if (!currentStreaming) {
-            clearInterval(timerRef.current!)
-            timerRef.current = null
-            return currentFull.length
-          }
-          return prev
-        }
-        return Math.min(prev + TW_STEP, currentFull.length)
-      })
-    }, TW_INTERVAL)
+    const tick: FrameRequestCallback = (timestamp) => {
+      const full = fullContentRef.current
+      const streaming = isStreamingRef.current
+      const prev = displayedLenRef.current
+
+      // 已追上当前内容末尾，等待新内容（effect 依赖 content 会自动重启）
+      if (prev >= full.length) {
+        rafRef.current = null
+        return
+      }
+
+      const elapsed = lastTimeRef.current !== null
+        ? Math.min(timestamp - lastTimeRef.current, 100)
+        : 16
+      lastTimeRef.current = timestamp
+      accumRef.current += (elapsed * CHARS_PER_SEC) / 1000
+      const charsToAdd = Math.floor(accumRef.current)
+
+      if (charsToAdd === 0) {
+        rafRef.current = requestAnimationFrame(tick)
+        return
+      }
+
+      accumRef.current -= charsToAdd
+      const next = Math.min(prev + charsToAdd, full.length)
+      setDisplayedLen(next)
+
+      if (next < full.length || streaming) {
+        rafRef.current = requestAnimationFrame(tick)
+      } else {
+        rafRef.current = null
+      }
+    }
+
+    rafRef.current = requestAnimationFrame(tick)
 
     return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current)
-        timerRef.current = null
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current)
+        rafRef.current = null
       }
     }
   }, [content, isStreaming, mounted])
 
-  // 初始化 parser（仅在 mounted 时创建一次）
+  // 初始化 parser
   useEffect(() => {
     if (!mounted) return
     const el = containerRef.current
@@ -105,13 +132,13 @@ export function StreamMarkdown({ content, isStreaming, onScrollNeeded }: Props) 
       try {
         smd.parser_write(p, newChars)
       } catch (e) {
-        console.error('StreamMarkdown incremental write error:', e)
+        console.error('StreamMarkdown write error:', e)
       }
       writtenLenRef.current = displayedLen
     }
   }, [displayedLen, content, mounted])
 
-  // 流结束时：结束 parser + 应用 Shiki
+  // 流结束：关闭 parser，应用 Shiki 代码高亮
   useEffect(() => {
     if (!mounted || isStreaming) return
     if (displayedLen < content.length) return
@@ -125,18 +152,18 @@ export function StreamMarkdown({ content, isStreaming, onScrollNeeded }: Props) 
       // parser 可能已结束
     }
 
+    let cancelled = false
     requestAnimationFrame(() => {
-      if (containerRef.current) {
+      if (!cancelled && containerRef.current) {
         applyShiki(containerRef.current)
       }
     })
+    return () => { cancelled = true }
   }, [isStreaming, displayedLen, content.length, mounted])
 
   // 滚动通知
   useEffect(() => {
-    if (displayedLen > 0) {
-      onScrollNeeded?.()
-    }
+    if (displayedLen > 0) onScrollNeeded?.()
   }, [displayedLen, onScrollNeeded])
 
   if (!mounted) {

@@ -9,6 +9,7 @@ import {StreamMarkdown} from '@/components/ui/stream-markdown'
 
 interface Props {
   message: Message
+  isNew?: boolean
   onToggleThinking: () => void
   onToggleToolCall?: (toolCallId: string) => void
   onScrollNeeded?: () => void
@@ -93,7 +94,7 @@ function ToolCallCard({
   )
 }
 
-export function MessageItem({ message, onToggleThinking, onToggleToolCall, onScrollNeeded }: Props) {
+export function MessageItem({ message, isNew = false, onToggleThinking, onToggleToolCall, onScrollNeeded }: Props) {
   const isUser = message.role === 'user'
 
   // 工具卡片数量或状态变化时触发滚动
@@ -104,9 +105,9 @@ export function MessageItem({ message, onToggleThinking, onToggleToolCall, onScr
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 6 }}
+      initial={isNew ? { opacity: 0, y: 6 } : { opacity: 1, y: 0 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.18, ease: 'easeOut' }}
+      transition={isNew ? { duration: 0.18, ease: 'easeOut' } : { duration: 0 }}
       className={cn('flex w-full gap-3 py-6.5', isUser && 'justify-end')}
       style={{
         marginBottom: '6px',

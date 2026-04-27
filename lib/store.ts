@@ -36,7 +36,7 @@ interface Store {
   createSession: () => void
   switchSession: (id: string) => void
   deleteSession: (id: string) => void
-  updateSessionTitle: (id: string, title: string) => void
+  updateSessionTitle: (id: string, title: string, force?: boolean) => void
 
   addMessage: (sessionId: string, msg: Message) => void
   updateLastAssistantMessage: (sessionId: string, patch: Partial<Message>) => void
@@ -112,10 +112,10 @@ export const useStore = create<Store>()(
         })
       },
 
-      updateSessionTitle: (id, title) => {
+      updateSessionTitle: (id, title, force = false) => {
         set((state) => ({
           sessions: state.sessions.map((s) =>
-            s.id === id && s.title === '新对话'
+            s.id === id && (force || s.title === '新对话')
               ? { ...s, title: title.slice(0, 20) }
               : s
           ),

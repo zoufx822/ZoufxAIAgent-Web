@@ -84,7 +84,7 @@ function ChatInput({
         onKeyDown={handleKeyDown}
         placeholder="尽管问..."
         rows={1}
-        className="relative z-10 min-h-[58px] max-h-[160px] resize-none border-0 bg-transparent px-6 pt-5 pb-2 text-base leading-relaxed shadow-none focus-visible:ring-0 placeholder:text-muted-foreground/58"
+        className="relative z-10 min-h-[58px] max-h-[160px] resize-none border-0 bg-transparent px-6 pt-5 pb-2 text-base leading-relaxed shadow-none focus-visible:ring-0 focus-visible:border-0 outline-none placeholder:text-muted-foreground/58"
       />
 
       {/* 下层：工具栏 */}
@@ -315,12 +315,13 @@ export function ChatWindow() {
       ) : (
         /* ── 对话状态 ── */
         <>
-          <div ref={scrollRef} className="flex-1 overflow-y-auto" style={{ padding: '36px 56px' }}>
+          <div ref={scrollRef} className="flex-1 overflow-y-auto" style={{ padding: '36px clamp(16px, 5vw, 56px)' }}>
             <div className="mx-auto" style={{ maxWidth: '720px' }}>
               {messages.map((msg, i) => (
                 <MessageItem
                   key={msg.id ?? i}
                   message={msg}
+                  isNew={i >= messages.length - 2}
                   onToggleThinking={() => toggleThinking(currentSessionId)}
                   onToggleToolCall={(toolCallId) => toggleToolCallExpanded(currentSessionId, toolCallId)}
                   onScrollNeeded={scrollToBottom}
@@ -331,7 +332,7 @@ export function ChatWindow() {
           </div>
 
           {/* 底部输入 */}
-          <div className="flex-shrink-0" style={{ padding: '0 56px 24px' }}>
+          <div className="flex-shrink-0" style={{ padding: '0 clamp(16px, 5vw, 56px) 24px' }}>
             <div className="mx-auto" style={{ maxWidth: '720px' }}>
               <ChatInput
                 input={input}

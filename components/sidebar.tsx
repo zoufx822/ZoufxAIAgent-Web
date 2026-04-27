@@ -2,6 +2,7 @@
 
 import {useEffect, useRef, useState} from 'react'
 import {useStore} from '@/lib/store'
+import type {Session} from '@/lib/store'
 
 function relativeTime(ts: number) {
   const diff = Math.floor((Date.now() - ts) / 1000)
@@ -12,7 +13,7 @@ function relativeTime(ts: number) {
 }
 
 interface SessionItemProps {
-  session: any
+  session: Session
   active: boolean
   compact: boolean
   onSelect: () => void
@@ -20,10 +21,16 @@ interface SessionItemProps {
 }
 
 function SessionItem({ session, active, compact, onSelect, onDelete }: SessionItemProps) {
+  const { updateSessionTitle } = useStore()
   const [hovered, setHovered] = useState(false)
   const [editing, setEditing] = useState(false)
   const [val, setVal] = useState(session.title)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // 当外部标题更新时（如发第一条消息自动命名），同步到编辑值
+  useEffect(() => {
+    if (!editing) setVal(session.title)
+  }, [session.title, editing])
 
   useEffect(() => {
     if (editing && inputRef.current) {
@@ -33,9 +40,10 @@ function SessionItem({ session, active, compact, onSelect, onDelete }: SessionIt
   }, [editing])
 
   const handleRename = () => {
-    const v = val.trim()
-    if (v) {
-      // Update session title in store if needed
+    const v = val.trim() || session.title
+    setVal(v)
+    if (v !== session.title) {
+      updateSessionTitle(session.id, v, true)
     }
     setEditing(false)
   }
@@ -176,26 +184,26 @@ export function AppSidebar({ compact = false, onToggleCompact }: AppSidebarProps
           borderColor: 'var(--border)',
         }}
       >
-        {!compact && (
-          <div className="flex items-center gap-1.5 min-w-0">
-            <div
-              className="rounded-lg flex-shrink-0 flex items-center justify-center text-xs font-bold"
-              style={{
-                backgroundColor: 'var(--t1)',
-                color: 'var(--bg)',
-                width: '28px',
-                height: '28px',
-                fontSize: '11px',
-                letterSpacing: '-0.02em',
-              }}
-            >
-              Z
-            </div>
+        <div className="flex items-center gap-1.5 min-w-0">
+          <div
+            className="rounded-lg flex-shrink-0 flex items-center justify-center text-xs font-bold"
+            style={{
+              backgroundColor: 'var(--t1)',
+              color: 'var(--bg)',
+              width: '28px',
+              height: '28px',
+              fontSize: '11px',
+              letterSpacing: '-0.02em',
+            }}
+          >
+            Z
+          </div>
+          {!compact && (
             <span className="text-base font-semibold tracking-[-0.02em] truncate" style={{ color: 'var(--t1)' }}>
               Zoufx
             </span>
-          </div>
-        )}
+          )}
+        </div>
         <button
           onClick={onToggleCompact}
           className="p-1 rounded flex items-center justify-center flex-shrink-0 transition-colors"
