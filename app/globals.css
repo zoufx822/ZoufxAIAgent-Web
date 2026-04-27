@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,200;9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
 
 @import "tailwindcss";
 @import "tw-animate-css";
@@ -54,100 +54,100 @@
 :root {
   /* Zoufx Design Tokens — Light Theme */
   --bg: #ffffff;
-  --sidebar: #fafafa;
+  --sidebar: #f9f9f9;
   --surface: #ffffff;
-  --surf-hov: #f3f4f3;
-  --border: #ebebeb;
-  --border-lt: #f2f2f2;
-  --t1: #111412;
-  --t2: #60666a;
-  --t3: #adb3b0;
-  --chip: #f4f5f4;
-  --chip-brd: #e4e6e4;
-  --accent: oklch(0.52 0.18 258);
-  --accent-s: oklch(0.52 0.18 258 / 0.10);
-  --accent-r: oklch(0.52 0.18 258 / 0.22);
-  --shadow: 0 2px 16px #0000000a;
-  --shadow-lg: 0 8px 32px #00000010;
+  --surf-hov: #f4f4f4;
+  --border: #e8e8e8;
+  --border-lt: #f0f0f0;
+  --t1: #0a0a0a;
+  --t2: #737373;
+  --t3: #c0c0c0;
+  --chip: #f4f4f4;
+  --chip-brd: #e4e4e4;
+  --accent: oklch(0.14 0.04 260);
+  --accent-s: oklch(0.14 0.04 260 / 0.06);
+  --accent-r: oklch(0.14 0.04 260 / 0.14);
+  --shadow: 0 1px 4px #00000008, 0 2px 12px #00000006;
+  --shadow-lg: 0 4px 24px #00000010, 0 1px 4px #00000008;
 
   /* Legacy colors for compatibility */
   --background: #ffffff;
-  --foreground: #111412;
+  --foreground: #0a0a0a;
   --card: #ffffff;
-  --card-foreground: #111412;
+  --card-foreground: #0a0a0a;
   --popover: #ffffff;
-  --popover-foreground: #111412;
-  --primary: oklch(0.52 0.18 258);
+  --popover-foreground: #0a0a0a;
+  --primary: oklch(0.14 0.04 260);
   --primary-foreground: #ffffff;
-  --secondary: #f4f5f4;
-  --secondary-foreground: #60666a;
-  --muted: #f4f5f4;
-  --muted-foreground: #60666a;
+  --secondary: #f4f4f4;
+  --secondary-foreground: #737373;
+  --muted: #f4f4f4;
+  --muted-foreground: #737373;
   --destructive: oklch(0.577 0.245 27.325);
   --input: #ffffff;
-  --ring: oklch(0.52 0.18 258 / 0.22);
+  --ring: oklch(0.14 0.04 260 / 0.14);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
   --radius: 0.375rem;
-  --sidebar-foreground: #111412;
-  --sidebar-primary: oklch(0.52 0.18 258);
+  --sidebar-foreground: #0a0a0a;
+  --sidebar-primary: oklch(0.14 0.04 260);
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #f3f4f3;
-  --sidebar-accent-foreground: #60666a;
-  --sidebar-border: #ebebeb;
-  --sidebar-ring: oklch(0.52 0.18 258 / 0.22);
+  --sidebar-accent: #f4f4f4;
+  --sidebar-accent-foreground: #737373;
+  --sidebar-border: #e8e8e8;
+  --sidebar-ring: oklch(0.14 0.04 260 / 0.14);
 }
 
 .dark {
   /* Zoufx Design Tokens — Dark Theme */
-  --bg: #0e0f0e;
-  --sidebar: #111311;
-  --surface: #181a18;
-  --surf-hov: #1f211f;
-  --border: #252725;
-  --border-lt: #1e201e;
-  --t1: #eef0ee;
-  --t2: #7a807a;
-  --t3: #454945;
-  --chip: #181a18;
-  --chip-brd: #2c2e2c;
-  --accent: oklch(0.70 0.17 258);
-  --accent-s: oklch(0.70 0.17 258 / 0.12);
-  --accent-r: oklch(0.70 0.17 258 / 0.25);
-  --shadow: 0 2px 16px #00000050;
-  --shadow-lg: 0 8px 32px #00000060;
+  --bg: #0c0c0c;
+  --sidebar: #0f0f0f;
+  --surface: #161616;
+  --surf-hov: #1e1e1e;
+  --border: #282828;
+  --border-lt: #1f1f1f;
+  --t1: #ededed;
+  --t2: #737373;
+  --t3: #3d3d3d;
+  --chip: #1a1a1a;
+  --chip-brd: #2a2a2a;
+  --accent: oklch(0.92 0.01 260);
+  --accent-s: oklch(0.92 0.01 260 / 0.08);
+  --accent-r: oklch(0.92 0.01 260 / 0.16);
+  --shadow: 0 1px 4px #00000040, 0 2px 12px #00000030;
+  --shadow-lg: 0 4px 24px #00000060, 0 1px 4px #00000040;
 
   /* Legacy colors for compatibility */
-  --background: #0e0f0e;
-  --foreground: #eef0ee;
-  --card: #181a18;
-  --card-foreground: #eef0ee;
-  --popover: #181a18;
-  --popover-foreground: #eef0ee;
-  --primary: oklch(0.70 0.17 258);
-  --primary-foreground: #000000;
-  --secondary: #1f211f;
-  --secondary-foreground: #7a807a;
-  --muted: #252725;
-  --muted-foreground: #7a807a;
+  --background: #0c0c0c;
+  --foreground: #ededed;
+  --card: #161616;
+  --card-foreground: #ededed;
+  --popover: #161616;
+  --popover-foreground: #ededed;
+  --primary: oklch(0.92 0.01 260);
+  --primary-foreground: #0c0c0c;
+  --secondary: #1e1e1e;
+  --secondary-foreground: #737373;
+  --muted: #282828;
+  --muted-foreground: #737373;
   --destructive: oklch(0.704 0.191 22.216);
-  --input: #181a18;
-  --ring: oklch(0.70 0.17 258 / 0.25);
+  --input: #161616;
+  --ring: oklch(0.92 0.01 260 / 0.16);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --sidebar-foreground: #eef0ee;
-  --sidebar-primary: oklch(0.70 0.17 258);
-  --sidebar-primary-foreground: #000000;
-  --sidebar-accent: #1f211f;
-  --sidebar-accent-foreground: #7a807a;
-  --sidebar-border: #252725;
-  --sidebar-ring: oklch(0.70 0.17 258 / 0.25);
+  --sidebar-foreground: #ededed;
+  --sidebar-primary: oklch(0.92 0.01 260);
+  --sidebar-primary-foreground: #0c0c0c;
+  --sidebar-accent: #1e1e1e;
+  --sidebar-accent-foreground: #737373;
+  --sidebar-border: #282828;
+  --sidebar-ring: oklch(0.92 0.01 260 / 0.16);
 }
 
 @layer base {
@@ -156,7 +156,7 @@
   }
   body {
     @apply bg-[color:var(--bg)] text-[color:var(--t1)];
-    font-family: 'DM Sans', 'Noto Sans SC', sans-serif;
+    font-family: 'Space Grotesk', 'Noto Sans SC', sans-serif;
     -webkit-font-smoothing: antialiased;
     transition: background-color 0.35s ease, color 0.35s ease;
     min-height: 100vh;

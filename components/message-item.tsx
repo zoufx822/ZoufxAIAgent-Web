@@ -114,9 +114,11 @@ export function MessageItem({ message, onToggleThinking, onToggleToolCall, onScr
     >
       {!isUser && (
         <div
-          className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-black text-white flex-shrink-0"
+          className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-bold flex-shrink-0"
           style={{
-            backgroundColor: 'var(--accent)',
+            backgroundColor: 'var(--t1)',
+            color: 'var(--bg)',
+            letterSpacing: '-0.02em',
           }}
         >
           Z
@@ -129,11 +131,11 @@ export function MessageItem({ message, onToggleThinking, onToggleToolCall, onScr
           <div
             className="rounded-[18px] rounded-br-[5px] px-4 py-2.5 text-sm leading-[1.85] whitespace-pre-wrap"
             style={{
-              backgroundColor: 'var(--accent-s)',
-              borderColor: 'var(--accent-r)',
+              backgroundColor: 'var(--surf-hov)',
+              borderColor: 'var(--border)',
               borderWidth: '1px',
               color: 'var(--t1)',
-              letterSpacing: '-0.005em',
+              letterSpacing: '-0.01em',
             }}
           >
             {message.content}
@@ -204,13 +206,11 @@ export function MessageItem({ message, onToggleThinking, onToggleToolCall, onScr
 
             {/* 消息正文 */}
             {message.content && (
-              <div className="px-5 py-4 md:px-6">
-                <StreamMarkdown
-                  content={message.content}
-                  isStreaming={message.isStreaming}
-                  onScrollNeeded={onScrollNeeded}
-                />
-              </div>
+              <StreamMarkdown
+                content={message.content}
+                isStreaming={message.isStreaming}
+                onScrollNeeded={onScrollNeeded}
+              />
             )}
           </>
         )}

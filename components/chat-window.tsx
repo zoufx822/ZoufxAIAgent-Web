@@ -69,10 +69,9 @@ function ChatInput({
       className="transition-all duration-200"
       style={{
         backgroundColor: 'var(--surface)',
-        borderColor: focused ? 'var(--accent)' : 'var(--border)',
-        borderWidth: '1.5px',
+        border: `1px solid ${focused ? 'var(--t1)' : 'var(--border)'}`,
         borderRadius: '16px',
-        boxShadow: focused ? `0 0 0 4px var(--accent-s), var(--shadow-lg)` : 'var(--shadow)',
+        boxShadow: focused ? 'none' : 'var(--shadow)',
       }}
       onFocus={() => setFocused(true)}
       onBlur={() => setFocused(false)}
@@ -158,20 +157,27 @@ function ChatInput({
         {/* 发送 / 停止 */}
         <button
           className={cn(
-            'mb-0.5 mr-0.5 inline-flex size-10 items-center justify-center rounded-full transition-all',
+            'inline-flex items-center justify-center rounded-full transition-all',
             isLoading
-              ? 'bg-foreground text-background hover:opacity-80'
+              ? 'hover:opacity-80'
               : canSend
-                ? 'bg-foreground text-background shadow-[0_10px_24px_oklch(0.25_0.01_256_/_0.16)] hover:opacity-90'
-                : 'bg-muted text-muted-foreground cursor-not-allowed'
+                ? 'hover:opacity-90'
+                : 'cursor-not-allowed'
           )}
+          style={{
+            width: '30px',
+            height: '30px',
+            background: isLoading ? 'var(--t1)' : canSend ? 'var(--accent)' : 'var(--border)',
+            boxShadow: canSend && !isLoading ? '0 2px 8px var(--accent-s)' : 'none',
+            flexShrink: 0,
+          }}
           onClick={isLoading ? onStop : onSend}
           disabled={!isLoading && !canSend}
         >
           {isLoading ? (
-            <Square className="size-3.5 fill-current" />
+            <Square className="size-3 fill-current" style={{ color: 'var(--bg)' }} />
           ) : (
-            <ArrowUp className="size-4" strokeWidth={2.5} />
+            <ArrowUp className="size-3.5" strokeWidth={2.5} style={{ color: canSend ? 'var(--bg)' : 'var(--t3)' }} />
           )}
         </button>
       </div>
@@ -225,22 +231,25 @@ export function ChatWindow() {
         >
           <div className="w-full max-w-2xl">
             {/* 品牌名和副标题 */}
-            <div className="text-center mb-24">
+            <div className="text-center mb-11">
               <h1
-                className="font-bold mb-3.5 leading-none"
+                className="mb-3 leading-none"
                 style={{
-                  fontSize: '64px',
-                  color: 'var(--accent)',
-                  letterSpacing: '-0.05em',
+                  fontSize: '52px',
+                  fontWeight: 600,
+                  color: 'var(--t1)',
+                  letterSpacing: '-0.04em',
                 }}
               >
                 Zoufx
               </h1>
               <p
-                className="text-base font-light leading-relaxed"
                 style={{
-                  color: 'var(--t2)',
+                  fontSize: '15px',
+                  fontWeight: 400,
+                  color: 'var(--t3)',
                   letterSpacing: '-0.01em',
+                  lineHeight: 1.5,
                 }}
               >
                 你好，需要我为你做些什么？
@@ -262,28 +271,31 @@ export function ChatWindow() {
             </div>
 
             {/* 建议 chips */}
-            <div className="flex flex-wrap justify-center gap-2">
+            <div className="flex flex-wrap justify-center gap-1.5">
               {SUGGESTIONS.map((s) => (
                 <button
                   key={s}
                   onClick={() => handleSuggestion(s)}
                   disabled={isLoading}
-                  className="px-4 py-1.5 rounded-full text-xs font-medium transition-all duration-150"
+                  className="rounded-full transition-colors duration-150"
                   style={{
-                    backgroundColor: 'var(--chip)',
-                    borderColor: 'var(--chip-brd)',
-                    borderWidth: '1px',
+                    background: 'transparent',
+                    border: '1px solid var(--border)',
+                    borderRadius: '100px',
+                    padding: '6px 15px',
+                    fontSize: '12px',
                     color: 'var(--t2)',
+                    fontFamily: 'inherit',
+                    cursor: 'pointer',
+                    letterSpacing: '-0.01em',
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--accent)'
-                    e.currentTarget.style.color = 'var(--accent)'
-                    e.currentTarget.style.backgroundColor = 'var(--accent-s)'
+                    e.currentTarget.style.borderColor = 'var(--t1)'
+                    e.currentTarget.style.color = 'var(--t1)'
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--chip-brd)'
+                    e.currentTarget.style.borderColor = 'var(--border)'
                     e.currentTarget.style.color = 'var(--t2)'
-                    e.currentTarget.style.backgroundColor = 'var(--chip)'
                   }}
                 >
                   {s}
@@ -303,8 +315,8 @@ export function ChatWindow() {
       ) : (
         /* ── 对话状态 ── */
         <>
-          <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 pt-3 md:px-8 md:pt-4">
-            <div className="mx-auto max-w-4xl">
+          <div ref={scrollRef} className="flex-1 overflow-y-auto" style={{ padding: '36px 56px' }}>
+            <div className="mx-auto" style={{ maxWidth: '720px' }}>
               {messages.map((msg, i) => (
                 <MessageItem
                   key={msg.id ?? i}
@@ -319,8 +331,8 @@ export function ChatWindow() {
           </div>
 
           {/* 底部输入 */}
-          <div className="px-4 py-4 md:px-8">
-            <div className="mx-auto max-w-4xl">
+          <div className="flex-shrink-0" style={{ padding: '0 56px 24px' }}>
+            <div className="mx-auto" style={{ maxWidth: '720px' }}>
               <ChatInput
                 input={input}
                 setInput={setInput}
@@ -331,9 +343,6 @@ export function ChatWindow() {
                 onStop={stop}
                 textareaRef={textareaRef}
               />
-              <p className="mt-2 text-center text-[11px] text-muted-foreground/60">
-                AI 可能会犯错，请核实重要信息
-              </p>
             </div>
           </div>
         </>

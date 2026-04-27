@@ -87,7 +87,7 @@ function SessionItem({ session, active, compact, onSelect, onDelete }: SessionIt
             className="w-full bg-transparent border-none outline-none text-xs"
             style={{
               color: 'var(--t1)',
-              fontFamily: 'DM Sans, Noto Sans SC, sans-serif',
+              fontFamily: 'Space Grotesk, Noto Sans SC, sans-serif',
             }}
             value={val}
             onChange={(e) => setVal(e.target.value)}
@@ -179,12 +179,14 @@ export function AppSidebar({ compact = false, onToggleCompact }: AppSidebarProps
         {!compact && (
           <div className="flex items-center gap-1.5 min-w-0">
             <div
-              className="rounded-lg flex-shrink-0 flex items-center justify-center text-xs font-black text-white"
+              className="rounded-lg flex-shrink-0 flex items-center justify-center text-xs font-bold"
               style={{
-                backgroundColor: 'var(--accent)',
+                backgroundColor: 'var(--t1)',
+                color: 'var(--bg)',
                 width: '28px',
                 height: '28px',
-                fontSize: '12px',
+                fontSize: '11px',
+                letterSpacing: '-0.02em',
               }}
             >
               Z
