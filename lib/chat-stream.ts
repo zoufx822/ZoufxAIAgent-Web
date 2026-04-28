@@ -92,7 +92,7 @@ export async function streamChat(opts: StreamChatOptions) {
   try {
     const res = await fetch(API_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
       body: JSON.stringify({ prompt: message, sessionId, thinking }),
       signal,
     })
