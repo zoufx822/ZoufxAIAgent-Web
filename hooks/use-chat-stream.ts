@@ -7,6 +7,7 @@ import { streamChat } from '@/lib/chat-stream'
 
 export function useChatStream() {
   const {
+    userId,
     sessions,
     currentSessionId,
     isLoading,
@@ -59,7 +60,7 @@ export function useChatStream() {
 
       await streamChat({
         message: text,
-        sessionId,
+        userId,
         thinking,
         signal: ctrlRef.current.signal,
 
@@ -129,7 +130,7 @@ export function useChatStream() {
         },
       })
     },
-    [currentSessionId, isLoading, addMessage, updateLastAssistantMessage, removeLastMessage, updateSessionTitle, appendToolCall, updateLastRunningToolCall, markRunningToolCallsFailed, setLoading]
+    [userId, currentSessionId, isLoading, addMessage, updateLastAssistantMessage, removeLastMessage, updateSessionTitle, appendToolCall, updateLastRunningToolCall, markRunningToolCallsFailed, setLoading]
   )
 
   const stop = useCallback(() => {

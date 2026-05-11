@@ -29,6 +29,8 @@ export interface Session {
 }
 
 interface Store {
+  /** 后端记忆分区键。所有聊天共享同一记忆池，与 sidebar 的 sessions 解耦。 */
+  userId: string
   sessions: Session[]
   currentSessionId: string
   isLoading: boolean
@@ -79,6 +81,7 @@ const initialSession = makeSession()
 export const useStore = create<Store>()(
   persist(
     (set, get) => ({
+      userId: '',
       sessions: [initialSession],
       currentSessionId: initialSession.id,
       isLoading: false,
@@ -234,14 +237,27 @@ export const useStore = create<Store>()(
     }),
     {
       name: 'zoufx-chat-sessions',
+      version: 2,
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
+        userId: state.userId,
         sessions: state.sessions,
         currentSessionId: state.currentSessionId,
       }),
+      // v1 → v2：补 userId 字段（首次进入时生成 UUID）
+      migrate: (persistedState: any) => {
+        if (persistedState && !persistedState.userId) {
+          persistedState.userId = crypto.randomUUID()
+        }
+        return persistedState
+      },
       skipHydration: true,
       onRehydrateStorage: () => (state) => {
         if (!state) return
+        // 全新用户（无持久化数据，初始 state.userId 为空）→ 生成 UUID
+        if (!state.userId) {
+          state.userId = crypto.randomUUID()
+        }
         // 修复因标签页关闭导致的 isStreaming: true 残留；兼容旧数据补 toolCalls
         state.sessions = state.sessions.map((s) => ({
           ...s,

@@ -39,7 +39,8 @@ export interface ToolResultPayload {
 
 export interface StreamChatOptions {
   message: string
-  sessionId: string
+  /** 后端记忆分区键。所有聊天共享同一记忆池，sidebar 的 sessionId 仅作 UI 分组不再发送。 */
+  userId: string
   thinking: boolean
   signal?: AbortSignal
   onThinking?: (chunk: string) => void
@@ -87,13 +88,13 @@ function dispatchEvent(
 }
 
 export async function streamChat(opts: StreamChatOptions) {
-  const { message, sessionId, thinking, signal, onComplete, onError } = opts
+  const { message, userId, thinking, signal, onComplete, onError } = opts
 
   try {
     const res = await fetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
-      body: JSON.stringify({ prompt: message, sessionId, thinking }),
+      body: JSON.stringify({ prompt: message, userId, thinking }),
       signal,
     })
 
