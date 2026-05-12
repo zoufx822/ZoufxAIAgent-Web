@@ -64,6 +64,26 @@ function parseErrorData(data: string): Error {
   }
 }
 
+/**
+ * 从非 2xx 响应里尝试提取后端的友好 message。
+ *
+ * 后端 GlobalExceptionHandler 返回 {error, message, timestamp} 形态的 JSON。
+ * 由于 controller 在 produces=text/event-stream 下，部分 4xx 响应可能仍被 SSE 包装
+ * （historical: 后端 v0 修复前的状态），所以同时兼容裸 JSON 和 SSE 包装两种格式。
+ */
+async function readBackendErrorMessage(res: Response): Promise<string | null> {
+  try {
+    const text = await res.text()
+    if (!text) return null
+    // 兼容 SSE 包装：从 "data:{...}" 中剥离前缀
+    const jsonPart = text.startsWith('data:') ? text.slice(5).trim() : text.trim()
+    const obj = JSON.parse(jsonPart)
+    return obj?.message ?? obj?.error?.message ?? null
+  } catch {
+    return null
+  }
+}
+
 function dispatchEvent(
   event: string,
   data: string,
@@ -99,6 +119,11 @@ export async function streamChat(opts: StreamChatOptions) {
     })
 
     if (!res.ok) {
+      // 优先读后端返回的 JSON message（如 GlobalExceptionHandler 的 VALIDATION_FAILED），
+      // 失败时回退到按 status code 的兜底文案
+      const backendMsg = await readBackendErrorMessage(res)
+      if (backendMsg) throw new Error(backendMsg)
+
       const statusMap: Record<number, string> = {
         401: '认证失败，请刷新页面重试',
         403: '认证失败，请刷新页面重试',
