@@ -2,7 +2,7 @@
 
 import {useEffect} from 'react'
 import {AnimatePresence, motion} from 'motion/react'
-import {AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, Loader2, Sparkles} from 'lucide-react'
+import {ChevronDown, ChevronRight} from 'lucide-react'
 import {cn} from '@/lib/utils'
 import type {Message, ToolCall} from '@/lib/store'
 import {StreamMarkdown} from '@/components/ui/stream-markdown'
@@ -15,6 +15,87 @@ interface Props {
   onScrollNeeded?: () => void
 }
 
+/**
+ * Thinking 块：mono 字体 + 左侧 1px 细线 + 整体 char-in 渐入。
+ * 视觉气质：像代码块的注释，让人停下来阅读。
+ */
+function ThinkingBlock({
+  thinking,
+  expanded,
+  onToggle,
+}: {
+  thinking: string
+  expanded: boolean
+  onToggle: () => void
+}) {
+  return (
+    <div
+      style={{
+        borderLeft: '1px solid var(--border)',
+        paddingLeft: 14,
+      }}
+    >
+      <button
+        onClick={onToggle}
+        className="mono flex w-full items-center gap-2 transition-colors"
+        style={{
+          background: 'transparent',
+          border: 'none',
+          padding: 0,
+          fontSize: 10,
+          letterSpacing: '0.16em',
+          textTransform: 'uppercase',
+          color: 'var(--t3)',
+          cursor: 'pointer',
+          marginBottom: 6,
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--t2)' }}
+        onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--t3)' }}
+      >
+        {expanded ? (
+          <ChevronDown className="h-3 w-3" strokeWidth={1.8} />
+        ) : (
+          <ChevronRight className="h-3 w-3" strokeWidth={1.8} />
+        )}
+        <span>thinking</span>
+        <span style={{color: 'var(--t3)', opacity: 0.6}}>·</span>
+        <span style={{fontFeatureSettings: '"tnum"'}}>{thinking.length}</span>
+      </button>
+      <AnimatePresence initial={false}>
+        {expanded && (
+          <motion.div
+            key="thinking-body"
+            initial={{height: 0, opacity: 0}}
+            animate={{height: 'auto', opacity: 1}}
+            exit={{height: 0, opacity: 0}}
+            transition={{duration: 0.2, ease: 'easeInOut'}}
+            style={{overflow: 'hidden'}}
+          >
+            <div
+              className="mono think-char whitespace-pre-wrap"
+              style={{
+                fontSize: 12.5,
+                lineHeight: 1.7,
+                color: 'var(--t2)',
+                letterSpacing: '0.005em',
+                paddingTop: 4,
+              }}
+            >
+              {thinking}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+/**
+ * Tool call 卡片：精密仪器感。
+ * - Header: mono 字体 [tool] · status · meta
+ * - Running 时底部 1px tool-runbar 横向脉动
+ * - Completed 状态可折叠 resultPreview
+ */
 function ToolCallCard({
   toolCall,
   onToggle,
@@ -22,69 +103,94 @@ function ToolCallCard({
   toolCall: ToolCall
   onToggle?: () => void
 }) {
-  const { status, tool, query, count, resultPreview, expanded } = toolCall
-  const displayTool = tool === 'search_web' ? '网络检索' : tool
+  const {status, tool, query, count, resultPreview, expanded} = toolCall
+  const displayTool = tool === 'search_web' ? 'search_web' : tool
   const canExpand = status === 'completed' && !!resultPreview
 
-  if (status === 'running') {
-    return (
-      <div className="surface-line flex w-full items-center gap-2 rounded-[1.25rem] bg-primary/10 px-4 py-3 text-xs text-primary">
-        <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" strokeWidth={2} />
-        <span className="font-medium">{displayTool}</span>
-        <span className="text-primary/70">·</span>
-        <span className="truncate text-primary/80">正在搜索：{query || '…'}</span>
-      </div>
-    )
-  }
+  const statusLabel =
+    status === 'running' ? 'running' : status === 'failed' ? 'failed' : 'done'
+  const statusColor =
+    status === 'running' ? 'var(--t1)' : status === 'failed' ? '#dc2626' : 'var(--t2)'
 
-  if (status === 'failed') {
-    return (
-      <div className="surface-line flex w-full items-center gap-2 rounded-[1.25rem] bg-destructive/10 px-4 py-3 text-xs text-destructive">
-        <AlertTriangle className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
-        <span className="font-medium">{displayTool}</span>
-        <span className="text-destructive/70">·</span>
-        <span className="truncate">搜索被中断：{query || '（无关键词）'}</span>
-      </div>
-    )
-  }
+  const meta = (() => {
+    if (status === 'running') return query ? `query=${query}` : 'pending…'
+    if (status === 'failed') return query ? `query=${query} · aborted` : 'aborted'
+    return `${count ?? 0} results${query ? ` · query=${query}` : ''}`
+  })()
 
   return (
-    <div className="surface-line w-full overflow-hidden rounded-[1.25rem] bg-card">
+    <div
+      style={{
+        background: 'var(--surface)',
+        border: '1px solid var(--border)',
+        borderRadius: 8,
+        overflow: 'hidden',
+      }}
+    >
       <button
         onClick={canExpand ? onToggle : undefined}
         disabled={!canExpand}
-        className={cn(
-          'flex w-full items-center gap-2 px-4 py-3 text-xs text-muted-foreground transition-colors',
-          canExpand && 'hover:text-foreground'
-        )}
+        className="mono flex w-full items-center"
+        style={{
+          background: 'transparent',
+          border: 'none',
+          padding: '8px 12px',
+          gap: 10,
+          fontSize: 11,
+          letterSpacing: '0.02em',
+          color: 'var(--t2)',
+          cursor: canExpand ? 'pointer' : 'default',
+          textAlign: 'left',
+        }}
       >
-        <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-primary" strokeWidth={2} />
-        <span className="font-medium text-foreground/85">{displayTool}</span>
-        <span className="text-muted-foreground/70">·</span>
-        <span className="truncate">
-          已检索 {count ?? 0} 条{query && `：${query}`}
+        <span
+          style={{
+            width: 6,
+            height: 6,
+            borderRadius: '50%',
+            background: statusColor,
+            flexShrink: 0,
+            ...(status === 'running' ? {animation: 'pulse-dot 1.4s ease infinite'} : {}),
+          }}
+        />
+        <span style={{color: 'var(--t1)', fontWeight: 500}}>{displayTool}</span>
+        <span style={{color: 'var(--t3)'}}>·</span>
+        <span style={{color: statusColor}}>{statusLabel}</span>
+        <span style={{color: 'var(--t3)'}}>·</span>
+        <span style={{flex: 1, color: 'var(--t3)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>
+          {meta}
         </span>
         {canExpand && (
-          <span className="ml-auto">
-            {expanded ? (
-              <ChevronDown className="h-3.5 w-3.5" />
-            ) : (
-              <ChevronRight className="h-3.5 w-3.5" />
-            )}
+          <span style={{color: 'var(--t3)', flexShrink: 0}}>
+            {expanded ? <ChevronDown className="h-3 w-3" strokeWidth={1.8} /> : <ChevronRight className="h-3 w-3" strokeWidth={1.8} />}
           </span>
         )}
       </button>
+
+      {/* Running 时的脉动 runbar */}
+      {status === 'running' && <div className="tool-runbar" />}
+
+      {/* 完成态可折叠 result preview */}
       <AnimatePresence initial={false}>
         {canExpand && expanded && (
           <motion.div
-            key="tool-result-preview"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2, ease: 'easeInOut' }}
-            className="overflow-hidden"
+            key="tool-result"
+            initial={{height: 0, opacity: 0}}
+            animate={{height: 'auto', opacity: 1}}
+            exit={{height: 0, opacity: 0}}
+            transition={{duration: 0.2, ease: 'easeInOut'}}
+            style={{overflow: 'hidden'}}
           >
-            <div className="border-t border-border/50 px-4 pb-4 pt-3 text-xs leading-relaxed whitespace-pre-wrap text-muted-foreground">
+            <div
+              className="mono whitespace-pre-wrap"
+              style={{
+                borderTop: '1px solid var(--border)',
+                padding: '10px 12px',
+                fontSize: 11.5,
+                lineHeight: 1.65,
+                color: 'var(--t2)',
+              }}
+            >
               {resultPreview}
             </div>
           </motion.div>
@@ -94,7 +200,7 @@ function ToolCallCard({
   )
 }
 
-export function MessageItem({ message, isNew = false, onToggleThinking, onToggleToolCall, onScrollNeeded }: Props) {
+export function MessageItem({message, isNew = false, onToggleThinking, onToggleToolCall, onScrollNeeded}: Props) {
   const isUser = message.role === 'user'
 
   // 工具卡片数量或状态变化时触发滚动
@@ -105,11 +211,11 @@ export function MessageItem({ message, isNew = false, onToggleThinking, onToggle
 
   return (
     <motion.div
-      initial={isNew ? { opacity: 0, y: 6 } : { opacity: 1, y: 0 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={isNew ? { duration: 0.18, ease: 'easeOut' } : { duration: 0 }}
+      initial={isNew ? {opacity: 0, y: 6} : {opacity: 1, y: 0}}
+      animate={{opacity: 1, y: 0}}
+      transition={isNew ? {duration: 0.18, ease: 'easeOut'} : {duration: 0}}
       className={cn('flex w-full gap-3', isUser && 'justify-end')}
-      style={{ marginBottom: '26px' }}
+      style={{marginBottom: '26px'}}
     >
       {!isUser && (
         <div
@@ -127,7 +233,7 @@ export function MessageItem({ message, isNew = false, onToggleThinking, onToggle
       )}
 
       <div className={cn('flex max-w-[72%] flex-col gap-2.5', isUser && 'items-end')}>
-        {/* 用户消息气泡：accent-s 背景 + accent-r 边框 + 18/18/5/18 圆角 */}
+        {/* 用户消息气泡 */}
         {isUser && (
           <div
             className="rounded-[18px] rounded-br-[5px] px-4 py-2.5 whitespace-pre-wrap"
@@ -148,41 +254,13 @@ export function MessageItem({ message, isNew = false, onToggleThinking, onToggle
         {/* AI 消息 */}
         {!isUser && (
           <>
-            {/* 思考过程（可折叠） */}
+            {/* 思考过程 */}
             {message.thinking && (
-              <div className="surface-line w-full overflow-hidden rounded-[1.25rem] bg-card">
-                <button
-                  onClick={onToggleThinking}
-                  className="flex w-full items-center gap-2 px-4 py-3 text-xs text-muted-foreground transition-colors hover:text-foreground"
-                >
-                  <Sparkles className="h-3.5 w-3.5 shrink-0 text-primary" strokeWidth={2} />
-                  <span className="font-medium">思考过程</span>
-                  <span className="ml-auto text-muted-foreground/70">
-                    {message.thinking.length} 字
-                  </span>
-                  {message.thinkingExpanded ? (
-                    <ChevronDown className="h-3.5 w-3.5" />
-                  ) : (
-                    <ChevronRight className="h-3.5 w-3.5" />
-                  )}
-                </button>
-                <AnimatePresence initial={false}>
-                  {message.thinkingExpanded && (
-                    <motion.div
-                      key="thinking-content"
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.2, ease: 'easeInOut' }}
-                      className="overflow-hidden"
-                    >
-                      <div className="border-t border-border/50 px-4 pb-4 pt-3 text-xs leading-relaxed whitespace-pre-wrap text-muted-foreground">
-                        {message.thinking}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+              <ThinkingBlock
+                thinking={message.thinking}
+                expanded={message.thinkingExpanded}
+                onToggle={onToggleThinking}
+              />
             )}
 
             {/* 工具调用卡片 */}
@@ -194,18 +272,26 @@ export function MessageItem({ message, isNew = false, onToggleThinking, onToggle
               />
             ))}
 
-            {/* 等待首字节：弹跳加载点（含工具执行后等待模型回复的间隙） */}
-            {message.isStreaming && !message.content && !message.thinking && message.toolCalls.every(tc => tc.status !== 'running') && (
-              <div className="flex items-center gap-1.5 py-2">
-                {[0, 1, 2].map((i) => (
-                  <span
-                    key={i}
-                    className="h-1.5 w-1.5 rounded-full bg-primary/60 animate-pulse"
-                    style={{ animationDelay: `${i * 0.2}s`, animationDuration: '1.2s' }}
-                  />
-                ))}
-              </div>
-            )}
+            {/* 等待首字节：弹跳加载点 */}
+            {message.isStreaming &&
+              !message.content &&
+              !message.thinking &&
+              message.toolCalls.every((tc) => tc.status !== 'running') && (
+                <div className="flex items-center gap-1.5 py-2">
+                  {[0, 1, 2].map((i) => (
+                    <span
+                      key={i}
+                      style={{
+                        width: 5,
+                        height: 5,
+                        borderRadius: '50%',
+                        background: 'var(--t2)',
+                        animation: `pulse-dot 1.2s ease ${i * 0.2}s infinite`,
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
 
             {/* 消息正文 */}
             {message.content && (
@@ -218,7 +304,6 @@ export function MessageItem({ message, isNew = false, onToggleThinking, onToggle
           </>
         )}
       </div>
-
     </motion.div>
   )
 }
