@@ -21,7 +21,11 @@ export interface Message {
   isStreaming: boolean
 }
 
-export interface Session {
+/**
+ * 记忆锚点：UI 层的"对话分组"概念。底层后端按 userId 串成连续 Memory Stream，
+ * 锚点只是视觉/操作层面的切片——所以前后端都不再有 session 概念。
+ */
+export interface MemoryAnchor {
   id: string
   title: string
   messages: Message[]
@@ -29,25 +33,25 @@ export interface Session {
 }
 
 interface Store {
-  /** 后端记忆分区键。所有聊天共享同一记忆池，与 sidebar 的 sessions 解耦。 */
+  /** 后端记忆分区键。所有锚点共享同一记忆池，与 drawer 的记忆锚点解耦。 */
   userId: string
-  sessions: Session[]
-  currentSessionId: string
+  anchors: MemoryAnchor[]
+  currentAnchorId: string
   isLoading: boolean
 
-  createSession: () => void
-  switchSession: (id: string) => void
-  deleteSession: (id: string) => void
-  updateSessionTitle: (id: string, title: string, force?: boolean) => void
+  createAnchor: () => void
+  switchAnchor: (id: string) => void
+  deleteAnchor: (id: string) => void
+  updateAnchorTitle: (id: string, title: string, force?: boolean) => void
 
-  addMessage: (sessionId: string, msg: Message) => void
-  updateLastAssistantMessage: (sessionId: string, patch: Partial<Message>) => void
-  removeLastMessage: (sessionId: string) => void
-  toggleThinking: (sessionId: string) => void
-  appendToolCall: (sessionId: string, toolCall: ToolCall) => void
-  updateLastRunningToolCall: (sessionId: string, patch: Partial<ToolCall>) => void
-  toggleToolCallExpanded: (sessionId: string, toolCallId: string) => void
-  markRunningToolCallsFailed: (sessionId: string) => void
+  addMessage: (anchorId: string, msg: Message) => void
+  updateLastAssistantMessage: (anchorId: string, patch: Partial<Message>) => void
+  removeLastMessage: (anchorId: string) => void
+  toggleThinking: (anchorId: string) => void
+  appendToolCall: (anchorId: string, toolCall: ToolCall) => void
+  updateLastRunningToolCall: (anchorId: string, patch: Partial<ToolCall>) => void
+  toggleToolCallExpanded: (anchorId: string, toolCallId: string) => void
+  markRunningToolCallsFailed: (anchorId: string) => void
   setLoading: (v: boolean) => void
 }
 
@@ -59,7 +63,7 @@ function makeWelcomeMessage(): Message {
   return {
     id: genId(),
     role: 'assistant',
-    content: '你好！我是 AI 助手，有什么可以帮助你的吗？',
+    content: '你好！我是小Z，有什么可以帮助你的吗？',
     thinking: '',
     thinkingExpanded: false,
     toolCalls: [],
@@ -67,7 +71,7 @@ function makeWelcomeMessage(): Message {
   }
 }
 
-function makeSession(): Session {
+function makeAnchor(): MemoryAnchor {
   return {
     id: genId(),
     title: '新对话',
@@ -76,133 +80,133 @@ function makeSession(): Session {
   }
 }
 
-const initialSession = makeSession()
+const initialAnchor = makeAnchor()
 
 export const useStore = create<Store>()(
   persist(
     (set, get) => ({
       userId: '',
-      sessions: [initialSession],
-      currentSessionId: initialSession.id,
+      anchors: [initialAnchor],
+      currentAnchorId: initialAnchor.id,
       isLoading: false,
 
-      createSession: () => {
-        const s = makeSession()
+      createAnchor: () => {
+        const a = makeAnchor()
         set((state) => ({
-          sessions: [s, ...state.sessions],
-          currentSessionId: s.id,
+          anchors: [a, ...state.anchors],
+          currentAnchorId: a.id,
         }))
       },
 
-      switchSession: (id) => {
-        if (id !== get().currentSessionId) {
-          set({ currentSessionId: id })
+      switchAnchor: (id) => {
+        if (id !== get().currentAnchorId) {
+          set({ currentAnchorId: id })
         }
       },
 
-      deleteSession: (id) => {
-        const { sessions, currentSessionId } = get()
-        if (sessions.length === 1) return
-        const idx = sessions.findIndex((s) => s.id === id)
+      deleteAnchor: (id) => {
+        const { anchors, currentAnchorId } = get()
+        if (anchors.length === 1) return
+        const idx = anchors.findIndex((a) => a.id === id)
         if (idx === -1) return
-        const next = sessions.filter((s) => s.id !== id)
+        const next = anchors.filter((a) => a.id !== id)
         set({
-          sessions: next,
-          currentSessionId:
-            currentSessionId === id
+          anchors: next,
+          currentAnchorId:
+            currentAnchorId === id
               ? next[Math.min(idx, next.length - 1)].id
-              : currentSessionId,
+              : currentAnchorId,
         })
       },
 
-      updateSessionTitle: (id, title, force = false) => {
+      updateAnchorTitle: (id, title, force = false) => {
         set((state) => ({
-          sessions: state.sessions.map((s) =>
-            s.id === id && (force || s.title === '新对话')
-              ? { ...s, title: title.slice(0, 20) }
-              : s
+          anchors: state.anchors.map((a) =>
+            a.id === id && (force || a.title === '新对话')
+              ? { ...a, title: title.slice(0, 20) }
+              : a
           ),
         }))
       },
 
-      addMessage: (sessionId, msg) => {
+      addMessage: (anchorId, msg) => {
         set((state) => ({
-          sessions: state.sessions.map((s) =>
-            s.id === sessionId ? { ...s, messages: [...s.messages, msg] } : s
+          anchors: state.anchors.map((a) =>
+            a.id === anchorId ? { ...a, messages: [...a.messages, msg] } : a
           ),
         }))
       },
 
-      updateLastAssistantMessage: (sessionId, patch) => {
+      updateLastAssistantMessage: (anchorId, patch) => {
         set((state) => ({
-          sessions: state.sessions.map((s) => {
-            if (s.id !== sessionId) return s
-            const messages = [...s.messages]
+          anchors: state.anchors.map((a) => {
+            if (a.id !== anchorId) return a
+            const messages = [...a.messages]
             const last = messages[messages.length - 1]
-            if (!last || last.role !== 'assistant') return s
+            if (!last || last.role !== 'assistant') return a
             messages[messages.length - 1] = { ...last, ...patch }
-            return { ...s, messages }
+            return { ...a, messages }
           }),
         }))
       },
 
-      removeLastMessage: (sessionId) => {
+      removeLastMessage: (anchorId) => {
         set((state) => ({
-          sessions: state.sessions.map((s) => {
-            if (s.id !== sessionId) return s
-            return { ...s, messages: s.messages.slice(0, -1) }
+          anchors: state.anchors.map((a) => {
+            if (a.id !== anchorId) return a
+            return { ...a, messages: a.messages.slice(0, -1) }
           }),
         }))
       },
 
-      toggleThinking: (sessionId) => {
+      toggleThinking: (anchorId) => {
         set((state) => ({
-          sessions: state.sessions.map((s) => {
-            if (s.id !== sessionId) return s
-            const msgs = [...s.messages]
+          anchors: state.anchors.map((a) => {
+            if (a.id !== anchorId) return a
+            const msgs = [...a.messages]
             const last = msgs[msgs.length - 1]
-            if (!last || last.role !== 'assistant') return s
+            if (!last || last.role !== 'assistant') return a
             msgs[msgs.length - 1] = { ...last, thinkingExpanded: !last.thinkingExpanded }
-            return { ...s, messages: msgs }
+            return { ...a, messages: msgs }
           }),
         }))
       },
 
-      appendToolCall: (sessionId, toolCall) => {
+      appendToolCall: (anchorId, toolCall) => {
         set((state) => ({
-          sessions: state.sessions.map((s) => {
-            if (s.id !== sessionId) return s
-            const msgs = [...s.messages]
+          anchors: state.anchors.map((a) => {
+            if (a.id !== anchorId) return a
+            const msgs = [...a.messages]
             const last = msgs[msgs.length - 1]
-            if (!last || last.role !== 'assistant') return s
+            if (!last || last.role !== 'assistant') return a
             msgs[msgs.length - 1] = { ...last, toolCalls: [...last.toolCalls, toolCall] }
-            return { ...s, messages: msgs }
+            return { ...a, messages: msgs }
           }),
         }))
       },
 
-      updateLastRunningToolCall: (sessionId, patch) => {
+      updateLastRunningToolCall: (anchorId, patch) => {
         set((state) => ({
-          sessions: state.sessions.map((s) => {
-            if (s.id !== sessionId) return s
-            const msgs = [...s.messages]
+          anchors: state.anchors.map((a) => {
+            if (a.id !== anchorId) return a
+            const msgs = [...a.messages]
             const last = msgs[msgs.length - 1]
-            if (!last || last.role !== 'assistant') return s
+            if (!last || last.role !== 'assistant') return a
             const idx = last.toolCalls.findIndex((tc) => tc.status === 'running')
-            if (idx === -1) return s
+            if (idx === -1) return a
             const next = [...last.toolCalls]
             next[idx] = { ...next[idx], ...patch }
             msgs[msgs.length - 1] = { ...last, toolCalls: next }
-            return { ...s, messages: msgs }
+            return { ...a, messages: msgs }
           }),
         }))
       },
 
-      toggleToolCallExpanded: (sessionId, toolCallId) => {
+      toggleToolCallExpanded: (anchorId, toolCallId) => {
         set((state) => ({
-          sessions: state.sessions.map((s) => {
-            if (s.id !== sessionId) return s
-            const messages = s.messages.map((m) => {
+          anchors: state.anchors.map((a) => {
+            if (a.id !== anchorId) return a
+            const messages = a.messages.map((m) => {
               if (m.role !== 'assistant') return m
               const idx = m.toolCalls.findIndex((tc) => tc.id === toolCallId)
               if (idx === -1) return m
@@ -210,25 +214,25 @@ export const useStore = create<Store>()(
               next[idx] = { ...next[idx], expanded: !next[idx].expanded }
               return { ...m, toolCalls: next }
             })
-            return { ...s, messages }
+            return { ...a, messages }
           }),
         }))
       },
 
-      markRunningToolCallsFailed: (sessionId) => {
+      markRunningToolCallsFailed: (anchorId) => {
         set((state) => ({
-          sessions: state.sessions.map((s) => {
-            if (s.id !== sessionId) return s
-            const msgs = [...s.messages]
+          anchors: state.anchors.map((a) => {
+            if (a.id !== anchorId) return a
+            const msgs = [...a.messages]
             const last = msgs[msgs.length - 1]
-            if (!last || last.role !== 'assistant') return s
+            if (!last || last.role !== 'assistant') return a
             const hasRunning = last.toolCalls.some((tc) => tc.status === 'running')
-            if (!hasRunning) return s
+            if (!hasRunning) return a
             const next = last.toolCalls.map((tc) =>
               tc.status === 'running' ? { ...tc, status: 'failed' as const } : tc
             )
             msgs[msgs.length - 1] = { ...last, toolCalls: next }
-            return { ...s, messages: msgs }
+            return { ...a, messages: msgs }
           }),
         }))
       },
@@ -236,32 +240,41 @@ export const useStore = create<Store>()(
       setLoading: (v) => set({ isLoading: v }),
     }),
     {
-      name: 'zoufx-chat-sessions',
-      version: 2,
+      name: 'zoufx-chat-sessions', // 持久化 key 保留，避免老用户数据丢失（值内字段已 migrate）
+      version: 3,
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         userId: state.userId,
-        sessions: state.sessions,
-        currentSessionId: state.currentSessionId,
+        anchors: state.anchors,
+        currentAnchorId: state.currentAnchorId,
       }),
-      // v1 → v2：补 userId 字段（首次进入时生成 UUID）
-      migrate: (persistedState: any) => {
+      // v1→v2: 补 userId；v2→v3: sessions/currentSessionId → anchors/currentAnchorId
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      migrate: (persistedState: any, version: number) => {
         if (persistedState && !persistedState.userId) {
           persistedState.userId = crypto.randomUUID()
+        }
+        if (version < 3 && persistedState) {
+          if ('sessions' in persistedState) {
+            persistedState.anchors = persistedState.sessions
+            delete persistedState.sessions
+          }
+          if ('currentSessionId' in persistedState) {
+            persistedState.currentAnchorId = persistedState.currentSessionId
+            delete persistedState.currentSessionId
+          }
         }
         return persistedState
       },
       skipHydration: true,
       onRehydrateStorage: () => (state) => {
         if (!state) return
-        // 全新用户（无持久化数据，初始 state.userId 为空）→ 生成 UUID
         if (!state.userId) {
           state.userId = crypto.randomUUID()
         }
-        // 修复因标签页关闭导致的 isStreaming: true 残留；兼容旧数据补 toolCalls
-        state.sessions = state.sessions.map((s) => ({
-          ...s,
-          messages: s.messages.map((m) => {
+        state.anchors = state.anchors.map((a) => ({
+          ...a,
+          messages: a.messages.map((m) => {
             const toolCalls = (m.toolCalls ?? []).map((tc) =>
               tc.status === 'running' ? { ...tc, status: 'failed' as const } : tc
             )

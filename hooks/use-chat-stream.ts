@@ -8,21 +8,21 @@ import { streamChat } from '@/lib/chat-stream'
 export function useChatStream() {
   const {
     userId,
-    sessions,
-    currentSessionId,
+    anchors,
+    currentAnchorId,
     isLoading,
     addMessage,
     updateLastAssistantMessage,
     removeLastMessage,
-    updateSessionTitle,
+    updateAnchorTitle,
     appendToolCall,
     updateLastRunningToolCall,
     markRunningToolCallsFailed,
     setLoading,
   } = useStore()
 
-  const currentSession = sessions.find((s) => s.id === currentSessionId)
-  const messages = currentSession?.messages ?? []
+  const currentAnchor = anchors.find((a) => a.id === currentAnchorId)
+  const messages = currentAnchor?.messages ?? []
 
   const ctrlRef = useRef<AbortController | null>(null)
 
@@ -30,12 +30,12 @@ export function useChatStream() {
     async (text: string, thinking: boolean) => {
       if (!text.trim() || isLoading) return
 
-      const sessionId = currentSessionId
+      const anchorId = currentAnchorId
       ctrlRef.current = new AbortController()
       setLoading(true)
 
       // 用户消息
-      addMessage(sessionId, {
+      addMessage(anchorId, {
         id: crypto.randomUUID(),
         role: 'user',
         content: text,
@@ -45,10 +45,10 @@ export function useChatStream() {
         isStreaming: false,
       })
 
-      updateSessionTitle(sessionId, text)
+      updateAnchorTitle(anchorId, text)
 
       // AI 占位消息
-      addMessage(sessionId, {
+      addMessage(anchorId, {
         id: crypto.randomUUID(),
         role: 'assistant',
         content: '',
@@ -66,37 +66,37 @@ export function useChatStream() {
 
         onThinking: (chunk) => {
           useStore.setState((state) => ({
-            sessions: state.sessions.map((s) => {
-              if (s.id !== sessionId) return s
-              const msgs = [...s.messages]
+            anchors: state.anchors.map((a) => {
+              if (a.id !== anchorId) return a
+              const msgs = [...a.messages]
               const last = msgs[msgs.length - 1]
-              if (!last || last.role !== 'assistant') return s
+              if (!last || last.role !== 'assistant') return a
               const isFirst = !last.thinking
               msgs[msgs.length - 1] = {
                 ...last,
                 thinking: last.thinking + chunk,
                 thinkingExpanded: isFirst ? true : last.thinkingExpanded,
               }
-              return { ...s, messages: msgs }
+              return { ...a, messages: msgs }
             }),
           }))
         },
 
         onContent: (chunk) => {
           useStore.setState((state) => ({
-            sessions: state.sessions.map((s) => {
-              if (s.id !== sessionId) return s
-              const msgs = [...s.messages]
+            anchors: state.anchors.map((a) => {
+              if (a.id !== anchorId) return a
+              const msgs = [...a.messages]
               const last = msgs[msgs.length - 1]
-              if (!last || last.role !== 'assistant') return s
+              if (!last || last.role !== 'assistant') return a
               msgs[msgs.length - 1] = { ...last, content: last.content + chunk }
-              return { ...s, messages: msgs }
+              return { ...a, messages: msgs }
             }),
           }))
         },
 
         onToolCall: (payload) => {
-          appendToolCall(sessionId, {
+          appendToolCall(anchorId, {
             id: crypto.randomUUID(),
             tool: payload.tool,
             query: payload.query,
@@ -106,7 +106,7 @@ export function useChatStream() {
         },
 
         onToolResult: (payload) => {
-          updateLastRunningToolCall(sessionId, {
+          updateLastRunningToolCall(anchorId, {
             status: 'completed',
             count: payload.count,
             resultPreview: payload.resultPreview,
@@ -114,33 +114,33 @@ export function useChatStream() {
         },
 
         onComplete: () => {
-          markRunningToolCallsFailed(sessionId)
-          updateLastAssistantMessage(sessionId, { isStreaming: false })
+          markRunningToolCallsFailed(anchorId)
+          updateLastAssistantMessage(anchorId, { isStreaming: false })
           setLoading(false)
           ctrlRef.current = null
         },
 
         onError: (err) => {
-          markRunningToolCallsFailed(sessionId)
+          markRunningToolCallsFailed(anchorId)
           // 移除空占位消息，用 toast 显示错误
-          removeLastMessage(sessionId)
+          removeLastMessage(anchorId)
           toast.error(err.message || '请求出错，请稍后重试')
           setLoading(false)
           ctrlRef.current = null
         },
       })
     },
-    [userId, currentSessionId, isLoading, addMessage, updateLastAssistantMessage, removeLastMessage, updateSessionTitle, appendToolCall, updateLastRunningToolCall, markRunningToolCallsFailed, setLoading]
+    [userId, currentAnchorId, isLoading, addMessage, updateLastAssistantMessage, removeLastMessage, updateAnchorTitle, appendToolCall, updateLastRunningToolCall, markRunningToolCallsFailed, setLoading]
   )
 
   const stop = useCallback(() => {
     ctrlRef.current?.abort()
     ctrlRef.current = null
-    const sessionId = currentSessionId
-    markRunningToolCallsFailed(sessionId)
-    updateLastAssistantMessage(sessionId, { isStreaming: false })
+    const anchorId = currentAnchorId
+    markRunningToolCallsFailed(anchorId)
+    updateLastAssistantMessage(anchorId, { isStreaming: false })
     setLoading(false)
-  }, [currentSessionId, markRunningToolCallsFailed, updateLastAssistantMessage, setLoading])
+  }, [currentAnchorId, markRunningToolCallsFailed, updateLastAssistantMessage, setLoading])
 
   return { messages, isLoading, send, stop }
 }

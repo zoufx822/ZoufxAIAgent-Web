@@ -39,7 +39,7 @@ export interface ToolResultPayload {
 
 export interface StreamChatOptions {
   message: string
-  /** 后端记忆分区键。所有聊天共享同一记忆池，sidebar 的 sessionId 仅作 UI 分组不再发送。 */
+  /** 后端记忆分区键。所有聊天共享同一记忆池，前端 drawer 的记忆锚点 id 仅作 UI 分组不发送。 */
   userId: string
   thinking: boolean
   signal?: AbortSignal

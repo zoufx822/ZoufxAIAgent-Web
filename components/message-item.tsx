@@ -108,17 +108,17 @@ export function MessageItem({ message, isNew = false, onToggleThinking, onToggle
       initial={isNew ? { opacity: 0, y: 6 } : { opacity: 1, y: 0 }}
       animate={{ opacity: 1, y: 0 }}
       transition={isNew ? { duration: 0.18, ease: 'easeOut' } : { duration: 0 }}
-      className={cn('flex w-full gap-3 py-6.5', isUser && 'justify-end')}
-      style={{
-        marginBottom: '6px',
-      }}
+      className={cn('flex w-full gap-3', isUser && 'justify-end')}
+      style={{ marginBottom: '26px' }}
     >
       {!isUser && (
         <div
-          className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-bold flex-shrink-0"
+          className="mono mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg flex-shrink-0"
           style={{
             backgroundColor: 'var(--t1)',
             color: 'var(--bg)',
+            fontSize: '11px',
+            fontWeight: 700,
             letterSpacing: '-0.02em',
           }}
         >
@@ -127,16 +127,18 @@ export function MessageItem({ message, isNew = false, onToggleThinking, onToggle
       )}
 
       <div className={cn('flex max-w-[72%] flex-col gap-2.5', isUser && 'items-end')}>
-        {/* 用户消息气泡 */}
+        {/* 用户消息气泡：accent-s 背景 + accent-r 边框 + 18/18/5/18 圆角 */}
         {isUser && (
           <div
-            className="rounded-[18px] rounded-br-[5px] px-4 py-2.5 text-sm leading-[1.85] whitespace-pre-wrap"
+            className="rounded-[18px] rounded-br-[5px] px-4 py-2.5 whitespace-pre-wrap"
             style={{
-              backgroundColor: 'var(--surf-hov)',
-              borderColor: 'var(--border)',
+              backgroundColor: 'var(--accent-s)',
+              borderColor: 'var(--accent-r)',
               borderWidth: '1px',
               color: 'var(--t1)',
-              letterSpacing: '-0.01em',
+              fontSize: '14.5px',
+              lineHeight: 1.55,
+              letterSpacing: '-0.005em',
             }}
           >
             {message.content}
@@ -217,11 +219,6 @@ export function MessageItem({ message, isNew = false, onToggleThinking, onToggle
         )}
       </div>
 
-      {isUser && (
-        <div className="mt-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-secondary text-[10px] font-semibold text-secondary-foreground">
-          我
-        </div>
-      )}
     </motion.div>
   )
 }

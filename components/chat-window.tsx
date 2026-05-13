@@ -188,10 +188,15 @@ function ChatInput({
 /* ── 主组件 ── */
 export function ChatWindow() {
   const { messages, isLoading, send, stop } = useChatStream()
-  const { currentSessionId, toggleThinking, toggleToolCallExpanded } = useStore()
+  const { currentAnchorId, toggleThinking, toggleToolCallExpanded } = useStore()
 
   const [input, setInput] = useState('')
   const [thinkingEnabled, setThinkingEnabled] = useState(false)
+  // 用户称呼：v1 仅从 localStorage 读，v2 接后端 Hot Memory.display_name
+  const [userName, setUserName] = useState('')
+  useEffect(() => {
+    try { setUserName(localStorage.getItem('zUserName') || '') } catch { /* noop */ }
+  }, [])
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const { scrollRef, scrollToBottom, forceScrollToBottom } = useSmartScroll()
@@ -200,7 +205,7 @@ export function ChatWindow() {
   useEffect(() => {
     forceScrollToBottom()
     textareaRef.current?.focus()
-  }, [currentSessionId, forceScrollToBottom])
+  }, [currentAnchorId, forceScrollToBottom])
 
   const isEmpty = messages.length <= 1
 
@@ -233,7 +238,7 @@ export function ChatWindow() {
             {/* 品牌名和副标题 */}
             <div className="text-center mb-11">
               <h1
-                className="mb-3 leading-none"
+                className="mono mb-3 leading-none"
                 style={{
                   fontSize: '52px',
                   fontWeight: 600,
@@ -241,7 +246,7 @@ export function ChatWindow() {
                   letterSpacing: '-0.04em',
                 }}
               >
-                Zoufx
+                小Z
               </h1>
               <p
                 style={{
@@ -252,7 +257,7 @@ export function ChatWindow() {
                   lineHeight: 1.5,
                 }}
               >
-                你好，需要我为你做些什么？
+                {userName ? `你好，${userName}。` : '你好。我是小Z，该怎么称呼你？'}
               </p>
             </div>
 
@@ -322,8 +327,8 @@ export function ChatWindow() {
                   key={msg.id ?? i}
                   message={msg}
                   isNew={i >= messages.length - 2}
-                  onToggleThinking={() => toggleThinking(currentSessionId)}
-                  onToggleToolCall={(toolCallId) => toggleToolCallExpanded(currentSessionId, toolCallId)}
+                  onToggleThinking={() => toggleThinking(currentAnchorId)}
+                  onToggleToolCall={(toolCallId) => toggleToolCallExpanded(currentAnchorId, toolCallId)}
                   onScrollNeeded={scrollToBottom}
                 />
               ))}
