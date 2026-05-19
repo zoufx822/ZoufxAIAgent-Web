@@ -19,6 +19,8 @@ export function useChatStream() {
     updateLastRunningToolCall,
     markRunningToolCallsFailed,
     setLoading,
+    setStatus,
+    setMood,
   } = useStore()
 
   const currentAnchor = anchors.find((a) => a.id === currentAnchorId)
@@ -33,6 +35,9 @@ export function useChatStream() {
       const anchorId = currentAnchorId
       ctrlRef.current = new AbortController()
       setLoading(true)
+      // 初始 status：发出请求等首字节，先点 thinking（thinking 事件来时仍 thinking；
+      // 跳过 thinking 直接 content 时下面 onContent 会切到 writing）
+      setStatus('thinking')
 
       // 用户消息
       addMessage(anchorId, {
@@ -65,6 +70,7 @@ export function useChatStream() {
         signal: ctrlRef.current.signal,
 
         onThinking: (chunk) => {
+          setStatus('thinking')
           useStore.setState((state) => ({
             anchors: state.anchors.map((a) => {
               if (a.id !== anchorId) return a
@@ -83,6 +89,7 @@ export function useChatStream() {
         },
 
         onContent: (chunk) => {
+          setStatus('writing')
           useStore.setState((state) => ({
             anchors: state.anchors.map((a) => {
               if (a.id !== anchorId) return a
@@ -96,6 +103,7 @@ export function useChatStream() {
         },
 
         onToolCall: (payload) => {
+          setStatus('tooling')
           appendToolCall(anchorId, {
             id: crypto.randomUUID(),
             tool: payload.tool,
@@ -106,6 +114,7 @@ export function useChatStream() {
         },
 
         onToolResult: (payload) => {
+          // 工具完成后不主动改 status：保持 tooling 等下一个 tool_call 或 content 自然覆盖
           updateLastRunningToolCall(anchorId, {
             status: 'completed',
             count: payload.count,
@@ -113,9 +122,15 @@ export function useChatStream() {
           })
         },
 
+        onMood: (payload) => {
+          // mood 不影响 status；只写 currentMood + lastMoodAt
+          setMood(payload.keyword)
+        },
+
         onComplete: () => {
           markRunningToolCallsFailed(anchorId)
           updateLastAssistantMessage(anchorId, { isStreaming: false })
+          setStatus('idle')
           setLoading(false)
           ctrlRef.current = null
         },
@@ -125,12 +140,13 @@ export function useChatStream() {
           // 移除空占位消息，用 toast 显示错误
           removeLastMessage(anchorId)
           toast.error(err.message || '请求出错，请稍后重试')
+          setStatus('error')
           setLoading(false)
           ctrlRef.current = null
         },
       })
     },
-    [userId, currentAnchorId, isLoading, addMessage, updateLastAssistantMessage, removeLastMessage, updateAnchorTitle, appendToolCall, updateLastRunningToolCall, markRunningToolCallsFailed, setLoading]
+    [userId, currentAnchorId, isLoading, addMessage, updateLastAssistantMessage, removeLastMessage, updateAnchorTitle, appendToolCall, updateLastRunningToolCall, markRunningToolCallsFailed, setLoading, setStatus, setMood]
   )
 
   const stop = useCallback(() => {
@@ -139,8 +155,9 @@ export function useChatStream() {
     const anchorId = currentAnchorId
     markRunningToolCallsFailed(anchorId)
     updateLastAssistantMessage(anchorId, { isStreaming: false })
+    setStatus('idle')
     setLoading(false)
-  }, [currentAnchorId, markRunningToolCallsFailed, updateLastAssistantMessage, setLoading])
+  }, [currentAnchorId, markRunningToolCallsFailed, updateLastAssistantMessage, setLoading, setStatus])
 
   return { messages, isLoading, send, stop }
 }

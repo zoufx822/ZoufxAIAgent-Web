@@ -37,6 +37,10 @@ export interface ToolResultPayload {
   resultPreview: string
 }
 
+export interface MoodPayload {
+  keyword: string
+}
+
 export interface StreamChatOptions {
   message: string
   /** 后端记忆分区键。所有聊天共享同一记忆池，前端 drawer 的记忆锚点 id 仅作 UI 分组不发送。 */
@@ -47,6 +51,8 @@ export interface StreamChatOptions {
   onContent?: (chunk: string) => void
   onToolCall?: (payload: ToolCallPayload) => void
   onToolResult?: (payload: ToolResultPayload) => void
+  /** mood 情感词事件（v1.1）。后端在 content 流尾部剥离 <!--mood:KEYWORD--> 后独立发送。一轮 0~1 次。 */
+  onMood?: (payload: MoodPayload) => void
   onComplete?: () => void
   onError?: (err: Error) => void
 }
@@ -89,7 +95,7 @@ function dispatchEvent(
   data: string,
   opts: StreamChatOptions,
 ): 'continue' | 'terminated' {
-  const { onThinking, onContent, onToolCall, onToolResult, onError } = opts
+  const { onThinking, onContent, onToolCall, onToolResult, onMood, onError } = opts
   if (event === 'thinking') {
     onThinking?.(data)
   } else if (event === 'tool_call') {
@@ -98,6 +104,9 @@ function dispatchEvent(
   } else if (event === 'tool_result') {
     try { onToolResult?.(JSON.parse(data) as ToolResultPayload) }
     catch (e) { console.warn('tool_result parse failed', e, data) }
+  } else if (event === 'mood') {
+    try { onMood?.(JSON.parse(data) as MoodPayload) }
+    catch (e) { console.warn('mood parse failed', e, data) }
   } else if (event === 'error') {
     onError?.(parseErrorData(data))
     return 'terminated'

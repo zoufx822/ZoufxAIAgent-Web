@@ -32,12 +32,25 @@ export interface MemoryAnchor {
   createdAt: number
 }
 
+/**
+ * 情绪 status（v1.1）—— 状态机层，6 态由 SSE 事件 + idle timer 推导。
+ * 详见 v1.1 文档 4.1.3 节。
+ */
+export type Status = 'idle' | 'thinking' | 'tooling' | 'writing' | 'error' | 'asleep'
+
 interface Store {
   /** 后端记忆分区键。所有锚点共享同一记忆池，与 drawer 的记忆锚点解耦。 */
   userId: string
   anchors: MemoryAnchor[]
   currentAnchorId: string
   isLoading: boolean
+
+  /** 情绪 status：当前运行态（6 态）。不持久化——前端瞬态字段。 */
+  currentStatus: Status
+  /** 情绪 mood：LLM 顺带输出的情感词；null 表示未发或已过期。不持久化。 */
+  currentMood: string | null
+  /** mood 设置时的 epoch ms。用于过期淡出（>5min stale / >15min 隐藏）。 */
+  lastMoodAt: number | null
 
   createAnchor: () => void
   switchAnchor: (id: string) => void
@@ -53,6 +66,9 @@ interface Store {
   toggleToolCallExpanded: (anchorId: string, toolCallId: string) => void
   markRunningToolCallsFailed: (anchorId: string) => void
   setLoading: (v: boolean) => void
+
+  setStatus: (s: Status) => void
+  setMood: (keyword: string | null) => void
 }
 
 function genId() {
@@ -89,6 +105,9 @@ export const useStore = create<Store>()(
       anchors: [initialAnchor],
       currentAnchorId: initialAnchor.id,
       isLoading: false,
+      currentStatus: 'idle',
+      currentMood: null,
+      lastMoodAt: null,
 
       createAnchor: () => {
         const a = makeAnchor()
@@ -238,6 +257,19 @@ export const useStore = create<Store>()(
       },
 
       setLoading: (v) => set({ isLoading: v }),
+
+      setStatus: (s) => {
+        if (get().currentStatus !== s) set({ currentStatus: s })
+      },
+
+      setMood: (keyword) => {
+        // null 表示清空；否则带 keyword + 时间戳，过期判定按 lastMoodAt 算
+        if (keyword === null) {
+          set({ currentMood: null, lastMoodAt: null })
+        } else {
+          set({ currentMood: keyword, lastMoodAt: Date.now() })
+        }
+      },
     }),
     {
       name: 'zoufx-chat-sessions', // 持久化 key 保留，避免老用户数据丢失（值内字段已 migrate）
