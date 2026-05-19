@@ -107,6 +107,7 @@ export function useChatStream() {
           appendToolCall(anchorId, {
             id: crypto.randomUUID(),
             tool: payload.tool,
+            toolDisplay: payload.toolDisplay,
             query: payload.query,
             status: 'running',
             expanded: false,

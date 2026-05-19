@@ -69,7 +69,7 @@ export function StatePanel() {
             <Empty>未有调用记录。</Empty>
           ) : (
             recentTools.map((t) => (
-              <ToolMini key={t.id} name={t.tool} status={t.status} />
+              <ToolMini key={t.id} name={t.toolDisplay} status={t.status} />
             ))
           )}
         </Section>

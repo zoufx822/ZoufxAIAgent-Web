@@ -104,8 +104,7 @@ function ToolCallCard({
   toolCall: ToolCall
   onToggle?: () => void
 }) {
-  const {status, tool, query, count, resultPreview, expanded} = toolCall
-  const displayTool = tool === 'search_web' ? 'search_web' : tool
+  const {status, tool, toolDisplay, query, count, resultPreview, expanded} = toolCall
   const canExpand = status === 'completed' && !!resultPreview
 
   const statusLabel =
@@ -154,7 +153,7 @@ function ToolCallCard({
             ...(status === 'running' ? {animation: 'pulse-dot 1.4s ease infinite'} : {}),
           }}
         />
-        <span style={{color: 'var(--t1)', fontWeight: 500}}>{displayTool}</span>
+        <span style={{color: 'var(--t1)', fontWeight: 500}}>{toolDisplay}</span>
         <span style={{color: 'var(--t3)'}}>·</span>
         <span style={{color: statusColor}}>{statusLabel}</span>
         <span style={{color: 'var(--t3)'}}>·</span>

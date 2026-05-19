@@ -4,6 +4,7 @@ import { persist, createJSONStorage } from 'zustand/middleware'
 export interface ToolCall {
   id: string
   tool: string
+  toolDisplay: string
   query: string
   status: 'running' | 'completed' | 'failed'
   count?: number

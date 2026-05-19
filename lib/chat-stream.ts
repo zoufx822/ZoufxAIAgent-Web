@@ -28,11 +28,13 @@ function parseSSE(buffer: string) {
 
 export interface ToolCallPayload {
   tool: string
+  toolDisplay: string
   query: string
 }
 
 export interface ToolResultPayload {
   tool: string
+  toolDisplay: string
   count: number
   resultPreview: string
 }
