@@ -29,26 +29,7 @@ export function Rail({memoryOpen, onMemoryClick, onNewAnchor}: RailProps) {
         gap: 6,
       }}
     >
-      {/* Logo */}
-      <div
-        className="mono"
-        style={{
-          width: 32,
-          height: 32,
-          borderRadius: 8,
-          background: 'var(--t1)',
-          color: 'var(--bg)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: 13,
-          fontWeight: 600,
-          letterSpacing: '-0.02em',
-          marginBottom: 12,
-        }}
-      >
-        Z
-      </div>
+      {/* v1.1 设计稿：左上角 Z 方块标已去除（小Z 形象由 Home Eyes + 消息头像 Eyes 承担） */}
 
       {/* 记忆锚点 */}
       <RailBtn active={memoryOpen} onClick={onMemoryClick} title="记忆锚点">

@@ -5,6 +5,7 @@ import {AnimatePresence, motion} from 'motion/react'
 import {ChevronDown, ChevronRight} from 'lucide-react'
 import {cn} from '@/lib/utils'
 import type {Message, ToolCall} from '@/lib/store'
+import {Eyes} from '@/components/eyes'
 import {StreamMarkdown} from '@/components/ui/stream-markdown'
 
 interface Props {
@@ -219,16 +220,15 @@ export function MessageItem({message, isNew = false, onToggleThinking, onToggleT
     >
       {!isUser && (
         <div
-          className="mono mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg flex-shrink-0"
+          className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center flex-shrink-0"
           style={{
             backgroundColor: 'var(--t1)',
             color: 'var(--bg)',
-            fontSize: '11px',
-            fontWeight: 700,
-            letterSpacing: '-0.02em',
+            borderRadius: 8,
           }}
         >
-          Z
+          {/* v1.1：消息头像 = mini Eyes，反色瞳孔（白眼睛 + 深瞳） */}
+          <Eyes size={11} color="var(--bg)" pupil="var(--t1)" />
         </div>
       )}
 

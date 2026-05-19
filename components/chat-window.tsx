@@ -5,6 +5,7 @@ import {ArrowUp, Plus, Sparkles, Square} from 'lucide-react'
 import {Menu} from '@base-ui/react/menu'
 import {Textarea} from '@/components/ui/textarea'
 import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip'
+import {Eyes} from '@/components/eyes'
 import {MessageItem} from '@/components/message-item'
 import {useChatStream} from '@/hooks/use-chat-stream'
 import {useSmartScroll} from '@/hooks/use-smart-scroll'
@@ -189,14 +190,15 @@ function ChatInput({
 export function ChatWindow() {
   const { messages, isLoading, send, stop } = useChatStream()
   const { currentAnchorId, toggleThinking, toggleToolCallExpanded } = useStore()
+  // v1.1 Eyes 微表情/busy 联动：订阅式读取 status / mood
+  const currentStatus = useStore((s) => s.currentStatus)
+  const currentMood = useStore((s) => s.currentMood)
+  const eyesBusy = currentStatus === 'thinking' || currentStatus === 'tooling' || currentStatus === 'writing'
 
   const [input, setInput] = useState('')
   const [thinkingEnabled, setThinkingEnabled] = useState(false)
-  // 用户称呼：v1 仅从 localStorage 读，v2 接后端 Hot Memory.display_name
-  const [userName, setUserName] = useState('')
-  useEffect(() => {
-    try { setUserName(localStorage.getItem('zUserName') || '') } catch { /* noop */ }
-  }, [])
+  // v1.1：副标题已去除（Home 只剩 Eyes + 输入框 + chips），userName 不再前端展示；
+  // 后端 Hot Memory 的 display_name 由 StatePanel「对话目标」承担
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const { scrollRef, scrollToBottom, forceScrollToBottom } = useSmartScroll()
@@ -235,30 +237,9 @@ export function ChatWindow() {
           style={{ animation: 'up 0.3s ease both' }}
         >
           <div className="w-full max-w-2xl">
-            {/* 品牌名和副标题 */}
-            <div className="text-center mb-11">
-              <h1
-                className="mono mb-3 leading-none"
-                style={{
-                  fontSize: '52px',
-                  fontWeight: 600,
-                  color: 'var(--t1)',
-                  letterSpacing: '-0.04em',
-                }}
-              >
-                小Z
-              </h1>
-              <p
-                style={{
-                  fontSize: '15px',
-                  fontWeight: 400,
-                  color: 'var(--t3)',
-                  letterSpacing: '-0.01em',
-                  lineHeight: 1.5,
-                }}
-              >
-                {userName ? `你好，${userName}。` : '你好。我是小Z，该怎么称呼你？'}
-              </p>
+            {/* v1.1：Home 大眼睛字标，承担"小Z 形象"的所有视觉重量；mood 微表情联动 */}
+            <div className="text-center mb-11 flex justify-center" style={{ color: 'var(--t1)' }}>
+              <Eyes size={56} busy={eyesBusy} mood={currentMood} />
             </div>
 
             {/* 输入框 */}

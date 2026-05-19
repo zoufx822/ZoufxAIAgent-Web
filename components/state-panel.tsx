@@ -1,19 +1,36 @@
 'use client'
 
+import {useEffect} from 'react'
 import {useStore} from '@/lib/store'
+import {useMemoryHot} from '@/hooks/use-memory-hot'
+import {useMemoryStream} from '@/hooks/use-memory-stream'
 
 /**
- * 右侧 280px 状态面板。
+ * 右侧 280px 状态面板（v1.1 重做版）。
  *
- * 三个 section：
+ * 四个 section（自上而下）：
+ *   - 对话目标：useMemoryHot.display_name，未识别时显示「尚未识别」
  *   - 当前任务：根据 isLoading + 最后用户消息推断
- *   - 近期工具调用：聚合本会话所有 toolCalls，按时序倒序
- *   - 记忆片段：v2 接后端 Hot Memory + Memory Stream 后展示；阶段 A 留空占位
+ *   - 近期工具调用：聚合本会话所有 toolCalls
+ *   - 记忆片段：useMemoryStream 最近 5 条，每次流结束后 invalidate 刷新
  */
 export function StatePanel() {
   const {anchors, currentAnchorId, isLoading} = useStore()
   const currentAnchor = anchors.find((a) => a.id === currentAnchorId)
   const messages = currentAnchor?.messages ?? []
+
+  const {data: hot, mutate: mutateHot} = useMemoryHot()
+  const {data: stream, mutate: mutateStream} = useMemoryStream(5)
+
+  // 流结束时刷新 hot / stream（profile 可能被 update_user_profile 写入，stream 新加 2 行）
+  useEffect(() => {
+    if (!isLoading) {
+      mutateHot()
+      mutateStream()
+    }
+  }, [isLoading, mutateHot, mutateStream])
+
+  const displayName = hot.display_name
 
   // 当前任务：取最后一条 user 消息 prompt 截断
   const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user')
@@ -34,26 +51,11 @@ export function StatePanel() {
         borderLeft: '1px solid var(--border)',
       }}
     >
-      {/* Header */}
-      <div
-        className="mono"
-        style={{
-          height: 48,
-          padding: '0 18px',
-          borderBottom: '1px solid var(--border)',
-          display: 'flex',
-          alignItems: 'center',
-          fontSize: 10,
-          letterSpacing: '0.18em',
-          textTransform: 'uppercase',
-          color: 'var(--t3)',
-        }}
-      >
-        状态 / state
-      </div>
+      <div style={{flex: 1, overflow: 'auto', padding: '18px 16px 16px'}}>
+        <Section title="对话目标">
+          <Card>{displayName || '尚未识别'}</Card>
+        </Section>
 
-      {/* Body */}
-      <div style={{flex: 1, overflow: 'auto', padding: 16}}>
         <Section title="当前任务">
           {currentTask ? (
             <Card label="task">{currentTask}</Card>
@@ -72,8 +74,16 @@ export function StatePanel() {
           )}
         </Section>
 
-        <Section title="记忆片段" placeholder>
-          <Empty>v2 阶段开放——届时会展示对方的关键事实与近期经历。</Empty>
+        <Section title="记忆片段" count={stream.length}>
+          {stream.length === 0 ? (
+            <Empty>还没有交集。</Empty>
+          ) : (
+            stream.map((e) => (
+              <Card key={e.id} label={e.role}>
+                {truncate(e.content, 80)}
+              </Card>
+            ))
+          )}
         </Section>
       </div>
     </aside>
@@ -83,62 +93,65 @@ export function StatePanel() {
 function Section({
   title,
   count,
-  placeholder,
   children,
 }: {
   title: string
   count?: number
-  placeholder?: boolean
   children: React.ReactNode
 }) {
   return (
-    <div style={{marginBottom: 20}}>
+    <div style={{marginBottom: 22}}>
       <div
         className="mono"
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
+          padding: '8px 4px',
           fontSize: 10,
-          letterSpacing: '0.16em',
+          letterSpacing: '0.14em',
           textTransform: 'uppercase',
-          color: placeholder ? 'var(--t3)' : 'var(--t2)',
-          marginBottom: 8,
+          color: 'var(--t3)',
         }}
       >
         <span>{title}</span>
-        {count !== undefined && <span style={{color: 'var(--t3)'}}>{count}</span>}
+        {count !== undefined && <span style={{color: 'var(--t2)', fontSize: 10}}>{count}</span>}
       </div>
       <div style={{display: 'flex', flexDirection: 'column', gap: 6}}>{children}</div>
     </div>
   )
 }
 
-function Card({label, children}: {label: string; children: React.ReactNode}) {
+function Card({label, children}: {label?: string; children: React.ReactNode}) {
   return (
     <div
       style={{
-        padding: '10px 12px',
-        background: 'var(--surface)',
         border: '1px solid var(--border)',
+        background: 'var(--surface)',
         borderRadius: 8,
+        padding: '11px 12px',
         fontSize: 12,
-        lineHeight: 1.5,
         color: 'var(--t1)',
+        lineHeight: 1.65,
+        letterSpacing: '-.005em',
+        marginBottom: 6,
       }}
     >
-      <span
-        className="mono"
-        style={{
-          fontSize: 9,
-          letterSpacing: '0.16em',
-          textTransform: 'uppercase',
-          color: 'var(--t3)',
-          marginRight: 8,
-        }}
-      >
-        {label}
-      </span>
+      {label && (
+        <span
+          className="mono"
+          style={{
+            display: 'block',
+            fontSize: 9.5,
+            letterSpacing: '0.14em',
+            textTransform: 'uppercase',
+            color: 'var(--t3)',
+            marginBottom: 4,
+          }}
+        >
+          {label}
+        </span>
+      )}
       {children}
     </div>
   )
@@ -146,7 +159,14 @@ function Card({label, children}: {label: string; children: React.ReactNode}) {
 
 function Empty({children}: {children: React.ReactNode}) {
   return (
-    <div style={{fontSize: 12, color: 'var(--t3)', lineHeight: 1.5, padding: '4px 0'}}>
+    <div
+      style={{
+        fontSize: 11,
+        color: 'var(--t3)',
+        padding: '8px 4px',
+        letterSpacing: '0.01em',
+      }}
+    >
       {children}
     </div>
   )
@@ -162,15 +182,16 @@ function ToolMini({name, status}: {name: string; status: string}) {
         display: 'flex',
         alignItems: 'center',
         gap: 8,
-        padding: '6px 10px',
+        padding: '8px 10px',
         background: 'var(--surface)',
         border: '1px solid var(--border)',
-        borderRadius: 7,
+        borderRadius: 8,
         fontSize: 11,
+        marginBottom: 6,
       }}
     >
       <span style={{width: 6, height: 6, borderRadius: '50%', background: dotColor, flexShrink: 0}} />
-      <span style={{flex: 1, color: 'var(--t1)'}}>{name}</span>
+      <span style={{flex: 1, color: 'var(--t1)', fontWeight: 500}}>{name}</span>
       <span style={{color: 'var(--t3)', fontSize: 10}}>{status}</span>
     </div>
   )
