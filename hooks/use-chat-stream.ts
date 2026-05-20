@@ -155,10 +155,17 @@ export function useChatStream() {
     ctrlRef.current = null
     const anchorId = currentAnchorId
     markRunningToolCallsFailed(anchorId)
-    updateLastAssistantMessage(anchorId, { isStreaming: false })
+    // 首字节前停止：若 assistant 占位完全空（无 content / thinking / toolCalls），
+    // 删除占位避免留下"仅头像无内容"的幽灵气泡
+    const lastMsg = useStore.getState().anchors.find((a) => a.id === anchorId)?.messages.at(-1)
+    if (lastMsg && lastMsg.role === 'assistant' && !lastMsg.content && !lastMsg.thinking && lastMsg.toolCalls.length === 0) {
+      removeLastMessage(anchorId)
+    } else {
+      updateLastAssistantMessage(anchorId, { isStreaming: false })
+    }
     setStatus('idle')
     setLoading(false)
-  }, [currentAnchorId, markRunningToolCallsFailed, updateLastAssistantMessage, setLoading, setStatus])
+  }, [currentAnchorId, markRunningToolCallsFailed, updateLastAssistantMessage, removeLastMessage, setLoading, setStatus])
 
   return { messages, isLoading, send, stop }
 }
