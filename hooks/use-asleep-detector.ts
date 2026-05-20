@@ -4,7 +4,7 @@ import { useEffect } from 'react'
 import { useStore } from '@/lib/store'
 
 /**
- * ASLEEP 状态前端派生（v1.1）。
+ * ASLEEP 状态前端派生（v0.11）。
  *
  * 触发条件（来自 emotion-system.md）：
  *   `idle` 且本地时间 ≥23:00 或 <5:00 → 派生为 `asleep`

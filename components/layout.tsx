@@ -13,7 +13,7 @@ import {ChatWindow} from '@/components/chat-window'
  *   ┌─Rail 56─┬─Heartbeat 48 mono──────────────────────┬─StatePanel 280─┐
  *   │  Z      │                                          │ - 当前任务      │
  *   │  记忆🔘 │                                          │ - 近期工具      │
- *   │  +新对话 │   Home / Chat (ChatWindow)              │ - 记忆片段(v2)  │
+ *   │  +新对话 │   Home / Chat (ChatWindow)              │ - 记忆片段(v0.2)│
  *   │  ☾ 主题 │                                          │               │
  *   └─────────┴──────────────────────────────────────────┴───────────────┘
  *      ↑drawer 从 left:56 滑出 = 记忆锚点列表（替代旧 sidebar 会话列表）

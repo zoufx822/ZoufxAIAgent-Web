@@ -29,7 +29,7 @@ export function Rail({memoryOpen, onMemoryClick, onNewAnchor}: RailProps) {
         gap: 6,
       }}
     >
-      {/* v1.1 设计稿：左上角 Z 方块标已去除（小Z 形象由 Home Eyes + 消息头像 Eyes 承担） */}
+      {/* v0.11 设计稿：左上角 Z 方块标已去除（小Z 形象由 Home Eyes + 消息头像 Eyes 承担） */}
 
       {/* 记忆锚点 */}
       <RailBtn active={memoryOpen} onClick={onMemoryClick} title="记忆锚点">

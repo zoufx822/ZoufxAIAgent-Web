@@ -235,7 +235,7 @@ export function MessageItem({message, isNew = false, onToggleThinking, onToggleT
             borderRadius: 8,
           }}
         >
-          {/* v1.1：消息头像 = mini Eyes，反色瞳孔（白眼睛 + 深瞳） */}
+          {/* v0.11：消息头像 = mini Eyes，反色瞳孔（白眼睛 + 深瞳） */}
           <Eyes size={11} color="var(--bg)" pupil="var(--t1)" />
         </div>
       )}

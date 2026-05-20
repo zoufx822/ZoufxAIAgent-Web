@@ -53,7 +53,7 @@ export interface StreamChatOptions {
   onContent?: (chunk: string) => void
   onToolCall?: (payload: ToolCallPayload) => void
   onToolResult?: (payload: ToolResultPayload) => void
-  /** mood 情感词事件（v1.1）。后端在 content 流尾部剥离 <!--mood:KEYWORD--> 后独立发送。一轮 0~1 次。 */
+  /** mood 情感词事件（v0.11）。后端在 content 流尾部剥离 <!--mood:KEYWORD--> 后独立发送。一轮 0~1 次。 */
   onMood?: (payload: MoodPayload) => void
   onComplete?: () => void
   onError?: (err: Error) => void
@@ -77,7 +77,7 @@ function parseErrorData(data: string): Error {
  *
  * 后端 GlobalExceptionHandler 返回 {error, message, timestamp} 形态的 JSON。
  * 由于 controller 在 produces=text/event-stream 下，部分 4xx 响应可能仍被 SSE 包装
- * （historical: 后端 v0 修复前的状态），所以同时兼容裸 JSON 和 SSE 包装两种格式。
+ * （historical: 后端 v0.01 修复前的状态），所以同时兼容裸 JSON 和 SSE 包装两种格式。
  */
 async function readBackendErrorMessage(res: Response): Promise<string | null> {
   try {

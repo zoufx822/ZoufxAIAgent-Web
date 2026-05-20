@@ -3,7 +3,7 @@
 import { useMemo } from 'react'
 
 /**
- * Eyes 字标——替代 "小Z" / "Z" 字标的 SVG 组件（v1.1）。
+ * Eyes 字标——替代 "小Z" / "Z" 字标的 SVG 组件（v0.11）。
  *
  * 视觉规范：design_handoff_zoufx_ai/{emotion,mood}-system.md
  * - viewBox 100×44，两椭圆 + 两瞳孔

@@ -4,7 +4,7 @@ import { useStore } from '@/lib/store'
 import { useAsleepDetector } from '@/hooks/use-asleep-detector'
 
 /**
- * 顶部 48px 情绪条（v1.1 重做版，按 design_handoff_zoufx_ai/{emotion,mood}-system.md）。
+ * 顶部 48px 情绪条（v0.11 重做版，按 design_handoff_zoufx_ai/{emotion,mood}-system.md）。
  *
  * 单行布局：● 色点 + 中文 status + EN mono · italic mood（可选）
  * 数据源：currentStatus / currentMood / lastMoodAt 全部从 zustand 读，由 use-chat-stream 写。

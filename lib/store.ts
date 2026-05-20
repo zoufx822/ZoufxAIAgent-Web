@@ -34,8 +34,8 @@ export interface MemoryAnchor {
 }
 
 /**
- * 情绪 status（v1.1）—— 状态机层，6 态由 SSE 事件 + idle timer 推导。
- * 详见 v1.1 文档 4.1.3 节。
+ * 情绪 status（v0.11）—— 状态机层，6 态由 SSE 事件 + idle timer 推导。
+ * 详见 v0.11 文档 4.1.3 节。
  */
 export type Status = 'idle' | 'thinking' | 'tooling' | 'writing' | 'error' | 'asleep'
 

@@ -49,7 +49,7 @@ function buildStateDetail(
 }
 
 /**
- * 右侧 280px 状态面板（v1.1 重做版）。
+ * 右侧 280px 状态面板（v0.11 重做版）。
  *
  * 四个 section（自上而下）：
  *   - 用户印象：useMemoryHot 全部白名单字段，未识别时显示「尚未识别」
