@@ -115,7 +115,11 @@ function ToolCallCard({
   const meta = (() => {
     if (status === 'running') return query ? `query=${query}` : 'pending…'
     if (status === 'failed') return query ? `query=${query} · aborted` : 'aborted'
-    return `${count ?? 0} results${query ? ` · query=${query}` : ''}`
+    // completed：写工具（count 恒 0 且无 query）只显示 done，不强加"0 results"语义
+    const parts: string[] = []
+    if (count && count > 0) parts.push(`${count} results`)
+    if (query) parts.push(`query=${query}`)
+    return parts.join(' · ')
   })()
 
   return (
@@ -156,10 +160,15 @@ function ToolCallCard({
         <span style={{color: 'var(--t1)', fontWeight: 500}}>{toolDisplay || tool}</span>
         <span style={{color: 'var(--t3)'}}>·</span>
         <span style={{color: statusColor}}>{statusLabel}</span>
-        <span style={{color: 'var(--t3)'}}>·</span>
-        <span style={{flex: 1, color: 'var(--t3)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>
-          {meta}
-        </span>
+        {meta && (
+          <>
+            <span style={{color: 'var(--t3)'}}>·</span>
+            <span style={{flex: 1, color: 'var(--t3)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>
+              {meta}
+            </span>
+          </>
+        )}
+        {!meta && <span style={{flex: 1}} />}
         {canExpand && (
           <span style={{color: 'var(--t3)', flexShrink: 0}}>
             {expanded ? <ChevronDown className="h-3 w-3" strokeWidth={1.8} /> : <ChevronRight className="h-3 w-3" strokeWidth={1.8} />}
