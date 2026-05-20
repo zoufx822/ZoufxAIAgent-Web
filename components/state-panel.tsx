@@ -1,28 +1,71 @@
 'use client'
 
 import {useEffect} from 'react'
-import {useStore} from '@/lib/store'
+import {useStore, type Status} from '@/lib/store'
 import {useMemoryHot} from '@/hooks/use-memory-hot'
 import {useMemoryStream} from '@/hooks/use-memory-stream'
+
+// 状态中文 + 英文标识——与 heartbeat.tsx 顶部条 STATUS_LABELS 完全对齐
+const STATUS_LABELS: Record<Status, {zh: string; en: string}> = {
+  idle:     {zh: '等待交互', en: 'IDLE'},
+  thinking: {zh: '思考中',   en: 'THINKING'},
+  tooling:  {zh: '使用工具', en: 'TOOLING'},
+  writing:  {zh: '回复中',   en: 'WRITING'},
+  error:    {zh: '出错了',   en: 'ERROR'},
+  asleep:   {zh: '打盹中',   en: 'ASLEEP'},
+}
+
+// Hot Memory 白名单字段 → 中文标签（与 HotMemoryUpdateTool 的 enabledKeys 对齐）
+const HOT_LABELS: Record<string, string> = {
+  display_name: '称呼',
+  language: '语言',
+  timezone: '时区',
+  role: '职业',
+  interests: '兴趣',
+  tone: '风格',
+}
+
+/**
+ * 当前状态卡片的渲染数据：与左上角 heartbeat 顶条结构对齐。
+ * - mood 时效规则沿用 heartbeat：≥15min 隐藏；error/asleep 强制不显示
+ * - reply 段仅活动态（thinking/tooling/writing）显示，追加在末尾
+ */
+function buildStateDetail(
+  status: Status,
+  mood: string | null,
+  lastMoodAt: number | null,
+  replyTo: string,
+): {zh: string; en: string; mood: string; reply: string} {
+  const label = STATUS_LABELS[status]
+  const ageMin = lastMoodAt ? (Date.now() - lastMoodAt) / 60_000 : Infinity
+  const showMood = mood && status !== 'error' && status !== 'asleep' && ageMin < 15
+  const isActive = status === 'thinking' || status === 'tooling' || status === 'writing'
+  return {
+    zh: label.zh,
+    en: label.en,
+    mood: showMood ? mood! : '',
+    reply: isActive && replyTo ? replyTo : '',
+  }
+}
 
 /**
  * 右侧 280px 状态面板（v1.1 重做版）。
  *
  * 四个 section（自上而下）：
- *   - 对话目标：useMemoryHot.display_name，未识别时显示「尚未识别」
- *   - 当前任务：根据 isLoading + 最后用户消息推断
+ *   - 用户印象：useMemoryHot 全部白名单字段，未识别时显示「尚未识别」
+ *   - 当前状态：状态机 + 情绪 + 活动态时的回应内容
  *   - 近期工具调用：聚合本会话所有 toolCalls
  *   - 记忆片段：useMemoryStream 最近 5 条，每次流结束后 invalidate 刷新
  */
 export function StatePanel() {
-  const {anchors, currentAnchorId, isLoading} = useStore()
+  const {anchors, currentAnchorId, isLoading, currentStatus, currentMood, lastMoodAt} = useStore()
   const currentAnchor = anchors.find((a) => a.id === currentAnchorId)
   const messages = currentAnchor?.messages ?? []
 
   const {data: hot, mutate: mutateHot} = useMemoryHot()
   const {data: stream, mutate: mutateStream} = useMemoryStream(5)
 
-  // 流结束时刷新 hot / stream（profile 可能被 update_user_profile 写入，stream 新加 2 行）
+  // 流结束时刷新 hot / stream（hot_memory 可能被 update_hot_memory 写入，stream 新加 2 行）
   useEffect(() => {
     if (!isLoading) {
       mutateHot()
@@ -30,11 +73,11 @@ export function StatePanel() {
     }
   }, [isLoading, mutateHot, mutateStream])
 
-  const displayName = hot.display_name
+  const hotEntries = Object.entries(hot).filter(([k, v]) => HOT_LABELS[k] && v)
 
-  // 当前任务：取最后一条 user 消息 prompt 截断
   const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user')
-  const currentTask = isLoading && lastUserMsg ? truncate(lastUserMsg.content, 60) : ''
+  const replyTo = lastUserMsg ? truncate(lastUserMsg.content, 60) : ''
+  const stateDetail = buildStateDetail(currentStatus, currentMood, lastMoodAt, replyTo)
 
   // 近期工具调用：聚合所有 messages 的 toolCalls
   const recentTools = messages
@@ -52,16 +95,62 @@ export function StatePanel() {
       }}
     >
       <div style={{flex: 1, overflow: 'auto', padding: '18px 16px 16px'}}>
-        <Section title="对话目标">
-          <Card>{displayName || '尚未识别'}</Card>
+        <Section title="用户印象">
+          {hotEntries.length === 0 ? (
+            <Card>尚未识别</Card>
+          ) : (
+            <Card>
+              <div style={{display: 'flex', flexDirection: 'column', gap: 4}}>
+                {hotEntries.map(([k, v]) => (
+                  <div key={k} style={{display: 'flex', gap: 8}}>
+                    <span
+                      style={{
+                        color: 'var(--t3)',
+                        width: 44,
+                        flexShrink: 0,
+                        fontSize: 11.5,
+                      }}
+                    >
+                      {HOT_LABELS[k]}
+                    </span>
+                    <span style={{color: 'var(--t1)', flex: 1, minWidth: 0, wordBreak: 'break-word'}}>
+                      {v}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
         </Section>
 
-        <Section title="当前任务">
-          {currentTask ? (
-            <Card label="task">{currentTask}</Card>
-          ) : (
-            <Empty>小Z 处于空闲状态。</Empty>
-          )}
+        <Section title="当前状态">
+          <Card>
+            <div style={{display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: 6, rowGap: 2}}>
+              <span style={{color: 'var(--t1)'}}>{stateDetail.zh}</span>
+              <span
+                className="mono"
+                style={{
+                  fontSize: 10,
+                  letterSpacing: '.18em',
+                  color: 'var(--t3)',
+                  textTransform: 'uppercase',
+                }}
+              >
+                {stateDetail.en}
+              </span>
+              {stateDetail.mood && (
+                <>
+                  <span style={{color: 'var(--t3)', opacity: 0.5}}>·</span>
+                  <span style={{fontStyle: 'italic', color: 'var(--t2)', fontSize: 11.5}}>
+                    {stateDetail.mood}
+                  </span>
+                </>
+              )}
+              {stateDetail.reply && (
+                <span style={{color: 'var(--t2)'}}>{stateDetail.reply}</span>
+              )}
+            </div>
+          </Card>
         </Section>
 
         <Section title="近期工具调用" count={recentTools.length}>
@@ -69,7 +158,7 @@ export function StatePanel() {
             <Empty>未有调用记录。</Empty>
           ) : (
             recentTools.map((t) => (
-              <ToolMini key={t.id} name={t.toolDisplay} status={t.status} />
+              <ToolMini key={t.id} name={t.toolDisplay || t.tool} status={t.status} />
             ))
           )}
         </Section>

@@ -153,7 +153,7 @@ function ToolCallCard({
             ...(status === 'running' ? {animation: 'pulse-dot 1.4s ease infinite'} : {}),
           }}
         />
-        <span style={{color: 'var(--t1)', fontWeight: 500}}>{toolDisplay}</span>
+        <span style={{color: 'var(--t1)', fontWeight: 500}}>{toolDisplay || tool}</span>
         <span style={{color: 'var(--t3)'}}>·</span>
         <span style={{color: statusColor}}>{statusLabel}</span>
         <span style={{color: 'var(--t3)'}}>·</span>
