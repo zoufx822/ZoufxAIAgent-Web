@@ -17,9 +17,8 @@ const STATUS_LABELS: Record<Status, {zh: string; en: string}> = {
 
 // Hot Memory 白名单字段 → 中文标签（与 HotMemoryUpdateTool 的 enabledKeys 对齐）
 const HOT_LABELS: Record<string, string> = {
-  display_name: '称呼',
+  username: '称呼',
   language: '语言',
-  timezone: '时区',
   role: '职业',
   interests: '兴趣',
   tone: '风格',
