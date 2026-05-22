@@ -104,6 +104,19 @@ export function useChatStream() {
 
         onToolCall: (payload) => {
           setStatus('tooling')
+          // ReAct 渲染：tool_call 触发时清空之前累积的 content（LLM preamble），
+          // 让 tool 后的最终回复重新累积。避免 LLM 在 silent tool（如 update_user_impression）
+          // 前后重复输出相同内容时，前端串接出"双份回复"。
+          useStore.setState((state) => ({
+            anchors: state.anchors.map((a) => {
+              if (a.id !== anchorId) return a
+              const msgs = [...a.messages]
+              const last = msgs[msgs.length - 1]
+              if (!last || last.role !== 'assistant' || !last.content) return a
+              msgs[msgs.length - 1] = { ...last, content: '' }
+              return { ...a, messages: msgs }
+            }),
+          }))
           appendToolCall(anchorId, {
             id: crypto.randomUUID(),
             tool: payload.tool,
@@ -130,7 +143,14 @@ export function useChatStream() {
 
         onComplete: () => {
           markRunningToolCallsFailed(anchorId)
-          updateLastAssistantMessage(anchorId, { isStreaming: false })
+          // 与 stop 对称：流完成时若 assistant 占位完全空（无 content / thinking / toolCalls），
+          // 删除占位避免留下"仅头像无内容"的幽灵气泡（后端只发 mood/metadata 就结束的边缘场景）。
+          const lastMsg = useStore.getState().anchors.find((a) => a.id === anchorId)?.messages.at(-1)
+          if (lastMsg && lastMsg.role === 'assistant' && !lastMsg.content && !lastMsg.thinking && lastMsg.toolCalls.length === 0) {
+            removeLastMessage(anchorId)
+          } else {
+            updateLastAssistantMessage(anchorId, { isStreaming: false })
+          }
           setStatus('idle')
           setLoading(false)
           ctrlRef.current = null
