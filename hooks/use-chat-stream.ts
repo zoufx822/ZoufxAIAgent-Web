@@ -3,6 +3,7 @@
 import { useCallback, useRef } from 'react'
 import { toast } from 'sonner'
 import { useStore } from '@/lib/store'
+import { useCapabilityStore } from '@/lib/capability'
 import { streamChat } from '@/lib/chat-stream'
 
 export function useChatStream() {
@@ -28,9 +29,17 @@ export function useChatStream() {
 
   const ctrlRef = useRef<AbortController | null>(null)
 
+  /**
+   * v0.135：第二参数 showThinking 重定义为"前端是否展示思考块"。
+   * 是否真让 LLM 思考由 capability.thinkingToggle 决定——支持时透传按钮状态给后端；
+   * 不支持时（如 deepseek-v4、降级现状的 minimax）始终传 false，LLM 行为不受按钮影响。
+   */
   const send = useCallback(
-    async (text: string, thinking: boolean) => {
+    async (text: string, showThinking: boolean) => {
       if (!text.trim() || isLoading) return
+
+      const capabilities = useCapabilityStore.getState().capabilities
+      const sendThinking = capabilities?.thinkingToggle ? showThinking : false
 
       const anchorId = currentAnchorId
       ctrlRef.current = new AbortController()
@@ -66,10 +75,12 @@ export function useChatStream() {
       await streamChat({
         message: text,
         userId,
-        thinking,
+        thinking: sendThinking,
         signal: ctrlRef.current.signal,
 
         onThinking: (chunk) => {
+          // 按钮 OFF 时丢弃 thinking chunk（后端仍可能推送，纯前端过滤）
+          if (!showThinking) return
           setStatus('thinking')
           useStore.setState((state) => ({
             anchors: state.anchors.map((a) => {

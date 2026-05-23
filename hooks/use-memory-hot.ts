@@ -6,7 +6,7 @@ import { useStore } from '@/lib/store'
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080'
 
 /**
- * 拉 Hot Memory snapshot：GET /user/{userId}/memory/hot?type={type}
+ * 拉 Hot Memory snapshot：GET /ai/memory/hot/{userId}?type={type}
  *
  * @param type - hot_memory 类型，默认 user-impression。见 HotMemoryType 常量。
  *
@@ -22,7 +22,7 @@ export function useMemoryHot(type: string = 'user-impression') {
     if (!userId) return
     setLoading(true)
     try {
-      const res = await fetch(`${API_BASE}/user/${encodeURIComponent(userId)}/memory/hot?type=${encodeURIComponent(type)}`)
+      const res = await fetch(`${API_BASE}/ai/memory/hot/${encodeURIComponent(userId)}?type=${encodeURIComponent(type)}`)
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const json = (await res.json()) as Record<string, string>
       setData(json ?? {})

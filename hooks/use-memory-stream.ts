@@ -13,7 +13,7 @@ export interface StreamEntry {
 }
 
 /**
- * 拉最近 N 条经历流：GET /user/{userId}/memory/stream?limit=N
+ * 拉最近 N 条经历流：GET /ai/memory/cold/{userId}?limit=N
  *
  * 默认 limit=5。返回 created_at DESC（最新在前）。
  * 通过 `mutate()` 在 onComplete / send 后手动刷新。
@@ -27,7 +27,7 @@ export function useMemoryStream(limit: number = 5) {
     if (!userId) return
     setLoading(true)
     try {
-      const url = `${API_BASE}/user/${encodeURIComponent(userId)}/memory/stream?limit=${limit}`
+      const url = `${API_BASE}/ai/memory/cold/${encodeURIComponent(userId)}?limit=${limit}`
       const res = await fetch(url)
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const json = (await res.json()) as StreamEntry[]

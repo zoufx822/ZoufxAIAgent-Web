@@ -124,7 +124,7 @@ function ChatInput({
                   )}
                 >
                   <Sparkles className="size-4" strokeWidth={2} />
-                  <span className="flex-1">思考一下</span>
+                  <span className="flex-1">思考</span>
                   {thinkingEnabled && (
                     <span className="size-1.5 rounded-full bg-primary" />
                   )}
@@ -149,7 +149,7 @@ function ChatInput({
               <Sparkles className="size-3.5" strokeWidth={2} />
               <span>思考</span>
             </TooltipTrigger>
-            <TooltipContent side="top">点击关闭思考模式</TooltipContent>
+            <TooltipContent side="top">点击关闭显示思考过程</TooltipContent>
           </Tooltip>
         )}
 
