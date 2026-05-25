@@ -9,10 +9,7 @@ interface RailProps {
   onNewAnchor: () => void
 }
 
-/**
- * 左侧 56px 固定图标栏。
- * 与设计一致：Z logo + 记忆锚点切换 + 新对话 + 主题切换。
- */
+/** 左侧 56px 固定图标栏——Z logo + 记忆锚点 + 新对话 + 主题切换。 */
 export function Rail({memoryOpen, onMemoryClick, onNewAnchor}: RailProps) {
   const {theme, setTheme} = useTheme()
   const [mounted, setMounted] = useState(false)
@@ -29,7 +26,7 @@ export function Rail({memoryOpen, onMemoryClick, onNewAnchor}: RailProps) {
         gap: 6,
       }}
     >
-      {/* v0.11 设计稿：左上角 Z 方块标已去除（小Z 形象由 Home Eyes + 消息头像 Eyes 承担） */}
+      {/* Z 方块标已去除——形象由 Home Eyes + 消息头像 Eyes 承载 */}
 
       {/* 记忆锚点 */}
       <RailBtn active={memoryOpen} onClick={onMemoryClick} title="记忆锚点">

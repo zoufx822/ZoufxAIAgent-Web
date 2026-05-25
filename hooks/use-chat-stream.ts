@@ -30,7 +30,7 @@ export function useChatStream() {
   const ctrlRef = useRef<AbortController | null>(null)
 
   /**
-   * v0.135：第二参数 showThinking 重定义为"前端是否展示思考块"。
+   * 第二参数 showThinking 控制前端是否展示思考块。
    * 是否真让 LLM 思考由 capability.thinkingToggle 决定——支持时透传按钮状态给后端；
    * 不支持时（如 deepseek-v4、降级现状的 minimax）始终传 false，LLM 行为不受按钮影响。
    */

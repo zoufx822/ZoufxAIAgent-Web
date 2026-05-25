@@ -4,16 +4,8 @@ import { useEffect } from 'react'
 import { useStore } from '@/lib/store'
 
 /**
- * ASLEEP 状态前端派生（v0.11）。
- *
- * 触发条件（来自 emotion-system.md）：
- *   `idle` 且本地时间 ≥23:00 或 <5:00 → 派生为 `asleep`
- *
- * 这里实现宽松版：只要 currentStatus === 'idle' 且在深夜时段，就主动切到 'asleep'。
- * 一旦有任何流活动（onThinking/onContent/onToolCall 把 status 切回 thinking/writing/tooling），
- * 自然脱离 ASLEEP。
- *
- * 仅在挂载到顶层组件一次（例如 Heartbeat）即可，无需多实例。
+ * ASLEEP 状态派生——idle + 本地时间 23:00~5:00 时自动切换为 asleep。
+ * 任何流活动会将 status 切回 thinking/writing/tooling，自然脱离。
  */
 export function useAsleepDetector(options?: { intervalMs?: number }) {
   const intervalMs = options?.intervalMs ?? 30_000

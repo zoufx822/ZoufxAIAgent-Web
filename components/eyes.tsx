@@ -3,17 +3,8 @@
 import { useMemo } from 'react'
 
 /**
- * Eyes 字标——替代 "小Z" / "Z" 字标的 SVG 组件（v0.11）。
- *
- * 视觉规范：design_handoff_zoufx_ai/{emotion,mood}-system.md
- * - viewBox 100×44，两椭圆 + 两瞳孔
- * - 三段动画（CSS 在 globals.css）：eye-blink / pupil-glance / eye-busy
- * - mood 微表情：10 个 mood 各对应一组像素级几何参数（pr/pdy/esy/pdxR/prR/blink）
- *   ==仅 size ≥ 40 启用==——小头像看不清反而抖
- * - 多实例去同步：blinkDelay 由调用方传入随机 3-9s
- *
- * busy 优先于 mood：当 busy=true 时眨眼变成半眯（emotion-system 第三节），
- * mood 映射的 blink 周期被覆盖。
+ * Eyes SVG 字标——两椭圆 + 两瞳孔，含眨眼/扫视/忙碌三段 CSS 动画。
+ * mood 微表情通过像素级几何参数驱动（仅 size ≥ 40 启用），busy=true 时覆盖为半眯。
  */
 
 interface Expr {

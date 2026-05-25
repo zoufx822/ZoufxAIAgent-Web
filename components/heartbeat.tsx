@@ -4,11 +4,8 @@ import { useStore } from '@/lib/store'
 import { useAsleepDetector } from '@/hooks/use-asleep-detector'
 
 /**
- * 顶部 48px 情绪条（v0.11 重做版，按 design_handoff_zoufx_ai/{emotion,mood}-system.md）。
- *
- * 单行布局：● 色点 + 中文 status + EN mono · italic mood（可选）
- * 数据源：currentStatus / currentMood / lastMoodAt 全部从 zustand 读，由 use-chat-stream 写。
- * ASLEEP 派生：useAsleepDetector 内部 30s tick，按本机时间在 idle/asleep 间切换。
+ * 顶部 48px 状态条——● 色点 + 中文 status + EN mono mood。
+ * 数据源从 zustand 读取（use-chat-stream 写入），ASLEEP 由 useAsleepDetector 按本机时间派生。
  */
 
 const STATUS_LABELS: Record<string, { zh: string; en: string }> = {
@@ -21,9 +18,7 @@ const STATUS_LABELS: Record<string, { zh: string; en: string }> = {
 }
 
 /**
- * mood 显示纯函数（来自 mood-system.md 第四节）。
- *   - error/asleep 强制隐藏（语义冲突）
- *   - ≥15min 隐藏 / 5–15min stale 灰 / <5min 正常
+ * mood 显示逻辑——error/asleep 强制隐藏；≥15min 隐藏 / 5-15min stale / <5min 正常。
  */
 function getMoodDisplay(
   status: string,

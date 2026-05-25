@@ -1,8 +1,6 @@
 /**
- * LLM 能力声明（v0.135）—— 后端 GET /ai/capabilities 返回的契约。
- * 与后端 chat/api/LlmCapabilities.java 字段对齐。
- *
- * 前端启动时拉一次缓存，profile 切换需要后端重启 + 前端刷新。
+ * LLM 能力声明——后端 GET /ai/capabilities 返回的契约。
+ * 前端启动时拉一次缓存，profile 切换需后端重启 + 前端刷新。
  */
 import { create } from 'zustand'
 

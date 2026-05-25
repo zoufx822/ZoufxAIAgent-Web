@@ -19,7 +19,7 @@ const SUGGESTIONS = [
   '开始一次深度分析',
 ]
 
-/* ── 输入框组件 ── */
+// 输入框组件
 function ChatInput({
   input,
   setInput,
@@ -190,14 +190,14 @@ function ChatInput({
 export function ChatWindow() {
   const { messages, isLoading, send, stop } = useChatStream()
   const { currentAnchorId, toggleThinking, toggleToolCallExpanded } = useStore()
-  // v0.11 Eyes 微表情/busy 联动：订阅式读取 status / mood
+  // Eyes 微表情/busy 联动：订阅式读取 status / mood
   const currentStatus = useStore((s) => s.currentStatus)
   const currentMood = useStore((s) => s.currentMood)
   const eyesBusy = currentStatus === 'thinking' || currentStatus === 'tooling' || currentStatus === 'writing'
 
   const [input, setInput] = useState('')
   const [thinkingEnabled, setThinkingEnabled] = useState(false)
-  // v0.11：副标题已去除（Home 只剩 Eyes + 输入框 + chips），userName 不再前端展示；
+  // Home 只保留 Eyes + 输入框 + chips，userName 不展示
   // 后端 Hot Memory 的 display_name 由 StatePanel「对话目标」承担
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -237,7 +237,7 @@ export function ChatWindow() {
           style={{ animation: 'up 0.3s ease both' }}
         >
           <div className="w-full max-w-2xl">
-            {/* v0.11：Home 大眼睛字标，承担"小Z 形象"的所有视觉重量；mood 微表情联动 */}
+            {/* Home 大眼睛字标，承担小Z 形象视觉重心 */}
             <div className="text-center mb-11 flex justify-center" style={{ color: 'var(--t1)' }}>
               <Eyes size={56} busy={eyesBusy} mood={currentMood} />
             </div>

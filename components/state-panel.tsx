@@ -5,7 +5,7 @@ import {useStore, type Status} from '@/lib/store'
 import {useMemoryHot} from '@/hooks/use-memory-hot'
 import {useMemoryStream} from '@/hooks/use-memory-stream'
 
-// 状态中文 + 英文标识——与 heartbeat.tsx 顶部条 STATUS_LABELS 完全对齐
+// 状态中文 + 英文标识，与 heartbeat.tsx STATUS_LABELS 对齐
 const STATUS_LABELS: Record<Status, {zh: string; en: string}> = {
   idle:     {zh: '等待交互', en: 'IDLE'},
   thinking: {zh: '思考中',   en: 'THINKING'},
@@ -15,7 +15,7 @@ const STATUS_LABELS: Record<Status, {zh: string; en: string}> = {
   asleep:   {zh: '打盹中',   en: 'ASLEEP'},
 }
 
-// Hot Memory 白名单字段 → 中文标签（与 HotMemoryUpdateTool 的 enabledKeys 对齐）
+// Hot Memory 字段 → 中文标签
 const HOT_LABELS: Record<string, string> = {
   username: '称呼',
   language: '语言',
@@ -48,7 +48,7 @@ function buildStateDetail(
 }
 
 /**
- * 右侧 280px 状态面板（v0.11 重做版）。
+ * 右侧 280px 状态面板。
  *
  * 四个 section（自上而下）：
  *   - 用户印象：useMemoryHot 全部白名单字段，未识别时显示「尚未识别」

@@ -16,10 +16,7 @@ interface Props {
   onScrollNeeded?: () => void
 }
 
-/**
- * Thinking 块：mono 字体 + 左侧 1px 细线 + 整体 char-in 渐入。
- * 视觉气质：像代码块的注释，让人停下来阅读。
- */
+/** Thinking 块——mono 字体 + 左侧细线 + char-in 渐入。 */
 function ThinkingBlock({
   thinking,
   expanded,
@@ -235,7 +232,7 @@ export function MessageItem({message, isNew = false, onToggleThinking, onToggleT
             borderRadius: 8,
           }}
         >
-          {/* v0.11：消息头像 = mini Eyes，反色瞳孔（白眼睛 + 深瞳） */}
+          {/* 消息头像 = mini Eyes，反色瞳孔 */}
           <Eyes size={11} color="var(--bg)" pupil="var(--t1)" />
         </div>
       )}

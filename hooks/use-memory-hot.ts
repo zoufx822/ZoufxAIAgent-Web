@@ -6,12 +6,8 @@ import { useStore } from '@/lib/store'
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080'
 
 /**
- * 拉 Hot Memory snapshot：GET /ai/memory/hot/{userId}?type={type}
- *
- * @param type - hot_memory 类型，默认 user-impression。见 HotMemoryType 常量。
- *
- * 用法：组件挂载时拉一次；通过返回的 `mutate()` 在 use-chat-stream.onComplete 之后手动刷新
- * （避免轮询）。失败静默——记忆 API 失败不影响主对话流，沿用 v0.11 第十章风险表 #8。
+ * 拉 Hot Memory snapshot——GET /ai/memory/hot/{userId}?type={type}。
+ * 挂载时拉一次，通过返回的 mutate() 手动刷新。失败静默，不影响主对话流。
  */
 export function useMemoryHot(type: string = 'user-impression') {
   const userId = useStore((s) => s.userId)

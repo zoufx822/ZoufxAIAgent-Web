@@ -23,8 +23,7 @@ export interface Message {
 }
 
 /**
- * 记忆锚点：UI 层的"对话分组"概念。底层后端按 userId 串成连续 Memory Stream，
- * 锚点只是视觉/操作层面的切片——所以前后端都不再有 session 概念。
+ * 记忆锚点——UI 层对话分组，后端按 userId 串成连续 Memory Stream，前后端均无 session 概念。
  */
 export interface MemoryAnchor {
   id: string
@@ -33,10 +32,7 @@ export interface MemoryAnchor {
   createdAt: number
 }
 
-/**
- * 情绪 status（v0.11）—— 状态机层，6 态由 SSE 事件 + idle timer 推导。
- * 详见 v0.11 文档 4.1.3 节。
- */
+/** 情绪 status——6 态由 SSE 事件 + idle timer 推导。 */
 export type Status = 'idle' | 'thinking' | 'tooling' | 'writing' | 'error' | 'asleep'
 
 interface Store {
