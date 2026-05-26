@@ -3,7 +3,7 @@
 import {useEffect} from 'react'
 import {useStore, type Status} from '@/lib/store'
 import {useMemoryHot} from '@/hooks/use-memory-hot'
-import {useMemoryStream} from '@/hooks/use-memory-stream'
+import {useMemoryCold} from '@/hooks/use-memory-cold'
 
 // 状态中文 + 英文标识，与 heartbeat.tsx STATUS_LABELS 对齐
 const STATUS_LABELS: Record<Status, {zh: string; en: string}> = {
@@ -54,7 +54,7 @@ function buildStateDetail(
  *   - 用户印象：useMemoryHot 全部白名单字段，未识别时显示「尚未识别」
  *   - 当前状态：状态机 + 情绪 + 活动态时的回应内容
  *   - 近期工具调用：聚合本会话所有 toolCalls
- *   - 记忆片段：useMemoryStream 最近 5 条，每次流结束后 invalidate 刷新
+ *   - 记忆片段：useMemoryCold 最近 5 条，每次流结束后 invalidate 刷新
  */
 export function StatePanel() {
   const {anchors, currentAnchorId, isLoading, currentStatus, currentMood, lastMoodAt} = useStore()
@@ -62,15 +62,15 @@ export function StatePanel() {
   const messages = currentAnchor?.messages ?? []
 
   const {data: hot, mutate: mutateHot} = useMemoryHot()
-  const {data: stream, mutate: mutateStream} = useMemoryStream(5)
+  const {data: cold, mutate: mutateCold} = useMemoryCold(5)
 
-  // 流结束时刷新 hot / stream（hot_memory 可能被 update_hot_memory 写入，stream 新加 2 行）
+  // 流结束时刷新 hot / cold（hot_memory 可能被 update_hot_memory 写入，cold 新加 2 行）
   useEffect(() => {
     if (!isLoading) {
       mutateHot()
-      mutateStream()
+      mutateCold()
     }
-  }, [isLoading, mutateHot, mutateStream])
+  }, [isLoading, mutateHot, mutateCold])
 
   const hotEntries = Object.entries(hot).filter(([k, v]) => HOT_LABELS[k] && v)
 
@@ -162,11 +162,11 @@ export function StatePanel() {
           )}
         </Section>
 
-        <Section title="记忆片段" count={stream.length}>
-          {stream.length === 0 ? (
+        <Section title="记忆片段" count={cold.length}>
+          {cold.length === 0 ? (
             <Empty>还没有交集。</Empty>
           ) : (
-            stream.map((e) => (
+            cold.map((e) => (
               <Card key={e.id} label={e.role}>
                 {truncate(e.content, 80)}
               </Card>

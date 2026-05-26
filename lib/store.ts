@@ -23,7 +23,7 @@ export interface Message {
 }
 
 /**
- * 记忆锚点——UI 层对话分组，后端按 userId 串成连续 Memory Stream，前后端均无 session 概念。
+ * 记忆锚点——UI 层对话分组，后端按 userId 串成连续记忆，前后端均无 session 概念。
  */
 export interface MemoryAnchor {
   id: string
