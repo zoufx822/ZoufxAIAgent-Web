@@ -5,7 +5,6 @@ import {AnimatePresence, motion} from 'motion/react'
 import {ChevronDown, ChevronRight} from 'lucide-react'
 import {cn} from '@/lib/utils'
 import type {Message, ToolCall} from '@/lib/store'
-import {Eyes} from '@/components/eyes'
 import {StreamMarkdown} from '@/components/ui/stream-markdown'
 
 interface Props {
@@ -220,24 +219,10 @@ export function MessageItem({message, isNew = false, onToggleThinking, onToggleT
       initial={isNew ? {opacity: 0, y: 6} : {opacity: 1, y: 0}}
       animate={{opacity: 1, y: 0}}
       transition={isNew ? {duration: 0.18, ease: 'easeOut'} : {duration: 0}}
-      className={cn('flex w-full gap-3', isUser && 'justify-end')}
+      className={cn('flex w-full', isUser && 'justify-end')}
       style={{marginBottom: '26px'}}
     >
-      {!isUser && (
-        <div
-          className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center flex-shrink-0"
-          style={{
-            backgroundColor: 'var(--t1)',
-            color: 'var(--bg)',
-            borderRadius: 8,
-          }}
-        >
-          {/* 消息头像 = mini Eyes，反色瞳孔 */}
-          <Eyes size={11} color="var(--bg)" pupil="var(--t1)" />
-        </div>
-      )}
-
-      <div className={cn('flex max-w-[72%] flex-col gap-2.5', isUser && 'items-end')}>
+      <div className={cn('flex flex-col gap-2.5 min-w-0', isUser ? 'max-w-[72%] items-end' : 'w-full')}>
         {/* 用户消息气泡 */}
         {isUser && (
           <div

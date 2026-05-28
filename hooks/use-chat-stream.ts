@@ -24,6 +24,7 @@ export function useChatStream() {
     setLoading,
     setStatus,
     setMood,
+    bumpHotMemoryVersion,
   } = useStore()
 
   // selector 必须返回稳定引用——空 anchor 用模块级空数组兜底，避免无限循环。
@@ -31,6 +32,8 @@ export function useChatStream() {
   const messages = useMemo(() => rawMessages ?? EMPTY_MESSAGES, [rawMessages])
 
   const ctrlRef = useRef<AbortController | null>(null)
+  /** tail buffer：保留末尾 50 字符不 emit，防止跨 chunk 的 <!--mood:...--> 逃脱前端过滤 */
+  const tailRef = useRef('')
 
   /**
    * 第二参数 showThinking 控制前端是否展示思考块。
@@ -50,6 +53,7 @@ export function useChatStream() {
       if (prevAnchorId) useStore.setState({ lastActiveAnchorId: null })
 
       ctrlRef.current = new AbortController()
+      tailRef.current = ''
       setLoading(true)
       setStatus('thinking')
 
@@ -101,17 +105,26 @@ export function useChatStream() {
         },
 
         onContent: (chunk) => {
-          setStatus('writing')
-          useStore.setState((state) => {
-            const msgs = [...(state.messages[anchorId] ?? [])]
-            const last = msgs[msgs.length - 1]
-            if (!last || last.role !== 'assistant') return state
-            msgs[msgs.length - 1] = { ...last, content: last.content + chunk }
-            return { messages: { ...state.messages, [anchorId]: msgs } }
-          })
+          // tail buffer 防御：保留末尾 50 字符防止跨 chunk mood 标记逃脱
+          tailRef.current += chunk
+          const clean = tailRef.current.replace(/<!--\s*mood\s*:\s*[^>]*?-->/gi, '')
+          const emitLen = Math.max(0, clean.length - 50)
+          if (emitLen > 0) {
+            const emit = clean.substring(0, emitLen)
+            tailRef.current = clean.substring(emitLen)
+            setStatus('writing')
+            useStore.setState((state) => {
+              const msgs = [...(state.messages[anchorId] ?? [])]
+              const last = msgs[msgs.length - 1]
+              if (!last || last.role !== 'assistant') return state
+              msgs[msgs.length - 1] = { ...last, content: last.content + emit }
+              return { messages: { ...state.messages, [anchorId]: msgs } }
+            })
+          }
         },
 
         onToolCall: (payload) => {
+          tailRef.current = '' // tool_call 边界清空
           setStatus('tooling')
           // ReAct 渲染：tool_call 触发时清空之前累积的 content（LLM preamble），
           // 让 tool 后的最终回复重新累积。避免 silent tool 前后双份回复。
@@ -146,6 +159,20 @@ export function useChatStream() {
         },
 
         onComplete: () => {
+          // flush tail buffer 残留
+          if (tailRef.current) {
+            const clean = tailRef.current.replace(/<!--\s*mood\s*:\s*[^>]*?-->/gi, '')
+            if (clean) {
+              useStore.setState((state) => {
+                const msgs = [...(state.messages[anchorId] ?? [])]
+                const last = msgs[msgs.length - 1]
+                if (!last || last.role !== 'assistant') return state
+                msgs[msgs.length - 1] = { ...last, content: last.content + clean }
+                return { messages: { ...state.messages, [anchorId]: msgs } }
+              })
+            }
+            tailRef.current = ''
+          }
           markRunningToolCallsFailed(anchorId)
           const lastMsg = useStore.getState().messages[anchorId]?.at(-1)
           if (lastMsg && lastMsg.role === 'assistant' && !lastMsg.content && !lastMsg.thinking && lastMsg.toolCalls.length === 0) {
@@ -154,12 +181,14 @@ export function useChatStream() {
             updateLastAssistantMessage(anchorId, { isStreaming: false })
           }
           touchAnchor(anchorId, Date.now())
+          bumpHotMemoryVersion()
           setStatus('idle')
           setLoading(false)
           ctrlRef.current = null
         },
 
         onError: (err) => {
+          tailRef.current = ''
           markRunningToolCallsFailed(anchorId)
           removeLastMessage(anchorId)
           toast.error(err.message || '请求出错，请稍后重试')
@@ -169,10 +198,11 @@ export function useChatStream() {
         },
       })
     },
-    [currentAnchorId, lastActiveAnchorId, isLoading, addMessage, updateLastAssistantMessage, removeLastMessage, updateAnchorTitle, touchAnchor, appendToolCall, updateLastRunningToolCall, markRunningToolCallsFailed, setLoading, setStatus, setMood]
+    [currentAnchorId, lastActiveAnchorId, isLoading, addMessage, updateLastAssistantMessage, removeLastMessage, updateAnchorTitle, touchAnchor, appendToolCall, updateLastRunningToolCall, markRunningToolCallsFailed, setLoading, setStatus, setMood, bumpHotMemoryVersion]
   )
 
   const stop = useCallback(() => {
+    tailRef.current = ''
     ctrlRef.current?.abort()
     ctrlRef.current = null
     const anchorId = currentAnchorId

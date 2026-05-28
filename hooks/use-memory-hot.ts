@@ -10,6 +10,7 @@ import { api } from '@/lib/api'
  */
 export function useMemoryHot(type: string = 'user-impression') {
   const userId = useStore((s) => s.userId)
+  const hotMemoryVersion = useStore((s) => s.hotMemoryVersion)
   const [data, setData] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
 
@@ -28,7 +29,7 @@ export function useMemoryHot(type: string = 'user-impression') {
 
   useEffect(() => {
     if (userId) mutate()
-  }, [userId, mutate])
+  }, [userId, mutate, hotMemoryVersion])
 
   return { data, loading, mutate }
 }

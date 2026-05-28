@@ -54,6 +54,8 @@ interface Store {
   // UI 状态（非持久化）
   spotlight: boolean
   lookbackOpen: boolean
+  /** 对话完成后递增，useMemoryHot 监听此值触发重拉印象 */
+  hotMemoryVersion: number
 
   // ── anchor actions ──
   setAnchors: (anchors: MemoryAnchor[]) => void
@@ -79,6 +81,7 @@ interface Store {
   setMood: (keyword: string | null) => void
   triggerSpotlight: () => void
   setLookbackOpen: (v: boolean) => void
+  bumpHotMemoryVersion: () => void
 }
 
 function genId() {
@@ -101,10 +104,11 @@ export const useStore = create<Store>()(
       messages: {},
       isLoading: false,
       currentStatus: 'idle',
-      currentMood: null,
-      lastMoodAt: null,
+      currentMood: '平静',
+      lastMoodAt: Date.now(),
       spotlight: false,
       lookbackOpen: false,
+      hotMemoryVersion: 0,
 
       setAnchors: (anchors) => {
         const cur = get().currentAnchorId
@@ -276,6 +280,8 @@ export const useStore = create<Store>()(
       },
 
       setLookbackOpen: (v) => set({ lookbackOpen: v }),
+
+      bumpHotMemoryVersion: () => set((s) => ({ hotMemoryVersion: s.hotMemoryVersion + 1 })),
     }),
     {
       name: 'zoufx-chat-sessions',

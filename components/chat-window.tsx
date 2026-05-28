@@ -15,33 +15,39 @@ import { useAnchorMessages } from '@/hooks/use-anchor-messages'
 import { useContextDetector } from '@/hooks/use-context-detector'
 import { useMemoryHot } from '@/hooks/use-memory-hot'
 import { useIntimacy } from '@/hooks/use-intimacy'
+import { useAsleepDetector } from '@/hooks/use-asleep-detector'
 import { cn } from '@/lib/utils'
 
+const STATUS_LABELS: Record<string, { zh: string; en: string }> = {
+  idle:     { zh: '等待交互', en: 'IDLE' },
+  thinking: { zh: '思考中',   en: 'THINKING' },
+  tooling:  { zh: '使用工具', en: 'TOOLING' },
+  writing:  { zh: '回复中',   en: 'WRITING' },
+  error:    { zh: '出错了',   en: 'ERROR' },
+  asleep:   { zh: '打盹中',   en: 'ASLEEP' },
+}
+const HOME_MOOD_HIDE = new Set(['error', 'asleep'])
+
 const SUGGESTIONS_BY_INTIMACY: Record<string, string[]> = {
-  stranger: [
-    '我们认识一下吧',
-    '你能做些什么？',
-    '帮我写一段开场白',
-    '解释一个概念',
-  ],
-  'half-known': [
-    '帮我梳理一个方案',
-    '把这段内容写得更好',
-    '继续上次的话题',
-    '我想聊聊最近的事',
-  ],
-  'fully-known': [
-    '继续上次没说完的',
-    '今天怎么样？',
-    '帮我想想这件事',
-    '陪我聊聊',
-  ],
+  stranger:     ['你想聊点什么？', '你怎么称呼自己', '介绍一下你自己'],
+  'half-known': ['帮我梳理一个方案', '把这段写得更好', '解释一个复杂概念'],
+  'fully-known':['帮我梳理一个方案', '把这段写得更好', '解释一个复杂概念', '深度分析'],
 }
 
-const INTIMACY_SUBLINE: Record<string, string> = {
-  stranger: '我们才刚认识，先聊点轻松的？',
-  'half-known': '准备好继续了——你想说点什么？',
-  'fully-known': '我在这里。',
+const INTIMACY_GREET: Record<string, string> = {
+  stranger:     '我们才刚认识。先随便聊聊？',
+  'half-known': '继续聊吧——我还在慢慢认识你。',
+}
+
+function timeGreet(): string {
+  const h = new Date().getHours()
+  if (h < 5)  return '还醒着？我陪你。'
+  if (h < 9)  return '今天打算干点什么？'
+  if (h < 12) return '早上的脑子最清楚，开始吧。'
+  if (h < 14) return '吃过了吗？吃过我们就继续。'
+  if (h < 18) return '下午容易走神，需要我提醒你聚焦吗？'
+  if (h < 22) return '今天怎么样？想聊点什么？'
+  return '夜深了。别熬太晚，我也是。'
 }
 
 function ChatInput({
@@ -204,6 +210,7 @@ function ChatInput({
 
 export function ChatWindow() {
   useAnchorMessages()
+  useAsleepDetector()
 
   const { messages, isLoading, send, stop } = useChatStream()
   const { currentAnchorId, toggleThinking, toggleToolCallExpanded } = useStore()
@@ -214,7 +221,6 @@ export function ChatWindow() {
 
   const { data: hot } = useMemoryHot('user-impression')
   const intimacy = useIntimacy(hot)
-  const displayName = hot?.display_name?.trim()
 
   const [input, setInput] = useState('')
   const [thinkingEnabled, setThinkingEnabled] = useState(false)
@@ -247,11 +253,10 @@ export function ChatWindow() {
     [isLoading, send, thinkingEnabled, forceScrollToBottom]
   )
 
-  const greeting = useMemo(() => {
-    if (displayName) return `嗨，${displayName}。`
-    if (intimacy === 'stranger') return '你好。'
-    return INTIMACY_SUBLINE[intimacy]
-  }, [displayName, intimacy])
+  const greeting = useMemo(() => INTIMACY_GREET[intimacy] ?? timeGreet(), [intimacy])
+
+  const statusLabel = STATUS_LABELS[currentStatus] ?? STATUS_LABELS.idle
+  const showMood = !HOME_MOOD_HIDE.has(currentStatus) && !!currentMood
 
   const suggestions = SUGGESTIONS_BY_INTIMACY[intimacy] ?? SUGGESTIONS_BY_INTIMACY.stranger
 
@@ -259,34 +264,32 @@ export function ChatWindow() {
     <div className="flex h-full flex-col">
       {isEmpty ? (
         <div
-          className="relative flex flex-1 flex-col items-center justify-center px-12 py-24"
-          style={{ animation: 'up 0.3s ease both' }}
+          className="page-enter flex flex-1 flex-col items-center justify-center"
+          style={{ padding: '0 48px' }}
         >
-          <div className="w-full max-w-2xl">
-            <div className="text-center mb-6 flex justify-center" style={{ color: 'var(--accent)' }}>
-              <Eyes size={64} busy={eyesBusy} mood={currentMood} context={context} />
-            </div>
-
-            <div
-              className="text-center mb-2"
-              style={{
-                fontSize: 18,
-                color: 'var(--t1)',
-                fontWeight: 500,
-                letterSpacing: '-.01em',
-              }}
-            >
-              {greeting}
-            </div>
-            {displayName && (
-              <div
-                className="text-center mb-7"
-                style={{ fontSize: 13, color: 'var(--t2)' }}
-              >
-                {INTIMACY_SUBLINE[intimacy]}
+          <div style={{ width: '100%', maxWidth: 620 }}>
+            <div className="home-nameplate" data-mood={currentStatus}>
+              <div className="home-eyes">
+                <Eyes size={80} busy={eyesBusy} mood={currentMood} context={context} color="var(--accent)" pupil="var(--bg)" />
               </div>
-            )}
-            {!displayName && <div className="mb-7" />}
+              <div className="home-sig">
+                <span className="home-sig-rule"></span>
+                <span className="home-sig-name">小&thinsp;Z</span>
+                <span className="home-sig-rule"></span>
+              </div>
+              <div className="home-status">
+                <span className="home-status-dot"></span>
+                <span className="home-status-zh">{statusLabel.zh}</span>
+                <span className="home-status-en mono">{statusLabel.en}</span>
+                {showMood && (
+                  <>
+                    <span className="home-status-sep">·</span>
+                    <span key={currentMood ?? ''} className="home-status-mood">{currentMood}</span>
+                  </>
+                )}
+              </div>
+              <div className="home-line">{greeting}</div>
+            </div>
 
             <div className="mb-4">
               <ChatInput
@@ -332,13 +335,6 @@ export function ChatWindow() {
                 </button>
               ))}
             </div>
-          </div>
-
-          <div
-            className="absolute bottom-5 text-xs"
-            style={{ color: 'var(--t3)' }}
-          >
-            AI 可能会出错，请核实重要信息
           </div>
         </div>
       ) : (

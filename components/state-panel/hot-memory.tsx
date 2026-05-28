@@ -10,7 +10,7 @@
  */
 
 const HOT_OUTER: { key: string; label: string }[] = [
-  { key: 'display_name', label: '称呼' },
+  { key: 'username', label: '称呼' },
   { key: 'role',         label: '职业' },
   { key: 'language',     label: '语言' },
   { key: 'timezone',     label: '时区' },

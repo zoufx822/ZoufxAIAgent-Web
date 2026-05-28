@@ -26,7 +26,8 @@ export function useAnchorMessages() {
         const msgs = backendMsgs.map((m) => ({
           id: crypto.randomUUID(),
           role: (m.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
-          content: m.content ?? '',
+          // 防御性剥离——后端已过滤，此处兜底
+          content: (m.content ?? '').replace(/<!--mood:[^>]+?-->/g, ''),
           thinking: '',
           thinkingExpanded: false,
           toolCalls: [],

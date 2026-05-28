@@ -48,7 +48,7 @@ export function PresenceSticky() {
   return (
     <div
       className={`presence-sticky${spotlight ? ' spotlight' : ''}`}
-      data-status={currentStatus}
+      data-mood={currentStatus}
       role="status"
       aria-live="polite"
     >
@@ -63,16 +63,17 @@ export function PresenceSticky() {
         />
       </div>
       <div className="presence-label">
-        {md.visible && (
-          <>
-            <span className={`presence-mood${md.stale ? ' stale' : ''}`}>{currentMood}</span>
-            <span className="presence-sep">·</span>
-          </>
-        )}
+        <span className="presence-dot" />
         <span className="presence-status">
           <span className="status-zh">{label.zh}</span>
-          <span className="status-en mono">{label.en}</span>
+          <span className="status-en">{label.en}</span>
         </span>
+        {md.visible && (
+          <>
+            <span className="presence-sep">·</span>
+            <span key={currentMood} className={`presence-mood${md.stale ? ' stale' : ''}`}>{currentMood}</span>
+          </>
+        )}
       </div>
     </div>
   )
