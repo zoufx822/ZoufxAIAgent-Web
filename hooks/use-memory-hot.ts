@@ -2,11 +2,10 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useStore } from '@/lib/store'
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080'
+import { api } from '@/lib/api'
 
 /**
- * 拉 Hot Memory snapshot——GET /ai/memory/hot/{userId}?type={type}。
+ * 拉 Hot Memory snapshot——GET /ai/memory/hot?userId=X&type=Y。
  * 挂载时拉一次，通过返回的 mutate() 手动刷新。失败静默，不影响主对话流。
  */
 export function useMemoryHot(type: string = 'user-impression') {
@@ -18,9 +17,7 @@ export function useMemoryHot(type: string = 'user-impression') {
     if (!userId) return
     setLoading(true)
     try {
-      const res = await fetch(`${API_BASE}/ai/memory/hot/${encodeURIComponent(userId)}?type=${encodeURIComponent(type)}`)
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const json = (await res.json()) as Record<string, string>
+      const json = await api.getHotMemory(userId, type)
       setData(json ?? {})
     } catch (err) {
       console.warn('useMemoryHot fetch failed', err)

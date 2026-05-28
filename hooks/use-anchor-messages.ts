@@ -1,0 +1,43 @@
+'use client'
+
+import { useEffect } from 'react'
+import { useStore } from '@/lib/store'
+import { api } from '@/lib/api'
+
+/**
+ * 切锚时拉取后端窗口消息（≤20 条）。
+ * 已经在 store.messages[anchorId] 里的，跳过远程拉取（聊天中本地写入的消息是权威态）。
+ * 失败静默——切到一个空锚点视为正常起始。
+ */
+export function useAnchorMessages() {
+  const anchorId = useStore((s) => s.currentAnchorId)
+  const setMessages = useStore((s) => s.setMessages)
+
+  useEffect(() => {
+    if (!anchorId) return
+    const cached = useStore.getState().messages[anchorId]
+    if (cached && cached.length > 0) return
+
+    let cancelled = false
+    ;(async () => {
+      try {
+        const backendMsgs = await api.getMessages(anchorId)
+        if (cancelled) return
+        const msgs = backendMsgs.map((m) => ({
+          id: crypto.randomUUID(),
+          role: (m.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
+          content: m.content ?? '',
+          thinking: '',
+          thinkingExpanded: false,
+          toolCalls: [],
+          isStreaming: false,
+        }))
+        setMessages(anchorId, msgs)
+      } catch (err) {
+        if (!cancelled) console.warn('useAnchorMessages fetch failed', err)
+      }
+    })()
+
+    return () => { cancelled = true }
+  }, [anchorId, setMessages])
+}

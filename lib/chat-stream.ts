@@ -45,8 +45,10 @@ export interface MoodPayload {
 
 export interface StreamChatOptions {
   message: string
-  /** 后端记忆分区键。所有聊天共享同一记忆池，前端 drawer 的记忆锚点 id 仅作 UI 分组不发送。 */
-  userId: string
+  /** 当前对话锚点 id，对应后端 anchor_memory.id。后端据此解析 userId 并加载窗口消息。 */
+  anchorId: string
+  /** 切锚前的上一个锚点 id，触发后端旧锚总结。null 表示首条/无切换。 */
+  prevAnchorId?: string | null
   thinking: boolean
   signal?: AbortSignal
   onThinking?: (chunk: string) => void
@@ -119,13 +121,13 @@ function dispatchEvent(
 }
 
 export async function streamChat(opts: StreamChatOptions) {
-  const { message, userId, thinking, signal, onComplete, onError } = opts
+  const { message, anchorId, prevAnchorId, thinking, signal, onComplete, onError } = opts
 
   try {
     const res = await fetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
-      body: JSON.stringify({ prompt: message, userId, thinking }),
+      body: JSON.stringify({ prompt: message, anchorId, prevAnchorId: prevAnchorId ?? null, thinking }),
       signal,
     })
 

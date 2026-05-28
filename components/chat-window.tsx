@@ -1,25 +1,49 @@
 'use client'
 
-import {useCallback, useEffect, useRef, useState} from 'react'
-import {ArrowUp, Plus, Sparkles, Square} from 'lucide-react'
-import {Menu} from '@base-ui/react/menu'
-import {Textarea} from '@/components/ui/textarea'
-import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip'
-import {Eyes} from '@/components/eyes'
-import {MessageItem} from '@/components/message-item'
-import {useChatStream} from '@/hooks/use-chat-stream'
-import {useSmartScroll} from '@/hooks/use-smart-scroll'
-import {useStore} from '@/lib/store'
-import {cn} from '@/lib/utils'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { ArrowUp, Plus, Sparkles, Square } from 'lucide-react'
+import { Menu } from '@base-ui/react/menu'
+import { Textarea } from '@/components/ui/textarea'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { Eyes } from '@/components/eyes'
+import { MessageItem } from '@/components/message-item'
+import { PresenceSticky } from '@/components/presence-sticky'
+import { useChatStream } from '@/hooks/use-chat-stream'
+import { useSmartScroll } from '@/hooks/use-smart-scroll'
+import { useStore } from '@/lib/store'
+import { useAnchorMessages } from '@/hooks/use-anchor-messages'
+import { useContextDetector } from '@/hooks/use-context-detector'
+import { useMemoryHot } from '@/hooks/use-memory-hot'
+import { useIntimacy } from '@/hooks/use-intimacy'
+import { cn } from '@/lib/utils'
 
-const SUGGESTIONS = [
-  '帮我梳理一个方案',
-  '把这段内容写得更好',
-  '解释一个复杂概念',
-  '开始一次深度分析',
-]
+const SUGGESTIONS_BY_INTIMACY: Record<string, string[]> = {
+  stranger: [
+    '我们认识一下吧',
+    '你能做些什么？',
+    '帮我写一段开场白',
+    '解释一个概念',
+  ],
+  'half-known': [
+    '帮我梳理一个方案',
+    '把这段内容写得更好',
+    '继续上次的话题',
+    '我想聊聊最近的事',
+  ],
+  'fully-known': [
+    '继续上次没说完的',
+    '今天怎么样？',
+    '帮我想想这件事',
+    '陪我聊聊',
+  ],
+}
 
-// 输入框组件
+const INTIMACY_SUBLINE: Record<string, string> = {
+  stranger: '我们才刚认识，先聊点轻松的？',
+  'half-known': '准备好继续了——你想说点什么？',
+  'fully-known': '我在这里。',
+}
+
 function ChatInput({
   input,
   setInput,
@@ -29,7 +53,6 @@ function ChatInput({
   onSend,
   onStop,
   textareaRef,
-  className,
 }: {
   input: string
   setInput: (v: string) => void
@@ -39,7 +62,6 @@ function ChatInput({
   onSend: () => void
   onStop: () => void
   textareaRef: React.RefObject<HTMLTextAreaElement | null>
-  className?: string
 }) {
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -62,7 +84,6 @@ function ChatInput({
   }, [input, textareaRef])
 
   const canSend = input.trim().length > 0
-
   const [focused, setFocused] = useState(false)
 
   return (
@@ -77,7 +98,6 @@ function ChatInput({
       onFocus={() => setFocused(true)}
       onBlur={() => setFocused(false)}
     >
-      {/* 上层：textarea */}
       <Textarea
         ref={textareaRef}
         value={input}
@@ -88,9 +108,7 @@ function ChatInput({
         className="relative z-10 min-h-[58px] max-h-[160px] resize-none border-0 bg-transparent px-6 pt-5 pb-2 text-base leading-relaxed shadow-none focus-visible:ring-0 focus-visible:border-0 outline-none placeholder:text-muted-foreground/58"
       />
 
-      {/* 下层：工具栏 */}
       <div className="relative z-10 flex items-center gap-1.5 px-5 pb-4">
-        {/* + 菜单触发 */}
         <Menu.Root>
           <Tooltip>
             <TooltipTrigger
@@ -134,7 +152,6 @@ function ChatInput({
           </Menu.Portal>
         </Menu.Root>
 
-        {/* 已激活芯片：点击关闭 */}
         {thinkingEnabled && (
           <Tooltip>
             <TooltipTrigger
@@ -155,7 +172,6 @@ function ChatInput({
 
         <div className="flex-1" />
 
-        {/* 发送 / 停止 */}
         <button
           className={cn(
             'inline-flex items-center justify-center rounded-full transition-all',
@@ -186,19 +202,22 @@ function ChatInput({
   )
 }
 
-/* ── 主组件 ── */
 export function ChatWindow() {
+  useAnchorMessages()
+
   const { messages, isLoading, send, stop } = useChatStream()
   const { currentAnchorId, toggleThinking, toggleToolCallExpanded } = useStore()
-  // Eyes 微表情/busy 联动：订阅式读取 status / mood
   const currentStatus = useStore((s) => s.currentStatus)
   const currentMood = useStore((s) => s.currentMood)
+  const context = useContextDetector()
   const eyesBusy = currentStatus === 'thinking' || currentStatus === 'tooling' || currentStatus === 'writing'
+
+  const { data: hot } = useMemoryHot('user-impression')
+  const intimacy = useIntimacy(hot)
+  const displayName = hot?.display_name?.trim()
 
   const [input, setInput] = useState('')
   const [thinkingEnabled, setThinkingEnabled] = useState(false)
-  // Home 只保留 Eyes + 输入框 + chips，userName 不展示
-  // 后端 Hot Memory 的 display_name 由 StatePanel「对话目标」承担
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const { scrollRef, scrollToBottom, forceScrollToBottom } = useSmartScroll()
@@ -228,21 +247,47 @@ export function ChatWindow() {
     [isLoading, send, thinkingEnabled, forceScrollToBottom]
   )
 
+  const greeting = useMemo(() => {
+    if (displayName) return `嗨，${displayName}。`
+    if (intimacy === 'stranger') return '你好。'
+    return INTIMACY_SUBLINE[intimacy]
+  }, [displayName, intimacy])
+
+  const suggestions = SUGGESTIONS_BY_INTIMACY[intimacy] ?? SUGGESTIONS_BY_INTIMACY.stranger
+
   return (
     <div className="flex h-full flex-col">
       {isEmpty ? (
-        /* ── 空状态：居中布局 ── */
         <div
           className="relative flex flex-1 flex-col items-center justify-center px-12 py-24"
           style={{ animation: 'up 0.3s ease both' }}
         >
           <div className="w-full max-w-2xl">
-            {/* Home 大眼睛字标，承担小Z 形象视觉重心 */}
-            <div className="text-center mb-11 flex justify-center" style={{ color: 'var(--t1)' }}>
-              <Eyes size={56} busy={eyesBusy} mood={currentMood} />
+            <div className="text-center mb-6 flex justify-center" style={{ color: 'var(--accent)' }}>
+              <Eyes size={64} busy={eyesBusy} mood={currentMood} context={context} />
             </div>
 
-            {/* 输入框 */}
+            <div
+              className="text-center mb-2"
+              style={{
+                fontSize: 18,
+                color: 'var(--t1)',
+                fontWeight: 500,
+                letterSpacing: '-.01em',
+              }}
+            >
+              {greeting}
+            </div>
+            {displayName && (
+              <div
+                className="text-center mb-7"
+                style={{ fontSize: 13, color: 'var(--t2)' }}
+              >
+                {INTIMACY_SUBLINE[intimacy]}
+              </div>
+            )}
+            {!displayName && <div className="mb-7" />}
+
             <div className="mb-4">
               <ChatInput
                 input={input}
@@ -256,9 +301,8 @@ export function ChatWindow() {
               />
             </div>
 
-            {/* 建议 chips */}
             <div className="flex flex-wrap justify-center gap-1.5">
-              {SUGGESTIONS.map((s) => (
+              {suggestions.map((s) => (
                 <button
                   key={s}
                   onClick={() => handleSuggestion(s)}
@@ -290,7 +334,6 @@ export function ChatWindow() {
             </div>
           </div>
 
-          {/* 免责文字 */}
           <div
             className="absolute bottom-5 text-xs"
             style={{ color: 'var(--t3)' }}
@@ -299,8 +342,8 @@ export function ChatWindow() {
           </div>
         </div>
       ) : (
-        /* ── 对话状态 ── */
         <>
+          <PresenceSticky />
           <div ref={scrollRef} className="flex-1 overflow-y-auto" style={{ padding: '36px clamp(16px, 5vw, 56px)' }}>
             <div className="mx-auto" style={{ maxWidth: '720px' }}>
               {messages.map((msg, i) => (
@@ -317,7 +360,6 @@ export function ChatWindow() {
             </div>
           </div>
 
-          {/* 底部输入 */}
           <div className="flex-shrink-0" style={{ padding: '0 clamp(16px, 5vw, 56px) 24px' }}>
             <div className="mx-auto" style={{ maxWidth: '720px' }}>
               <ChatInput

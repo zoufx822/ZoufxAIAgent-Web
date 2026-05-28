@@ -22,38 +22,49 @@ export interface Message {
   isStreaming: boolean
 }
 
-/**
- * 记忆锚点——UI 层对话分组，后端按 userId 串成连续记忆，前后端均无 session 概念。
- */
+/** 记忆锚点元数据——不含消息，消息按需从后端加载。 */
 export interface MemoryAnchor {
   id: string
   title: string
-  messages: Message[]
+  lastActiveAt: number
   createdAt: number
 }
 
-/** 情绪 status——6 态由 SSE 事件 + idle timer 推导。 */
 export type Status = 'idle' | 'thinking' | 'tooling' | 'writing' | 'error' | 'asleep'
 
 interface Store {
-  /** 后端记忆分区键。所有锚点共享同一记忆池，与 drawer 的记忆锚点解耦。 */
   userId: string
+
+  // 锚点元数据列表（后端权威，本地缓存）
   anchors: MemoryAnchor[]
   currentAnchorId: string
+  /** 上一个活跃锚点 id，切换时传给后端 prevAnchorId 触发压缩 */
+  lastActiveAnchorId: string | null
+
+  // 消息（按 anchorId 索引，非持久化）
+  messages: Record<string, Message[]>
+
   isLoading: boolean
 
-  /** 情绪 status：当前运行态（6 态）。不持久化——前端瞬态字段。 */
+  // 情绪状态（非持久化）
   currentStatus: Status
-  /** 情绪 mood：LLM 顺带输出的情感词；null 表示未发或已过期。不持久化。 */
   currentMood: string | null
-  /** mood 设置时的 epoch ms。用于过期淡出（>5min stale / >15min 隐藏）。 */
   lastMoodAt: number | null
 
-  createAnchor: () => void
+  // UI 状态（非持久化）
+  spotlight: boolean
+  lookbackOpen: boolean
+
+  // ── anchor actions ──
+  setAnchors: (anchors: MemoryAnchor[]) => void
+  addAnchor: (anchor: MemoryAnchor) => void
   switchAnchor: (id: string) => void
   deleteAnchor: (id: string) => void
   updateAnchorTitle: (id: string, title: string, force?: boolean) => void
+  touchAnchor: (id: string, lastActiveAt: number) => void
 
+  // ── message actions ──
+  setMessages: (anchorId: string, msgs: Message[]) => void
   addMessage: (anchorId: string, msg: Message) => void
   updateLastAssistantMessage: (anchorId: string, patch: Partial<Message>) => void
   removeLastMessage: (anchorId: string) => void
@@ -62,38 +73,23 @@ interface Store {
   updateLastRunningToolCall: (anchorId: string, patch: Partial<ToolCall>) => void
   toggleToolCallExpanded: (anchorId: string, toolCallId: string) => void
   markRunningToolCallsFailed: (anchorId: string) => void
-  setLoading: (v: boolean) => void
 
+  setLoading: (v: boolean) => void
   setStatus: (s: Status) => void
   setMood: (keyword: string | null) => void
+  triggerSpotlight: () => void
+  setLookbackOpen: (v: boolean) => void
 }
 
 function genId() {
   return crypto.randomUUID()
 }
 
-function makeWelcomeMessage(): Message {
-  return {
-    id: genId(),
-    role: 'assistant',
-    content: '你好！我是小Z，有什么可以帮助你的吗？',
-    thinking: '',
-    thinkingExpanded: false,
-    toolCalls: [],
-    isStreaming: false,
-  }
+function makeAnchorMeta(title = '新对话'): MemoryAnchor {
+  return { id: genId(), title, lastActiveAt: Date.now(), createdAt: Date.now() }
 }
 
-function makeAnchor(): MemoryAnchor {
-  return {
-    id: genId(),
-    title: '新对话',
-    messages: [makeWelcomeMessage()],
-    createdAt: Date.now(),
-  }
-}
-
-const initialAnchor = makeAnchor()
+const initialAnchor = makeAnchorMeta()
 
 export const useStore = create<Store>()(
   persist(
@@ -101,23 +97,36 @@ export const useStore = create<Store>()(
       userId: '',
       anchors: [initialAnchor],
       currentAnchorId: initialAnchor.id,
+      lastActiveAnchorId: null,
+      messages: {},
       isLoading: false,
       currentStatus: 'idle',
       currentMood: null,
       lastMoodAt: null,
+      spotlight: false,
+      lookbackOpen: false,
 
-      createAnchor: () => {
-        const a = makeAnchor()
+      setAnchors: (anchors) => {
+        const cur = get().currentAnchorId
+        const exists = anchors.some((a) => a.id === cur)
+        set({
+          anchors,
+          currentAnchorId: exists ? cur : (anchors[0]?.id ?? cur),
+        })
+      },
+
+      addAnchor: (anchor) => {
         set((state) => ({
-          anchors: [a, ...state.anchors],
-          currentAnchorId: a.id,
+          anchors: [anchor, ...state.anchors],
+          currentAnchorId: anchor.id,
+          lastActiveAnchorId: state.currentAnchorId,
         }))
       },
 
       switchAnchor: (id) => {
-        if (id !== get().currentAnchorId) {
-          set({ currentAnchorId: id })
-        }
+        const { currentAnchorId } = get()
+        if (id === currentAnchorId) return
+        set({ lastActiveAnchorId: currentAnchorId, currentAnchorId: id })
       },
 
       deleteAnchor: (id) => {
@@ -126,12 +135,14 @@ export const useStore = create<Store>()(
         const idx = anchors.findIndex((a) => a.id === id)
         if (idx === -1) return
         const next = anchors.filter((a) => a.id !== id)
-        set({
-          anchors: next,
-          currentAnchorId:
-            currentAnchorId === id
-              ? next[Math.min(idx, next.length - 1)].id
-              : currentAnchorId,
+        set((state) => {
+          const nextMessages = { ...state.messages }
+          delete nextMessages[id]
+          return {
+            anchors: next,
+            messages: nextMessages,
+            currentAnchorId: currentAnchorId === id ? next[Math.min(idx, next.length - 1)].id : currentAnchorId,
+          }
         })
       },
 
@@ -145,112 +156,104 @@ export const useStore = create<Store>()(
         }))
       },
 
+      touchAnchor: (id, lastActiveAt) => {
+        set((state) => ({
+          anchors: state.anchors.map((a) => (a.id === id ? { ...a, lastActiveAt } : a)),
+        }))
+      },
+
+      setMessages: (anchorId, msgs) => {
+        set((state) => ({ messages: { ...state.messages, [anchorId]: msgs } }))
+      },
+
       addMessage: (anchorId, msg) => {
         set((state) => ({
-          anchors: state.anchors.map((a) =>
-            a.id === anchorId ? { ...a, messages: [...a.messages, msg] } : a
-          ),
+          messages: {
+            ...state.messages,
+            [anchorId]: [...(state.messages[anchorId] ?? []), msg],
+          },
         }))
       },
 
       updateLastAssistantMessage: (anchorId, patch) => {
-        set((state) => ({
-          anchors: state.anchors.map((a) => {
-            if (a.id !== anchorId) return a
-            const messages = [...a.messages]
-            const last = messages[messages.length - 1]
-            if (!last || last.role !== 'assistant') return a
-            messages[messages.length - 1] = { ...last, ...patch }
-            return { ...a, messages }
-          }),
-        }))
+        set((state) => {
+          const msgs = [...(state.messages[anchorId] ?? [])]
+          const last = msgs[msgs.length - 1]
+          if (!last || last.role !== 'assistant') return state
+          msgs[msgs.length - 1] = { ...last, ...patch }
+          return { messages: { ...state.messages, [anchorId]: msgs } }
+        })
       },
 
       removeLastMessage: (anchorId) => {
-        set((state) => ({
-          anchors: state.anchors.map((a) => {
-            if (a.id !== anchorId) return a
-            return { ...a, messages: a.messages.slice(0, -1) }
-          }),
-        }))
+        set((state) => {
+          const msgs = state.messages[anchorId]
+          if (!msgs?.length) return state
+          return { messages: { ...state.messages, [anchorId]: msgs.slice(0, -1) } }
+        })
       },
 
       toggleThinking: (anchorId) => {
-        set((state) => ({
-          anchors: state.anchors.map((a) => {
-            if (a.id !== anchorId) return a
-            const msgs = [...a.messages]
-            const last = msgs[msgs.length - 1]
-            if (!last || last.role !== 'assistant') return a
-            msgs[msgs.length - 1] = { ...last, thinkingExpanded: !last.thinkingExpanded }
-            return { ...a, messages: msgs }
-          }),
-        }))
+        set((state) => {
+          const msgs = [...(state.messages[anchorId] ?? [])]
+          const last = msgs[msgs.length - 1]
+          if (!last || last.role !== 'assistant') return state
+          msgs[msgs.length - 1] = { ...last, thinkingExpanded: !last.thinkingExpanded }
+          return { messages: { ...state.messages, [anchorId]: msgs } }
+        })
       },
 
       appendToolCall: (anchorId, toolCall) => {
-        set((state) => ({
-          anchors: state.anchors.map((a) => {
-            if (a.id !== anchorId) return a
-            const msgs = [...a.messages]
-            const last = msgs[msgs.length - 1]
-            if (!last || last.role !== 'assistant') return a
-            msgs[msgs.length - 1] = { ...last, toolCalls: [...last.toolCalls, toolCall] }
-            return { ...a, messages: msgs }
-          }),
-        }))
+        set((state) => {
+          const msgs = [...(state.messages[anchorId] ?? [])]
+          const last = msgs[msgs.length - 1]
+          if (!last || last.role !== 'assistant') return state
+          msgs[msgs.length - 1] = { ...last, toolCalls: [...last.toolCalls, toolCall] }
+          return { messages: { ...state.messages, [anchorId]: msgs } }
+        })
       },
 
       updateLastRunningToolCall: (anchorId, patch) => {
-        set((state) => ({
-          anchors: state.anchors.map((a) => {
-            if (a.id !== anchorId) return a
-            const msgs = [...a.messages]
-            const last = msgs[msgs.length - 1]
-            if (!last || last.role !== 'assistant') return a
-            const idx = last.toolCalls.findIndex((tc) => tc.status === 'running')
-            if (idx === -1) return a
-            const next = [...last.toolCalls]
-            next[idx] = { ...next[idx], ...patch }
-            msgs[msgs.length - 1] = { ...last, toolCalls: next }
-            return { ...a, messages: msgs }
-          }),
-        }))
+        set((state) => {
+          const msgs = [...(state.messages[anchorId] ?? [])]
+          const last = msgs[msgs.length - 1]
+          if (!last || last.role !== 'assistant') return state
+          const idx = last.toolCalls.findIndex((tc) => tc.status === 'running')
+          if (idx === -1) return state
+          const next = [...last.toolCalls]
+          next[idx] = { ...next[idx], ...patch }
+          msgs[msgs.length - 1] = { ...last, toolCalls: next }
+          return { messages: { ...state.messages, [anchorId]: msgs } }
+        })
       },
 
       toggleToolCallExpanded: (anchorId, toolCallId) => {
-        set((state) => ({
-          anchors: state.anchors.map((a) => {
-            if (a.id !== anchorId) return a
-            const messages = a.messages.map((m) => {
-              if (m.role !== 'assistant') return m
-              const idx = m.toolCalls.findIndex((tc) => tc.id === toolCallId)
-              if (idx === -1) return m
-              const next = [...m.toolCalls]
-              next[idx] = { ...next[idx], expanded: !next[idx].expanded }
-              return { ...m, toolCalls: next }
-            })
-            return { ...a, messages }
-          }),
-        }))
+        set((state) => {
+          const msgs = (state.messages[anchorId] ?? []).map((m) => {
+            if (m.role !== 'assistant') return m
+            const idx = m.toolCalls.findIndex((tc) => tc.id === toolCallId)
+            if (idx === -1) return m
+            const next = [...m.toolCalls]
+            next[idx] = { ...next[idx], expanded: !next[idx].expanded }
+            return { ...m, toolCalls: next }
+          })
+          return { messages: { ...state.messages, [anchorId]: msgs } }
+        })
       },
 
       markRunningToolCallsFailed: (anchorId) => {
-        set((state) => ({
-          anchors: state.anchors.map((a) => {
-            if (a.id !== anchorId) return a
-            const msgs = [...a.messages]
-            const last = msgs[msgs.length - 1]
-            if (!last || last.role !== 'assistant') return a
-            const hasRunning = last.toolCalls.some((tc) => tc.status === 'running')
-            if (!hasRunning) return a
-            const next = last.toolCalls.map((tc) =>
-              tc.status === 'running' ? { ...tc, status: 'failed' as const } : tc
-            )
-            msgs[msgs.length - 1] = { ...last, toolCalls: next }
-            return { ...a, messages: msgs }
-          }),
-        }))
+        set((state) => {
+          const msgs = [...(state.messages[anchorId] ?? [])]
+          const last = msgs[msgs.length - 1]
+          if (!last || last.role !== 'assistant') return state
+          const hasRunning = last.toolCalls.some((tc) => tc.status === 'running')
+          if (!hasRunning) return state
+          const next = last.toolCalls.map((tc) =>
+            tc.status === 'running' ? { ...tc, status: 'failed' as const } : tc
+          )
+          msgs[msgs.length - 1] = { ...last, toolCalls: next }
+          return { messages: { ...state.messages, [anchorId]: msgs } }
+        })
       },
 
       setLoading: (v) => set({ isLoading: v }),
@@ -260,57 +263,61 @@ export const useStore = create<Store>()(
       },
 
       setMood: (keyword) => {
-        // null 表示清空；否则带 keyword + 时间戳，过期判定按 lastMoodAt 算
         if (keyword === null) {
           set({ currentMood: null, lastMoodAt: null })
         } else {
           set({ currentMood: keyword, lastMoodAt: Date.now() })
         }
       },
+
+      triggerSpotlight: () => {
+        set({ spotlight: true })
+        setTimeout(() => set({ spotlight: false }), 3100)
+      },
+
+      setLookbackOpen: (v) => set({ lookbackOpen: v }),
     }),
     {
-      name: 'zoufx-chat-sessions', // 持久化 key 保留，避免老用户数据丢失（值内字段已 migrate）
-      version: 3,
+      name: 'zoufx-chat-sessions',
+      version: 4,
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         userId: state.userId,
         anchors: state.anchors,
         currentAnchorId: state.currentAnchorId,
       }),
-      // v1→v2: 补 userId；v2→v3: sessions/currentSessionId → anchors/currentAnchorId
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      migrate: (persistedState: any, version: number) => {
-        if (persistedState && !persistedState.userId) {
-          persistedState.userId = crypto.randomUUID()
+      migrate: (persisted: unknown, version: number) => {
+        const s = persisted as Record<string, unknown>
+        if (!s) return s
+        // 补 userId
+        if (!s.userId) s.userId = crypto.randomUUID()
+        // v1→v2: sessions → anchors
+        if (version < 3 && s.sessions) {
+          s.anchors = s.sessions
+          delete s.sessions
         }
-        if (version < 3 && persistedState) {
-          if ('sessions' in persistedState) {
-            persistedState.anchors = persistedState.sessions
-            delete persistedState.sessions
-          }
-          if ('currentSessionId' in persistedState) {
-            persistedState.currentAnchorId = persistedState.currentSessionId
-            delete persistedState.currentSessionId
-          }
+        if (version < 3 && s.currentSessionId) {
+          s.currentAnchorId = s.currentSessionId
+          delete s.currentSessionId
         }
-        return persistedState
+        // v3→v4: 从 anchor 里剥离 messages 字段
+        if (version < 4 && Array.isArray(s.anchors)) {
+          s.anchors = (s.anchors as Record<string, unknown>[]).map((a) => {
+            const { messages: _m, ...meta } = a
+            if (!meta.lastActiveAt) meta.lastActiveAt = meta.createdAt ?? Date.now()
+            return meta
+          })
+        }
+        return s
       },
       skipHydration: true,
       onRehydrateStorage: () => (state) => {
         if (!state) return
-        if (!state.userId) {
-          state.userId = crypto.randomUUID()
-        }
-        state.anchors = state.anchors.map((a) => ({
-          ...a,
-          messages: a.messages.map((m) => {
-            const toolCalls = (m.toolCalls ?? []).map((tc) =>
-              tc.status === 'running' ? { ...tc, status: 'failed' as const } : tc
-            )
-            return { ...m, isStreaming: false, toolCalls }
-          }),
-        }))
+        if (!state.userId) state.userId = crypto.randomUUID()
       },
     }
   )
 )
+
+// 消费方应通过 `useStore((s) => s.messages[s.currentAnchorId])` 直接读取，
+// 并以模块级 EMPTY 数组兜底——禁止在 selector 内合成新数组，否则触发无限循环。
