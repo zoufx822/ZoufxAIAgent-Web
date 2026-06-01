@@ -546,41 +546,27 @@ button {
   .home-status-mood {
     animation: none !important;
   }
-  .presence-sticky {
-    transition: none !important;
-  }
-  .presence-sticky.spotlight .presence-eyes-wrap {
+  .mood-ring,
+  .mood-ring-2 {
     animation: none !important;
   }
 }
 
 /* ───────────────────────────────────────
- * v0.145 PresenceSticky — 替代 Heartbeat 的两态心跳条
+ * PresenceFloat — 无边框浮动存在感指示器
  * ─────────────────────────────────────── */
-.presence-sticky {
+.presence-float {
   position: sticky;
   top: 0;
   z-index: 5;
-  background: var(--bg);
-  border-bottom: 1px solid var(--border-lt);
   display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  padding: 12px 24px;
-  height: 56px;
-  flex-shrink: 0;
-  transition:
-    height 0.42s cubic-bezier(0.2, 0.7, 0.2, 1),
-    padding 0.42s cubic-bezier(0.2, 0.7, 0.2, 1),
-    background-color 0.3s ease;
-}
-.presence-sticky.spotlight {
-  height: 170px;
-  padding: 24px 24px 20px;
-  background: linear-gradient(180deg, var(--accent-s) 0%, var(--bg) 100%);
   flex-direction: column;
-  gap: 14px;
+  align-items: center;
+  gap: 10px;
+  padding: 28px 24px 18px;
+  background: var(--bg);
+  flex-shrink: 0;
+  pointer-events: none;
 }
 .presence-eyes-wrap {
   display: flex;
@@ -589,20 +575,35 @@ button {
   position: relative;
   color: var(--accent);
 }
-.presence-sticky.spotlight .presence-eyes-wrap {
-  animation: spotlight-pop 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
-}
-.presence-sticky.spotlight .presence-eyes-wrap::before {
-  content: '';
+/* 情绪变化的双环扩散脉冲——环色随 --mood-color 自动对应当前情绪 */
+.mood-ring {
   position: absolute;
-  left: 50%;
   top: 50%;
-  width: 200px;
-  height: 200px;
-  border-radius: 50%;
-  background: radial-gradient(circle, var(--accent-s) 0%, transparent 70%);
+  left: 50%;
+  width: 148px;
+  height: 68px;
+  border-radius: 40%;
+  border: 1.5px solid var(--mood-color);
   pointer-events: none;
-  animation: spotlight-halo 1.2s ease-out both;
+  animation: mood-ring-out 1.15s cubic-bezier(0.18, 0.6, 0.3, 1) forwards;
+}
+.mood-ring-2 {
+  animation-delay: 0.12s;
+  opacity: 0.3;
+  border-width: 1px;
+}
+@keyframes mood-ring-out {
+  0% {
+    opacity: 0.55;
+    transform: translate(-50%, -50%) scale(0.82);
+  }
+  25% {
+    opacity: 0.38;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(2.1);
+  }
 }
 .presence-label {
   display: inline-flex;
@@ -610,11 +611,7 @@ button {
   gap: 8px;
   font-size: 12px;
   letter-spacing: -0.005em;
-  transition: opacity 0.3s;
-}
-.presence-sticky.spotlight .presence-label {
-  animation: label-rise 0.42s cubic-bezier(0.2, 0.7, 0.2, 1) both;
-  animation-delay: 0.12s;
+  pointer-events: auto;
 }
 .presence-dot {
   width: 7px;
@@ -626,7 +623,7 @@ button {
   align-self: center;
   flex-shrink: 0;
 }
-.presence-sticky[data-mood='asleep'] .presence-dot {
+.presence-float[data-mood='asleep'] .presence-dot {
   animation-duration: 3.2s;
 }
 .presence-status {
@@ -666,53 +663,6 @@ button {
 }
 .presence-mood.stale {
   opacity: 0.55;
-}
-.presence-sticky.spotlight .presence-status .status-zh {
-  font-size: 15px;
-}
-.presence-sticky.spotlight .presence-status .status-en {
-  font-size: 11px;
-}
-.presence-sticky.spotlight .presence-mood {
-  font-size: 14px;
-}
-.presence-sticky.spotlight .presence-dot {
-  width: 8px;
-  height: 8px;
-}
-
-@keyframes spotlight-pop {
-  0% {
-    transform: scale(0.85);
-    opacity: 0.6;
-  }
-  60% {
-    transform: scale(1.06);
-  }
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-@keyframes spotlight-halo {
-  0% {
-    opacity: 0.65;
-    transform: translate(-50%, -50%) scale(0.4);
-  }
-  100% {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(1);
-  }
-}
-@keyframes label-rise {
-  0% {
-    transform: translateY(8px);
-    opacity: 0;
-  }
-  100% {
-    transform: translateY(0);
-    opacity: 1;
-  }
 }
 
 /* eyes 兴奋星芒 / 困惑问号 */

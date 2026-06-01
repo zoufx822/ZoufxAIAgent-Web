@@ -20,6 +20,7 @@ export interface Message {
   thinkingExpanded: boolean
   toolCalls: ToolCall[]
   isStreaming: boolean
+  isError: boolean
 }
 
 /** 记忆锚点元数据——不含消息，消息按需从后端加载。 */
@@ -52,7 +53,6 @@ interface Store {
   lastMoodAt: number | null
 
   // UI 状态（非持久化）
-  spotlight: boolean
   lookbackOpen: boolean
   /** 对话完成后递增，useMemoryHot 监听此值触发重拉印象 */
   hotMemoryVersion: number
@@ -81,7 +81,6 @@ interface Store {
   setLoading: (v: boolean) => void
   setStatus: (s: Status) => void
   setMood: (keyword: string | null) => void
-  triggerSpotlight: () => void
   setLookbackOpen: (v: boolean) => void
   bumpHotMemoryVersion: () => void
 }
@@ -108,7 +107,6 @@ export const useStore = create<Store>()(
       currentStatus: 'idle',
       currentMood: '平静',
       lastMoodAt: Date.now(),
-      spotlight: false,
       lookbackOpen: false,
       hotMemoryVersion: 0,
 
@@ -256,11 +254,6 @@ export const useStore = create<Store>()(
         } else {
           set({ currentMood: keyword, lastMoodAt: Date.now() })
         }
-      },
-
-      triggerSpotlight: () => {
-        set({ spotlight: true })
-        setTimeout(() => set({ spotlight: false }), 3100)
       },
 
       setLookbackOpen: (v) => set({ lookbackOpen: v }),

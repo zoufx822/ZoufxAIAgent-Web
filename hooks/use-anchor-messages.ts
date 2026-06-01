@@ -33,6 +33,7 @@ export function useAnchorMessages() {
           thinkingExpanded: false,
           toolCalls: [],
           isStreaming: false,
+          isError: false,
         }))
         setMessages(anchorId, msgs)
       } catch (err) {

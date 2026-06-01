@@ -262,48 +262,59 @@ function MessageItemBase({
         {/* AI 消息 */}
         {!isUser && (
           <>
-            {/* 思考过程 */}
-            {message.thinking && (
-              <ThinkingBlock
-                thinking={message.thinking}
-                expanded={message.thinkingExpanded}
-                onToggle={onToggleThinking}
-              />
-            )}
+            {message.isError ? (
+              <span
+                className="mono"
+                style={{ fontSize: 12, color: 'var(--t3)', letterSpacing: '0.04em' }}
+              >
+                发送失败，请重试
+              </span>
+            ) : (
+              <>
+                {/* 思考过程 */}
+                {message.thinking && (
+                  <ThinkingBlock
+                    thinking={message.thinking}
+                    expanded={message.thinkingExpanded}
+                    onToggle={onToggleThinking}
+                  />
+                )}
 
-            {/* 工具调用卡片 */}
-            {message.toolCalls.map((tc) => (
-              <ToolCallCard key={tc.id} toolCall={tc} onToggle={() => onToggleToolCall?.(tc.id)} />
-            ))}
+                {/* 工具调用卡片 */}
+                {message.toolCalls.map((tc) => (
+                  <ToolCallCard key={tc.id} toolCall={tc} onToggle={() => onToggleToolCall?.(tc.id)} />
+                ))}
 
-            {/* 等待首字节：弹跳加载点 */}
-            {message.isStreaming &&
-              !message.content &&
-              !message.thinking &&
-              message.toolCalls.every((tc) => tc.status !== 'running') && (
-                <div className="flex items-center gap-1.5 py-2">
-                  {[0, 1, 2].map((i) => (
-                    <span
-                      key={i}
-                      style={{
-                        width: 5,
-                        height: 5,
-                        borderRadius: '50%',
-                        background: 'var(--t2)',
-                        animation: `pulse-dot 1.2s ease ${i * 0.2}s infinite`,
-                      }}
-                    />
-                  ))}
-                </div>
-              )}
+                {/* 等待首字节：弹跳加载点 */}
+                {message.isStreaming &&
+                  !message.content &&
+                  !message.thinking &&
+                  message.toolCalls.every((tc) => tc.status !== 'running') && (
+                    <div className="flex items-center gap-1.5 py-2">
+                      {[0, 1, 2].map((i) => (
+                        <span
+                          key={i}
+                          style={{
+                            width: 5,
+                            height: 5,
+                            borderRadius: '50%',
+                            background: 'var(--t2)',
+                            animation: `pulse-dot 1.2s ease ${i * 0.2}s infinite`,
+                          }}
+                        />
+                      ))}
+                    </div>
+                  )}
 
-            {/* 消息正文 */}
-            {message.content && (
-              <StreamMarkdown
-                content={message.content}
-                isStreaming={message.isStreaming}
-                onScrollNeeded={onScrollNeeded}
-              />
+                {/* 消息正文 */}
+                {message.content && (
+                  <StreamMarkdown
+                    content={message.content}
+                    isStreaming={message.isStreaming}
+                    onScrollNeeded={onScrollNeeded}
+                  />
+                )}
+              </>
             )}
           </>
         )}

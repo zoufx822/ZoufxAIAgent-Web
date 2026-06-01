@@ -101,7 +101,7 @@ export function MemoryAnchorsPanel() {
                     minWidth: 0,
                   }}
                 >
-                  {a.title ?? '未命名'}
+                  {a.title ?? '新对话'}
                 </span>
                 <span className="mono" style={{ fontSize: 10, color: 'var(--t3)', flexShrink: 0 }}>
                   {fmtAge(a.lastActiveAt)}
@@ -123,7 +123,7 @@ export function MemoryAnchorsPanel() {
 function NearCard({ anchor, onClick }: { anchor: AnchorSummary; onClick: () => void }) {
   return (
     <div className="anchor-card" onClick={onClick}>
-      <div className="anchor-card-title">{anchor.title ?? '未命名'}</div>
+      <div className="anchor-card-title">{anchor.title ?? '新对话'}</div>
       {anchor.body && (
         <div style={{ fontSize: 11.5, color: 'var(--t2)', margin: '3px 0 4px', lineHeight: 1.5 }}>
           {truncate(anchor.body, 60)}

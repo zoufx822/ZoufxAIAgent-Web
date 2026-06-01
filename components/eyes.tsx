@@ -136,6 +136,7 @@ export function Eyes({
       role="img"
       aria-label={`小Z${mood ? '·' + mood : ''}`}
       style={style}
+      shapeRendering="geometricPrecision"
     >
       <defs>
         <clipPath id={clipLId}>

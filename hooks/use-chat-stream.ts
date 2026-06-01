@@ -87,6 +87,7 @@ export function useChatStream() {
         thinkingExpanded: false,
         toolCalls: [],
         isStreaming: false,
+        isError: false,
       })
 
       updateAnchorTitle(anchorId, text)
@@ -100,6 +101,7 @@ export function useChatStream() {
         thinkingExpanded: false,
         toolCalls: [],
         isStreaming: true,
+        isError: false,
       })
 
       await streamChat({
@@ -107,6 +109,7 @@ export function useChatStream() {
         anchorId,
         prevAnchorId,
         thinking: sendThinking,
+        userId: useStore.getState().userId,
         signal: ctrlRef.current.signal,
 
         onThinking: (chunk) => {
@@ -158,7 +161,6 @@ export function useChatStream() {
 
         onMood: (payload) => {
           setMood(payload.keyword)
-          useStore.getState().triggerSpotlight()
         },
 
         onComplete: () => {
@@ -179,13 +181,15 @@ export function useChatStream() {
             !lastMsg.thinking &&
             lastMsg.toolCalls.length === 0
           ) {
-            removeLastMessage(anchorId)
+            // 流正常结束但无内容——后端发生了静默错误（如 RST_STREAM error event 未送达）
+            updateLastAssistantMessage(anchorId, { isError: true, isStreaming: false })
+            setStatus('error')
           } else {
             updateLastAssistantMessage(anchorId, { isStreaming: false })
+            setStatus('idle')
           }
           touchAnchor(anchorId, Date.now())
           bumpHotMemoryVersion()
-          setStatus('idle')
           setLoading(false)
           ctrlRef.current = null
         },
@@ -193,7 +197,7 @@ export function useChatStream() {
         onError: (err) => {
           tailRef.current = ''
           markRunningToolCallsFailed(anchorId)
-          removeLastMessage(anchorId)
+          updateLastAssistantMessage(anchorId, { isError: true, isStreaming: false })
           toast.error(err.message || '请求出错，请稍后重试')
           setStatus('error')
           setLoading(false)

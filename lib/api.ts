@@ -35,13 +35,6 @@ async function json<T>(res: Response): Promise<T> {
 }
 
 export const api = {
-  createAnchor: (userId: string, title?: string) =>
-    fetch(`${BASE}/ai/anchors`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, title }),
-    }).then((r) => json<AnchorEntry>(r)),
-
   listAnchors: (userId: string) =>
     fetch(`${BASE}/ai/anchors?userId=${encodeURIComponent(userId)}`).then((r) =>
       json<AnchorEntry[]>(r)

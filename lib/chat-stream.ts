@@ -50,6 +50,8 @@ export interface StreamChatOptions {
   /** 切锚前的上一个锚点 id，触发后端旧锚总结。null 表示首条/无切换。 */
   prevAnchorId?: string | null
   thinking: boolean
+  /** 用于后端懒创建：anchorId 尚未入库时，后端用此 userId 自动建立 anchor 行。 */
+  userId: string
   signal?: AbortSignal
   onThinking?: (chunk: string) => void
   onContent?: (chunk: string) => void
@@ -130,7 +132,7 @@ function dispatchEvent(
 }
 
 export async function streamChat(opts: StreamChatOptions) {
-  const { message, anchorId, prevAnchorId, thinking, signal, onComplete, onError } = opts
+  const { message, anchorId, prevAnchorId, thinking, userId, signal, onComplete, onError } = opts
 
   try {
     const res = await fetch(API_URL, {
@@ -141,6 +143,7 @@ export async function streamChat(opts: StreamChatOptions) {
         anchorId,
         prevAnchorId: prevAnchorId ?? null,
         thinking,
+        userId,
       }),
       signal,
     })

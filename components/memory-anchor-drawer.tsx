@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { toast } from 'sonner'
 import { useStore } from '@/lib/store'
 import type { MemoryAnchor } from '@/lib/store'
 import { api } from '@/lib/api'
@@ -159,21 +158,11 @@ export function MemoryAnchorDrawer({ open, onClose }: DrawerProps) {
 
   if (!open) return null
 
-  const handleNew = async () => {
-    if (isLoading || !userId) return
-    try {
-      const created = await api.createAnchor(userId)
-      addAnchor({
-        id: created.id,
-        title: created.title ?? '新对话',
-        lastActiveAt: created.lastActiveAt,
-        createdAt: created.createdAt,
-      })
-      onClose()
-    } catch (err) {
-      console.warn('createAnchor failed', err)
-      toast.error('新建对话失败，请稍后重试')
-    }
+  const handleNew = () => {
+    if (isLoading) return
+    const now = Date.now()
+    addAnchor({ id: crypto.randomUUID(), title: '新对话', lastActiveAt: now, createdAt: now })
+    onClose()
   }
 
   return (

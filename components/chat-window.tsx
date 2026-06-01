@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Eyes } from '@/components/eyes'
 import { MessageItem } from '@/components/message-item'
-import { PresenceSticky } from '@/components/presence-sticky'
+import { PresenceFloat } from '@/components/presence-float'
 import { useChatStream } from '@/hooks/use-chat-stream'
 import { useSmartScroll } from '@/hooks/use-smart-scroll'
 import { useStore } from '@/lib/store'
@@ -362,11 +362,11 @@ export function ChatWindow() {
         </div>
       ) : (
         <>
-          <PresenceSticky context={context} />
+          <PresenceFloat context={context} />
           <div
             ref={scrollRef}
             className="flex-1 overflow-y-auto"
-            style={{ padding: '36px clamp(16px, 5vw, 56px)' }}
+            style={{ padding: '8px clamp(16px, 5vw, 56px) 36px' }}
           >
             <div className="mx-auto" style={{ maxWidth: '720px' }}>
               {(() => {

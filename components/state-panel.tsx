@@ -19,7 +19,7 @@ import { CommitmentsPanel } from './state-panel/commitments'
  *   底部「回望」按钮 → LookBackModal
  *
  * 旧的「当前状态」「近期工具调用」「记忆片段」section 已下线——
- * 状态由顶部 PresenceSticky 承载，工具调用回归气泡内的 ReAct 渲染。
+ * 状态由顶部 PresenceFloat 承载，工具调用回归气泡内的 ReAct 渲染。
  */
 export function StatePanel() {
   const isLoading = useStore((s) => s.isLoading)

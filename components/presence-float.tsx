@@ -1,20 +1,10 @@
 'use client'
 
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { useStore } from '@/lib/store'
 import { STATUS_LABELS, MOOD_HIDDEN_STATUSES } from '@/lib/status-labels'
 import type { EyesContext } from './eyes'
 import { Eyes } from './eyes'
-
-/**
- * v0.145 顶部 Presence——替代 Heartbeat。
- *
- * 两态：
- * - 收起（默认 56px）：眼睛 28px + 心情 · 状态 单行
- * - Spotlight（170px）：mood 触发的高亮态，由 store.spotlight 持续 ~3s
- *
- * Spotlight 由 ChatStream onMood 通过 triggerSpotlight() 推送；纯 UI 反应。
- * context 由父级 ChatWindow 计算后下传——避免与 ChatWindow 各跑一份探测器。
- */
 
 function moodVisible(
   status: string,
@@ -27,25 +17,41 @@ function moodVisible(
   return { visible: true, stale: ageMin >= 5 }
 }
 
-export function PresenceSticky({ context }: { context: EyesContext }) {
+export function PresenceFloat({ context }: { context: EyesContext }) {
   const currentStatus = useStore((s) => s.currentStatus)
   const currentMood = useStore((s) => s.currentMood)
   const lastMoodAt = useStore((s) => s.lastMoodAt)
-  const spotlight = useStore((s) => s.spotlight)
 
   const label = STATUS_LABELS[currentStatus] ?? STATUS_LABELS.idle
   const md = moodVisible(currentStatus, currentMood, lastMoodAt)
 
+  // mood 变化（非首次、非从 null 浮现）时递增 ringKey，重挂载双环重播扩散动画
+  const prevMoodRef = useRef(currentMood)
+  const [ringKey, setRingKey] = useState(0)
+
+  useEffect(() => {
+    if (prevMoodRef.current !== null && currentMood !== prevMoodRef.current) {
+      setRingKey((k) => k + 1)
+    }
+    prevMoodRef.current = currentMood
+  }, [currentMood])
+
   return (
     <div
-      className={`presence-sticky${spotlight ? ' spotlight' : ''}`}
+      className="presence-float"
       data-mood={currentStatus}
       role="status"
       aria-live="polite"
     >
       <div className="presence-eyes-wrap">
+        {ringKey > 0 && (
+          <Fragment key={ringKey}>
+            <div className="mood-ring" />
+            <div className="mood-ring mood-ring-2" />
+          </Fragment>
+        )}
         <Eyes
-          size={spotlight ? 88 : 32}
+          size={60}
           busy={
             currentStatus === 'thinking' ||
             currentStatus === 'tooling' ||
