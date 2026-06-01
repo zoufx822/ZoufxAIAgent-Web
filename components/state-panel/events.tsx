@@ -10,7 +10,11 @@ export function EventsPanel({ data }: { data: Record<string, string> }) {
     .sort(([a], [b]) => (a < b ? 1 : -1))
 
   if (entries.length === 0) {
-    return <div className="event-note" style={{ color: 'var(--t3)', fontStyle: 'italic' }}>还没有值得记下的瞬间。</div>
+    return (
+      <div className="event-note" style={{ color: 'var(--t3)', fontStyle: 'italic' }}>
+        还没有值得记下的瞬间。
+      </div>
+    )
   }
 
   return (

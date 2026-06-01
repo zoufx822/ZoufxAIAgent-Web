@@ -6,9 +6,9 @@ import { api, type AnchorContextView, type AnchorSummary } from '@/lib/api'
 
 /**
  * 当前锚点的「其他锚点」三层衰减视图：
- *  - near：最近 5 条，full card
- *  - mid：6~20 条，紧凑行（默认折叠）
- *  - far：剩余，仅显示数量
+ *  - near：full card，默认展示 2 条，「展开剩余」按钮显示其余
+ *  - mid：紧凑行（默认折叠）
+ *  - far：仅显示数量
  *
  * 数据来自 GET /ai/anchors/{anchorId}/context；isLoading 收尾后 refresh。
  */
@@ -23,16 +23,31 @@ export function MemoryAnchorsPanel() {
   useEffect(() => {
     if (!anchorId) return
     let cancelled = false
-    api.getContext(anchorId).then((v) => { if (!cancelled) setView(v) }).catch(() => {})
-    return () => { cancelled = true }
+    api
+      .getContext(anchorId)
+      .then((v) => {
+        if (!cancelled) setView(v)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
   }, [anchorId, isLoading])
 
-  if (!view) return <div className="anchor-tier" style={{ color: 'var(--t3)', fontSize: 12 }}>—</div>
+  if (!view)
+    return (
+      <div className="anchor-tier" style={{ color: 'var(--t3)', fontSize: 12 }}>
+        —
+      </div>
+    )
 
   const total = view.near.length + view.mid.length + view.far.count
   if (total === 0) {
     return (
-      <div className="anchor-tier" style={{ color: 'var(--t3)', fontSize: 11.5, fontStyle: 'italic' }}>
+      <div
+        className="anchor-tier"
+        style={{ color: 'var(--t3)', fontSize: 11.5, fontStyle: 'italic' }}
+      >
         这是我们的第一次对话。
       </div>
     )
@@ -61,21 +76,38 @@ export function MemoryAnchorsPanel() {
         <div className="anchor-tier">
           <button
             className="anchor-tier-h"
-            style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, width: '100%', textAlign: 'left' }}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              padding: 0,
+              width: '100%',
+              textAlign: 'left',
+            }}
             onClick={() => setMidOpen((v) => !v)}
           >
-            mid · 中期 ({view.mid.length}) <span style={{ marginLeft: 'auto', color: 'var(--t3)' }}>{midOpen ? '▾' : '▸'}</span>
+            mid · 中期 ({view.mid.length}){' '}
+            <span style={{ marginLeft: 'auto', color: 'var(--t3)' }}>{midOpen ? '▾' : '▸'}</span>
           </button>
-          {midOpen && view.mid.map((a) => (
-            <div key={a.id} className="anchor-row-mid" onClick={() => switchAnchor(a.id)}>
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
-                {a.title ?? '未命名'}
-              </span>
-              <span className="mono" style={{ fontSize: 10, color: 'var(--t3)', flexShrink: 0 }}>
-                {fmtAge(a.lastActiveAt)}
-              </span>
-            </div>
-          ))}
+          {midOpen &&
+            view.mid.map((a) => (
+              <div key={a.id} className="anchor-row-mid" onClick={() => switchAnchor(a.id)}>
+                <span
+                  style={{
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    flex: 1,
+                    minWidth: 0,
+                  }}
+                >
+                  {a.title ?? '未命名'}
+                </span>
+                <span className="mono" style={{ fontSize: 10, color: 'var(--t3)', flexShrink: 0 }}>
+                  {fmtAge(a.lastActiveAt)}
+                </span>
+              </div>
+            ))}
         </div>
       )}
 
@@ -105,7 +137,9 @@ function NearCard({ anchor, onClick }: { anchor: AnchorSummary; onClick: () => v
   )
 }
 
-function truncate(s: string, n: number) { return s.length <= n ? s : s.slice(0, n) + '…' }
+function truncate(s: string, n: number) {
+  return s.length <= n ? s : s.slice(0, n) + '…'
+}
 
 function fmtAge(ts: number): string {
   const diff = Date.now() - ts

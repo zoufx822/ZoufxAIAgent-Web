@@ -18,15 +18,19 @@ function parseCommitment(text: string): Parsed {
 }
 
 const ARROW: Record<Parsed['dir'], string> = {
-  ai:     'AI →',
-  user:   '→ AI',
+  ai: 'AI →',
+  user: '→ AI',
   mutual: '↔',
 }
 
 export function CommitmentsPanel({ data }: { data: Record<string, string> }) {
   const entries = Object.entries(data).filter(([, v]) => v?.trim())
   if (entries.length === 0) {
-    return <div className="commitment-row" style={{ color: 'var(--t3)', fontStyle: 'italic' }}>暂无承诺。</div>
+    return (
+      <div className="commitment-row" style={{ color: 'var(--t3)', fontStyle: 'italic' }}>
+        暂无承诺。
+      </div>
+    )
   }
 
   return (

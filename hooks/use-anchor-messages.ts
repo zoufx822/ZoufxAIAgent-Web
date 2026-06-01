@@ -23,8 +23,9 @@ export function useAnchorMessages() {
       try {
         const backendMsgs = await api.getMessages(anchorId)
         if (cancelled) return
-        const msgs = backendMsgs.map((m) => ({
-          id: crypto.randomUUID(),
+        const msgs = backendMsgs.map((m, i) => ({
+          // 由 anchorId + 序号派生的确定性 id——同锚点重拉时 React key 稳定
+          id: `${anchorId}-h${i}`,
           role: (m.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
           // 防御性剥离——后端已过滤，此处兜底
           content: (m.content ?? '').replace(/<!--mood:[^>]+?-->/g, ''),
@@ -39,6 +40,8 @@ export function useAnchorMessages() {
       }
     })()
 
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [anchorId, setMessages])
 }

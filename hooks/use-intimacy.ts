@@ -5,8 +5,16 @@ import { useMemo } from 'react'
 export type Intimacy = 'stranger' | 'half-known' | 'fully-known'
 
 const HOT_MEMORY_KEYS = [
-  'display_name', 'role', 'language', 'timezone', 'interests',
-  'personality', 'communication_style', 'habits', 'values', 'hobbies',
+  'username',
+  'role',
+  'language',
+  'tone',
+  'interests',
+  'personality',
+  'communication_style',
+  'habits',
+  'values',
+  'hobbies',
 ]
 
 /**

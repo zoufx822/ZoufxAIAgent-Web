@@ -62,7 +62,9 @@ export const api = {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title }),
-    }).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`) }),
+    }).then((r) => {
+      if (!r.ok) throw new Error(`HTTP ${r.status}`)
+    }),
 
   getHotMemory: (userId: string, type: string) =>
     fetch(

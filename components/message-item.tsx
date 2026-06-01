@@ -1,11 +1,11 @@
 'use client'
 
-import {useEffect} from 'react'
-import {AnimatePresence, motion} from 'motion/react'
-import {ChevronDown, ChevronRight} from 'lucide-react'
-import {cn} from '@/lib/utils'
-import type {Message, ToolCall} from '@/lib/store'
-import {StreamMarkdown} from '@/components/ui/stream-markdown'
+import { memo, useEffect } from 'react'
+import { AnimatePresence, motion } from 'motion/react'
+import { ChevronDown, ChevronRight } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import type { Message, ToolCall } from '@/lib/store'
+import { StreamMarkdown } from '@/components/ui/stream-markdown'
 
 interface Props {
   message: Message
@@ -46,8 +46,12 @@ function ThinkingBlock({
           cursor: 'pointer',
           marginBottom: 6,
         }}
-        onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--t2)' }}
-        onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--t3)' }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.color = 'var(--t2)'
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.color = 'var(--t3)'
+        }}
       >
         {expanded ? (
           <ChevronDown className="h-3 w-3" strokeWidth={1.8} />
@@ -55,18 +59,18 @@ function ThinkingBlock({
           <ChevronRight className="h-3 w-3" strokeWidth={1.8} />
         )}
         <span>thinking</span>
-        <span style={{color: 'var(--t3)', opacity: 0.6}}>·</span>
-        <span style={{fontFeatureSettings: '"tnum"'}}>{thinking.length}</span>
+        <span style={{ color: 'var(--t3)', opacity: 0.6 }}>·</span>
+        <span style={{ fontFeatureSettings: '"tnum"' }}>{thinking.length}</span>
       </button>
       <AnimatePresence initial={false}>
         {expanded && (
           <motion.div
             key="thinking-body"
-            initial={{height: 0, opacity: 0}}
-            animate={{height: 'auto', opacity: 1}}
-            exit={{height: 0, opacity: 0}}
-            transition={{duration: 0.2, ease: 'easeInOut'}}
-            style={{overflow: 'hidden'}}
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: 'easeInOut' }}
+            style={{ overflow: 'hidden' }}
           >
             <div
               className="mono think-char whitespace-pre-wrap"
@@ -93,18 +97,11 @@ function ThinkingBlock({
  * - Running 时底部 1px tool-runbar 横向脉动
  * - Completed 状态可折叠 resultPreview
  */
-function ToolCallCard({
-  toolCall,
-  onToggle,
-}: {
-  toolCall: ToolCall
-  onToggle?: () => void
-}) {
-  const {status, tool, toolDisplay, query, count, resultPreview, expanded} = toolCall
+function ToolCallCard({ toolCall, onToggle }: { toolCall: ToolCall; onToggle?: () => void }) {
+  const { status, tool, toolDisplay, query, count, resultPreview, expanded } = toolCall
   const canExpand = status === 'completed' && !!resultPreview
 
-  const statusLabel =
-    status === 'running' ? 'running' : status === 'failed' ? 'failed' : 'done'
+  const statusLabel = status === 'running' ? 'running' : status === 'failed' ? 'failed' : 'done'
   const statusColor =
     status === 'running' ? 'var(--t1)' : status === 'failed' ? '#dc2626' : 'var(--t2)'
 
@@ -150,24 +147,37 @@ function ToolCallCard({
             borderRadius: '50%',
             background: statusColor,
             flexShrink: 0,
-            ...(status === 'running' ? {animation: 'pulse-dot 1.4s ease infinite'} : {}),
+            ...(status === 'running' ? { animation: 'pulse-dot 1.4s ease infinite' } : {}),
           }}
         />
-        <span style={{color: 'var(--t1)', fontWeight: 500}}>{toolDisplay || tool}</span>
-        <span style={{color: 'var(--t3)'}}>·</span>
-        <span style={{color: statusColor}}>{statusLabel}</span>
+        <span style={{ color: 'var(--t1)', fontWeight: 500 }}>{toolDisplay || tool}</span>
+        <span style={{ color: 'var(--t3)' }}>·</span>
+        <span style={{ color: statusColor }}>{statusLabel}</span>
         {meta && (
           <>
-            <span style={{color: 'var(--t3)'}}>·</span>
-            <span style={{flex: 1, color: 'var(--t3)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>
+            <span style={{ color: 'var(--t3)' }}>·</span>
+            <span
+              style={{
+                flex: 1,
+                color: 'var(--t3)',
+                minWidth: 0,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
               {meta}
             </span>
           </>
         )}
-        {!meta && <span style={{flex: 1}} />}
+        {!meta && <span style={{ flex: 1 }} />}
         {canExpand && (
-          <span style={{color: 'var(--t3)', flexShrink: 0}}>
-            {expanded ? <ChevronDown className="h-3 w-3" strokeWidth={1.8} /> : <ChevronRight className="h-3 w-3" strokeWidth={1.8} />}
+          <span style={{ color: 'var(--t3)', flexShrink: 0 }}>
+            {expanded ? (
+              <ChevronDown className="h-3 w-3" strokeWidth={1.8} />
+            ) : (
+              <ChevronRight className="h-3 w-3" strokeWidth={1.8} />
+            )}
           </span>
         )}
       </button>
@@ -180,11 +190,11 @@ function ToolCallCard({
         {canExpand && expanded && (
           <motion.div
             key="tool-result"
-            initial={{height: 0, opacity: 0}}
-            animate={{height: 'auto', opacity: 1}}
-            exit={{height: 0, opacity: 0}}
-            transition={{duration: 0.2, ease: 'easeInOut'}}
-            style={{overflow: 'hidden'}}
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: 'easeInOut' }}
+            style={{ overflow: 'hidden' }}
           >
             <div
               className="mono whitespace-pre-wrap"
@@ -205,7 +215,13 @@ function ToolCallCard({
   )
 }
 
-export function MessageItem({message, isNew = false, onToggleThinking, onToggleToolCall, onScrollNeeded}: Props) {
+function MessageItemBase({
+  message,
+  isNew = false,
+  onToggleThinking,
+  onToggleToolCall,
+  onScrollNeeded,
+}: Props) {
   const isUser = message.role === 'user'
 
   // 工具卡片数量或状态变化时触发滚动
@@ -216,13 +232,15 @@ export function MessageItem({message, isNew = false, onToggleThinking, onToggleT
 
   return (
     <motion.div
-      initial={isNew ? {opacity: 0, y: 6} : {opacity: 1, y: 0}}
-      animate={{opacity: 1, y: 0}}
-      transition={isNew ? {duration: 0.18, ease: 'easeOut'} : {duration: 0}}
+      initial={isNew ? { opacity: 0, y: 6 } : { opacity: 1, y: 0 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={isNew ? { duration: 0.18, ease: 'easeOut' } : { duration: 0 }}
       className={cn('flex w-full', isUser && 'justify-end')}
-      style={{marginBottom: '26px'}}
+      style={{ marginBottom: '26px' }}
     >
-      <div className={cn('flex flex-col gap-2.5 min-w-0', isUser ? 'max-w-[72%] items-end' : 'w-full')}>
+      <div
+        className={cn('flex flex-col gap-2.5 min-w-0', isUser ? 'max-w-[72%] items-end' : 'w-full')}
+      >
         {/* 用户消息气泡 */}
         {isUser && (
           <div
@@ -255,11 +273,7 @@ export function MessageItem({message, isNew = false, onToggleThinking, onToggleT
 
             {/* 工具调用卡片 */}
             {message.toolCalls.map((tc) => (
-              <ToolCallCard
-                key={tc.id}
-                toolCall={tc}
-                onToggle={() => onToggleToolCall?.(tc.id)}
-              />
+              <ToolCallCard key={tc.id} toolCall={tc} onToggle={() => onToggleToolCall?.(tc.id)} />
             ))}
 
             {/* 等待首字节：弹跳加载点 */}
@@ -297,3 +311,7 @@ export function MessageItem({message, isNew = false, onToggleThinking, onToggleT
     </motion.div>
   )
 }
+
+// memo：回调由 ChatWindow 以 useCallback 稳定，只有 message 引用变化的那一条会重渲，
+// 流式期间其余历史消息不再被无谓重渲（含其内部 StreamMarkdown effect）。
+export const MessageItem = memo(MessageItemBase)

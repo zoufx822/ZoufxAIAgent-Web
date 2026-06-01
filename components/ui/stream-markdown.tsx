@@ -1,9 +1,8 @@
 'use client'
 
-import {useEffect, useRef, useState} from 'react'
+import { useEffect, useRef, useState } from 'react'
 import * as smd from 'streaming-markdown'
-import {codeToHtml} from 'shiki'
-import {cn} from '@/lib/utils'
+import { cn } from '@/lib/utils'
 
 interface Props {
   content: string
@@ -21,7 +20,7 @@ export function StreamMarkdown({ content, isStreaming, onScrollNeeded }: Props) 
   const [mounted, setMounted] = useState(false)
 
   // 历史消息（挂载时已非流式）直接从完整长度开始，跳过打字机路径
-  const [displayedLen, setDisplayedLenState] = useState(() => isStreaming ? 0 : content.length)
+  const [displayedLen, setDisplayedLenState] = useState(() => (isStreaming ? 0 : content.length))
   // ref 版本用于在 rAF 回调（非 React 渲染周期）中读取当前位置，避免闭包过期
   const displayedLenRef = useRef(isStreaming ? 0 : content.length)
 
@@ -72,9 +71,8 @@ export function StreamMarkdown({ content, isStreaming, onScrollNeeded }: Props) 
         return
       }
 
-      const elapsed = lastTimeRef.current !== null
-        ? Math.min(timestamp - lastTimeRef.current, 100)
-        : 16
+      const elapsed =
+        lastTimeRef.current !== null ? Math.min(timestamp - lastTimeRef.current, 100) : 16
       lastTimeRef.current = timestamp
       accumRef.current += (elapsed * CHARS_PER_SEC) / 1000
       const charsToAdd = Math.floor(accumRef.current)
@@ -158,7 +156,9 @@ export function StreamMarkdown({ content, isStreaming, onScrollNeeded }: Props) 
         applyShiki(containerRef.current)
       }
     })
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [isStreaming, displayedLen, content.length, mounted])
 
   // 滚动通知
@@ -168,7 +168,11 @@ export function StreamMarkdown({ content, isStreaming, onScrollNeeded }: Props) 
 
   if (!mounted) {
     return (
-      <div className={cn('prose prose-sm prose-zoufx dark:prose-invert max-w-none text-[15px] leading-7 text-foreground/92')}>
+      <div
+        className={cn(
+          'prose prose-sm prose-zoufx dark:prose-invert max-w-none text-[15px] leading-7 text-foreground/92'
+        )}
+      >
         {content}
       </div>
     )
@@ -194,6 +198,9 @@ export function StreamMarkdown({ content, isStreaming, onScrollNeeded }: Props) 
 async function applyShiki(container: HTMLElement) {
   try {
     const blocks = container.querySelectorAll<HTMLElement>('pre > code')
+    if (blocks.length === 0) return
+    // 动态 import：把 shiki（含 oniguruma 引擎 + 语言语法）移出首屏 bundle，首个代码块渲染时才加载
+    const { codeToHtml } = await import('shiki')
     for (const code of Array.from(blocks)) {
       const lang = code.className.match(/language-(\w+)/)?.[1] ?? 'text'
       const raw = code.textContent ?? ''

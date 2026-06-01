@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useMemo, useRef } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { toast } from 'sonner'
 import { useStore } from '@/lib/store'
 import { useCapabilityStore } from '@/lib/capability'
@@ -9,6 +10,8 @@ import { streamChat } from '@/lib/chat-stream'
 const EMPTY_MESSAGES: never[] = []
 
 export function useChatStream() {
+  // useShallow：actions 是稳定引用，仅 currentAnchorId/lastActiveAnchorId/isLoading 变化才重渲，
+  // mood/status/spotlight 等无关 state 变更不再触发本 hook 重跑。
   const {
     currentAnchorId,
     lastActiveAnchorId,
@@ -25,7 +28,25 @@ export function useChatStream() {
     setStatus,
     setMood,
     bumpHotMemoryVersion,
-  } = useStore()
+  } = useStore(
+    useShallow((s) => ({
+      currentAnchorId: s.currentAnchorId,
+      lastActiveAnchorId: s.lastActiveAnchorId,
+      isLoading: s.isLoading,
+      addMessage: s.addMessage,
+      updateLastAssistantMessage: s.updateLastAssistantMessage,
+      removeLastMessage: s.removeLastMessage,
+      updateAnchorTitle: s.updateAnchorTitle,
+      touchAnchor: s.touchAnchor,
+      appendToolCall: s.appendToolCall,
+      updateLastRunningToolCall: s.updateLastRunningToolCall,
+      markRunningToolCallsFailed: s.markRunningToolCallsFailed,
+      setLoading: s.setLoading,
+      setStatus: s.setStatus,
+      setMood: s.setMood,
+      bumpHotMemoryVersion: s.bumpHotMemoryVersion,
+    }))
+  )
 
   // selector 必须返回稳定引用——空 anchor 用模块级空数组兜底，避免无限循环。
   const rawMessages = useStore((s) => s.messages[s.currentAnchorId])
@@ -49,7 +70,8 @@ export function useChatStream() {
 
       const anchorId = currentAnchorId
       // prevAnchorId 只在切锚后的首条消息发送一次，发完即清空
-      const prevAnchorId = lastActiveAnchorId && lastActiveAnchorId !== anchorId ? lastActiveAnchorId : null
+      const prevAnchorId =
+        lastActiveAnchorId && lastActiveAnchorId !== anchorId ? lastActiveAnchorId : null
       if (prevAnchorId) useStore.setState({ lastActiveAnchorId: null })
 
       ctrlRef.current = new AbortController()
@@ -90,18 +112,11 @@ export function useChatStream() {
         onThinking: (chunk) => {
           if (!showThinking) return
           setStatus('thinking')
-          useStore.setState((state) => {
-            const msgs = [...(state.messages[anchorId] ?? [])]
-            const last = msgs[msgs.length - 1]
-            if (!last || last.role !== 'assistant') return state
-            const isFirst = !last.thinking
-            msgs[msgs.length - 1] = {
-              ...last,
-              thinking: last.thinking + chunk,
-              thinkingExpanded: isFirst ? true : last.thinkingExpanded,
-            }
-            return { messages: { ...state.messages, [anchorId]: msgs } }
-          })
+          updateLastAssistantMessage(anchorId, (last) => ({
+            thinking: last.thinking + chunk,
+            // 首次出现思考内容时自动展开
+            thinkingExpanded: last.thinking ? last.thinkingExpanded : true,
+          }))
         },
 
         onContent: (chunk) => {
@@ -113,13 +128,7 @@ export function useChatStream() {
             const emit = clean.substring(0, emitLen)
             tailRef.current = clean.substring(emitLen)
             setStatus('writing')
-            useStore.setState((state) => {
-              const msgs = [...(state.messages[anchorId] ?? [])]
-              const last = msgs[msgs.length - 1]
-              if (!last || last.role !== 'assistant') return state
-              msgs[msgs.length - 1] = { ...last, content: last.content + emit }
-              return { messages: { ...state.messages, [anchorId]: msgs } }
-            })
+            updateLastAssistantMessage(anchorId, (last) => ({ content: last.content + emit }))
           }
         },
 
@@ -128,13 +137,7 @@ export function useChatStream() {
           setStatus('tooling')
           // ReAct 渲染：tool_call 触发时清空之前累积的 content（LLM preamble），
           // 让 tool 后的最终回复重新累积。避免 silent tool 前后双份回复。
-          useStore.setState((state) => {
-            const msgs = [...(state.messages[anchorId] ?? [])]
-            const last = msgs[msgs.length - 1]
-            if (!last || last.role !== 'assistant' || !last.content) return state
-            msgs[msgs.length - 1] = { ...last, content: '' }
-            return { messages: { ...state.messages, [anchorId]: msgs } }
-          })
+          updateLastAssistantMessage(anchorId, { content: '' })
           appendToolCall(anchorId, {
             id: crypto.randomUUID(),
             tool: payload.tool,
@@ -163,19 +166,19 @@ export function useChatStream() {
           if (tailRef.current) {
             const clean = tailRef.current.replace(/<!--\s*mood\s*:\s*[^>]*?-->/gi, '')
             if (clean) {
-              useStore.setState((state) => {
-                const msgs = [...(state.messages[anchorId] ?? [])]
-                const last = msgs[msgs.length - 1]
-                if (!last || last.role !== 'assistant') return state
-                msgs[msgs.length - 1] = { ...last, content: last.content + clean }
-                return { messages: { ...state.messages, [anchorId]: msgs } }
-              })
+              updateLastAssistantMessage(anchorId, (last) => ({ content: last.content + clean }))
             }
             tailRef.current = ''
           }
           markRunningToolCallsFailed(anchorId)
           const lastMsg = useStore.getState().messages[anchorId]?.at(-1)
-          if (lastMsg && lastMsg.role === 'assistant' && !lastMsg.content && !lastMsg.thinking && lastMsg.toolCalls.length === 0) {
+          if (
+            lastMsg &&
+            lastMsg.role === 'assistant' &&
+            !lastMsg.content &&
+            !lastMsg.thinking &&
+            lastMsg.toolCalls.length === 0
+          ) {
             removeLastMessage(anchorId)
           } else {
             updateLastAssistantMessage(anchorId, { isStreaming: false })
@@ -198,7 +201,23 @@ export function useChatStream() {
         },
       })
     },
-    [currentAnchorId, lastActiveAnchorId, isLoading, addMessage, updateLastAssistantMessage, removeLastMessage, updateAnchorTitle, touchAnchor, appendToolCall, updateLastRunningToolCall, markRunningToolCallsFailed, setLoading, setStatus, setMood, bumpHotMemoryVersion]
+    [
+      currentAnchorId,
+      lastActiveAnchorId,
+      isLoading,
+      addMessage,
+      updateLastAssistantMessage,
+      removeLastMessage,
+      updateAnchorTitle,
+      touchAnchor,
+      appendToolCall,
+      updateLastRunningToolCall,
+      markRunningToolCallsFailed,
+      setLoading,
+      setStatus,
+      setMood,
+      bumpHotMemoryVersion,
+    ]
   )
 
   const stop = useCallback(() => {
@@ -208,14 +227,27 @@ export function useChatStream() {
     const anchorId = currentAnchorId
     markRunningToolCallsFailed(anchorId)
     const lastMsg = useStore.getState().messages[anchorId]?.at(-1)
-    if (lastMsg && lastMsg.role === 'assistant' && !lastMsg.content && !lastMsg.thinking && lastMsg.toolCalls.length === 0) {
+    if (
+      lastMsg &&
+      lastMsg.role === 'assistant' &&
+      !lastMsg.content &&
+      !lastMsg.thinking &&
+      lastMsg.toolCalls.length === 0
+    ) {
       removeLastMessage(anchorId)
     } else {
       updateLastAssistantMessage(anchorId, { isStreaming: false })
     }
     setStatus('idle')
     setLoading(false)
-  }, [currentAnchorId, markRunningToolCallsFailed, updateLastAssistantMessage, removeLastMessage, setLoading, setStatus])
+  }, [
+    currentAnchorId,
+    markRunningToolCallsFailed,
+    updateLastAssistantMessage,
+    removeLastMessage,
+    setLoading,
+    setStatus,
+  ])
 
   return { messages, isLoading, send, stop }
 }

@@ -97,20 +97,29 @@ async function readBackendErrorMessage(res: Response): Promise<string | null> {
 function dispatchEvent(
   event: string,
   data: string,
-  opts: StreamChatOptions,
+  opts: StreamChatOptions
 ): 'continue' | 'terminated' {
   const { onThinking, onContent, onToolCall, onToolResult, onMood, onError } = opts
   if (event === 'thinking') {
     onThinking?.(data)
   } else if (event === 'tool_call') {
-    try { onToolCall?.(JSON.parse(data) as ToolCallPayload) }
-    catch (e) { console.warn('tool_call parse failed', e, data) }
+    try {
+      onToolCall?.(JSON.parse(data) as ToolCallPayload)
+    } catch (e) {
+      console.warn('tool_call parse failed', e, data)
+    }
   } else if (event === 'tool_result') {
-    try { onToolResult?.(JSON.parse(data) as ToolResultPayload) }
-    catch (e) { console.warn('tool_result parse failed', e, data) }
+    try {
+      onToolResult?.(JSON.parse(data) as ToolResultPayload)
+    } catch (e) {
+      console.warn('tool_result parse failed', e, data)
+    }
   } else if (event === 'mood') {
-    try { onMood?.(JSON.parse(data) as MoodPayload) }
-    catch (e) { console.warn('mood parse failed', e, data) }
+    try {
+      onMood?.(JSON.parse(data) as MoodPayload)
+    } catch (e) {
+      console.warn('mood parse failed', e, data)
+    }
   } else if (event === 'error') {
     onError?.(parseErrorData(data))
     return 'terminated'
@@ -126,8 +135,13 @@ export async function streamChat(opts: StreamChatOptions) {
   try {
     const res = await fetch(API_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
-      body: JSON.stringify({ prompt: message, anchorId, prevAnchorId: prevAnchorId ?? null, thinking }),
+      headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+      body: JSON.stringify({
+        prompt: message,
+        anchorId,
+        prevAnchorId: prevAnchorId ?? null,
+        thinking,
+      }),
       signal,
     })
 
@@ -143,31 +157,43 @@ export async function streamChat(opts: StreamChatOptions) {
         404: '请求的资源不存在',
         429: '请求过于频繁，请稍后重试',
       }
-      const msg = statusMap[res.status] ?? (res.status >= 500 ? `服务器内部错误 (${res.status})` : `请求失败 (${res.status})`)
+      const msg =
+        statusMap[res.status] ??
+        (res.status >= 500 ? `服务器内部错误 (${res.status})` : `请求失败 (${res.status})`)
       throw new Error(msg)
     }
 
     const reader = res.body!.getReader()
     const decoder = new TextDecoder()
     let buffer = ''
-    let lastEventTime = Date.now()
-    const STREAM_TIMEOUT = 60000 // 60 秒超时
+    // 无数据活动 watchdog：每次 read 与定时器 race，IDLE_TIMEOUT 内无数据即判定挂起。
+    // 阈值须 > 后端单次工具调用最坏阻塞（Tavily 重试 ~60s），否则会误杀合法工具调用。
+    const IDLE_TIMEOUT = 90000
 
     while (true) {
-      const { done, value } = await reader.read()
+      let idleTimer: ReturnType<typeof setTimeout> | undefined
+      const idle = new Promise<never>((_, reject) => {
+        idleTimer = setTimeout(() => {
+          reader.cancel().catch(() => {})
+          reject(new Error('流式输出超时，请稍后重试'))
+        }, IDLE_TIMEOUT)
+      })
+
+      let result: Awaited<ReturnType<typeof reader.read>>
+      try {
+        result = await Promise.race([reader.read(), idle])
+      } finally {
+        clearTimeout(idleTimer)
+      }
+
+      const { done, value } = result
       if (done) break
 
-      lastEventTime = Date.now()
       buffer += decoder.decode(value, { stream: true })
       const { items, remaining } = parseSSE(buffer)
       buffer = remaining
       for (const { event, data } of items) {
         if (dispatchEvent(event, data, opts) === 'terminated') return
-      }
-
-      // 检查流超时（如果 30 秒没收到数据）
-      if (Date.now() - lastEventTime > 30000 && !done) {
-        throw new Error('流式输出超时，请稍后重试')
       }
     }
 

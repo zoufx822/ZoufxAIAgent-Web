@@ -80,8 +80,14 @@ export function StatePanel() {
           textAlign: 'left',
           transition: 'color .18s, background-color .18s',
         }}
-        onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--t1)'; e.currentTarget.style.background = 'var(--surf-hov)' }}
-        onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--t2)'; e.currentTarget.style.background = 'transparent' }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.color = 'var(--t1)'
+          e.currentTarget.style.background = 'var(--surf-hov)'
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.color = 'var(--t2)'
+          e.currentTarget.style.background = 'transparent'
+        }}
       >
         回望 · LOOKBACK ↗
       </button>

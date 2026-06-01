@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { ArrowUp, Plus, Sparkles, Square } from 'lucide-react'
 import { Menu } from '@base-ui/react/menu'
 import { Textarea } from '@/components/ui/textarea'
@@ -11,6 +12,7 @@ import { PresenceSticky } from '@/components/presence-sticky'
 import { useChatStream } from '@/hooks/use-chat-stream'
 import { useSmartScroll } from '@/hooks/use-smart-scroll'
 import { useStore } from '@/lib/store'
+import { STATUS_LABELS, MOOD_HIDDEN_STATUSES } from '@/lib/status-labels'
 import { useAnchorMessages } from '@/hooks/use-anchor-messages'
 import { useContextDetector } from '@/hooks/use-context-detector'
 import { useMemoryHot } from '@/hooks/use-memory-hot'
@@ -18,31 +20,21 @@ import { useIntimacy } from '@/hooks/use-intimacy'
 import { useAsleepDetector } from '@/hooks/use-asleep-detector'
 import { cn } from '@/lib/utils'
 
-const STATUS_LABELS: Record<string, { zh: string; en: string }> = {
-  idle:     { zh: '等待交互', en: 'IDLE' },
-  thinking: { zh: '思考中',   en: 'THINKING' },
-  tooling:  { zh: '使用工具', en: 'TOOLING' },
-  writing:  { zh: '回复中',   en: 'WRITING' },
-  error:    { zh: '出错了',   en: 'ERROR' },
-  asleep:   { zh: '打盹中',   en: 'ASLEEP' },
-}
-const HOME_MOOD_HIDE = new Set(['error', 'asleep'])
-
 const SUGGESTIONS_BY_INTIMACY: Record<string, string[]> = {
-  stranger:     ['你想聊点什么？', '你怎么称呼自己', '介绍一下你自己'],
+  stranger: ['你想聊点什么？', '你怎么称呼自己', '介绍一下你自己'],
   'half-known': ['帮我梳理一个方案', '把这段写得更好', '解释一个复杂概念'],
-  'fully-known':['帮我梳理一个方案', '把这段写得更好', '解释一个复杂概念', '深度分析'],
+  'fully-known': ['帮我梳理一个方案', '把这段写得更好', '解释一个复杂概念', '深度分析'],
 }
 
 const INTIMACY_GREET: Record<string, string> = {
-  stranger:     '我们才刚认识。先随便聊聊？',
+  stranger: '我们才刚认识。先随便聊聊？',
   'half-known': '继续聊吧——我还在慢慢认识你。',
 }
 
 function timeGreet(): string {
   const h = new Date().getHours()
-  if (h < 5)  return '还醒着？我陪你。'
-  if (h < 9)  return '今天打算干点什么？'
+  if (h < 5) return '还醒着？我陪你。'
+  if (h < 9) return '今天打算干点什么？'
   if (h < 12) return '早上的脑子最清楚，开始吧。'
   if (h < 14) return '吃过了吗？吃过我们就继续。'
   if (h < 18) return '下午容易走神，需要我提醒你聚焦吗？'
@@ -149,9 +141,7 @@ function ChatInput({
                 >
                   <Sparkles className="size-4" strokeWidth={2} />
                   <span className="flex-1">思考</span>
-                  {thinkingEnabled && (
-                    <span className="size-1.5 rounded-full bg-primary" />
-                  )}
+                  {thinkingEnabled && <span className="size-1.5 rounded-full bg-primary" />}
                 </Menu.Item>
               </Menu.Popup>
             </Menu.Positioner>
@@ -181,11 +171,7 @@ function ChatInput({
         <button
           className={cn(
             'inline-flex items-center justify-center rounded-full transition-all',
-            isLoading
-              ? 'hover:opacity-80'
-              : canSend
-                ? 'hover:opacity-90'
-                : 'cursor-not-allowed'
+            isLoading ? 'hover:opacity-80' : canSend ? 'hover:opacity-90' : 'cursor-not-allowed'
           )}
           style={{
             width: '30px',
@@ -200,7 +186,11 @@ function ChatInput({
           {isLoading ? (
             <Square className="size-3 fill-current" style={{ color: 'var(--bg)' }} />
           ) : (
-            <ArrowUp className="size-3.5" strokeWidth={2.5} style={{ color: canSend ? 'var(--bg)' : 'var(--t3)' }} />
+            <ArrowUp
+              className="size-3.5"
+              strokeWidth={2.5}
+              style={{ color: canSend ? 'var(--bg)' : 'var(--t3)' }}
+            />
           )}
         </button>
       </div>
@@ -210,14 +200,22 @@ function ChatInput({
 
 export function ChatWindow() {
   useAnchorMessages()
-  useAsleepDetector()
+  const [lastInputAt, setLastInputAt] = useState(() => Date.now())
+  useAsleepDetector({ lastInputAt })
 
   const { messages, isLoading, send, stop } = useChatStream()
-  const { currentAnchorId, toggleThinking, toggleToolCallExpanded } = useStore()
+  const { currentAnchorId, toggleThinking, toggleToolCallExpanded } = useStore(
+    useShallow((s) => ({
+      currentAnchorId: s.currentAnchorId,
+      toggleThinking: s.toggleThinking,
+      toggleToolCallExpanded: s.toggleToolCallExpanded,
+    }))
+  )
   const currentStatus = useStore((s) => s.currentStatus)
   const currentMood = useStore((s) => s.currentMood)
   const context = useContextDetector()
-  const eyesBusy = currentStatus === 'thinking' || currentStatus === 'tooling' || currentStatus === 'writing'
+  const eyesBusy =
+    currentStatus === 'thinking' || currentStatus === 'tooling' || currentStatus === 'writing'
 
   const { data: hot } = useMemoryHot('user-impression')
   const intimacy = useIntimacy(hot)
@@ -228,7 +226,9 @@ export function ChatWindow() {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const { scrollRef, scrollToBottom, forceScrollToBottom } = useSmartScroll()
 
-  useEffect(() => { scrollToBottom() }, [messages, scrollToBottom])
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages, scrollToBottom])
   useEffect(() => {
     forceScrollToBottom()
     textareaRef.current?.focus()
@@ -240,6 +240,7 @@ export function ChatWindow() {
     const text = input.trim()
     if (!text || isLoading) return
     setInput('')
+    setLastInputAt(Date.now())
     forceScrollToBottom()
     send(text, thinkingEnabled)
   }, [input, isLoading, send, thinkingEnabled, forceScrollToBottom])
@@ -247,6 +248,7 @@ export function ChatWindow() {
   const handleSuggestion = useCallback(
     (text: string) => {
       if (isLoading) return
+      setLastInputAt(Date.now())
       forceScrollToBottom()
       send(text, thinkingEnabled)
     },
@@ -256,9 +258,19 @@ export function ChatWindow() {
   const greeting = useMemo(() => INTIMACY_GREET[intimacy] ?? timeGreet(), [intimacy])
 
   const statusLabel = STATUS_LABELS[currentStatus] ?? STATUS_LABELS.idle
-  const showMood = !HOME_MOOD_HIDE.has(currentStatus) && !!currentMood
+  const showMood = !MOOD_HIDDEN_STATUSES.has(currentStatus) && !!currentMood
 
   const suggestions = SUGGESTIONS_BY_INTIMACY[intimacy] ?? SUGGESTIONS_BY_INTIMACY.stranger
+
+  // 稳定回调——配合 MessageItem 的 React.memo，避免每次渲染都给所有消息项换新引用
+  const handleToggleThinking = useCallback(
+    () => toggleThinking(currentAnchorId),
+    [toggleThinking, currentAnchorId]
+  )
+  const handleToggleToolCall = useCallback(
+    (toolCallId: string) => toggleToolCallExpanded(currentAnchorId, toolCallId),
+    [toggleToolCallExpanded, currentAnchorId]
+  )
 
   return (
     <div className="flex h-full flex-col">
@@ -270,7 +282,16 @@ export function ChatWindow() {
           <div style={{ width: '100%', maxWidth: 620 }}>
             <div className="home-nameplate" data-mood={currentStatus}>
               <div className="home-eyes">
-                <Eyes size={80} busy={eyesBusy} mood={currentMood} context={context} color="var(--accent)" pupil="var(--bg)" />
+                <Eyes
+                  size={80}
+                  busy={eyesBusy}
+                  mood={currentMood}
+                  context={context}
+                  color="var(--accent)"
+                  pupil="var(--bg)"
+                  asleep={currentStatus === 'asleep'}
+                  drifting={currentStatus === 'drifting'}
+                />
               </div>
               <div className="home-sig">
                 <span className="home-sig-rule"></span>
@@ -284,7 +305,9 @@ export function ChatWindow() {
                 {showMood && (
                   <>
                     <span className="home-status-sep">·</span>
-                    <span key={currentMood ?? ''} className="home-status-mood">{currentMood}</span>
+                    <span key={currentMood ?? ''} className="home-status-mood">
+                      {currentMood}
+                    </span>
                   </>
                 )}
               </div>
@@ -339,19 +362,49 @@ export function ChatWindow() {
         </div>
       ) : (
         <>
-          <PresenceSticky />
-          <div ref={scrollRef} className="flex-1 overflow-y-auto" style={{ padding: '36px clamp(16px, 5vw, 56px)' }}>
+          <PresenceSticky context={context} />
+          <div
+            ref={scrollRef}
+            className="flex-1 overflow-y-auto"
+            style={{ padding: '36px clamp(16px, 5vw, 56px)' }}
+          >
             <div className="mx-auto" style={{ maxWidth: '720px' }}>
-              {messages.map((msg, i) => (
-                <MessageItem
-                  key={msg.id ?? i}
-                  message={msg}
-                  isNew={i >= messages.length - 2}
-                  onToggleThinking={() => toggleThinking(currentAnchorId)}
-                  onToggleToolCall={(toolCallId) => toggleToolCallExpanded(currentAnchorId, toolCallId)}
-                  onScrollNeeded={scrollToBottom}
-                />
-              ))}
+              {(() => {
+                const items: React.ReactNode[] = []
+                let roundIdx = 0
+                messages.forEach((msg, i) => {
+                  const prev = messages[i - 1]
+                  if (msg.role === 'user') roundIdx++
+                  // 每 3 轮从第 4 轮起插呼吸分割线
+                  if (msg.role === 'user' && roundIdx > 1 && (roundIdx - 1) % 3 === 0) {
+                    items.push(
+                      <div key={`br-${i}`} className="breath-divider">
+                        <svg width="40" height="1">
+                          <line
+                            x1="0" y1="0.5" x2="40" y2="0.5"
+                            stroke="var(--border)" strokeWidth="1" strokeDasharray="2 4"
+                          />
+                        </svg>
+                      </div>
+                    )
+                  }
+                  const sameAuthor = prev && prev.role === msg.role
+                  const crossAuthor = prev && prev.role !== msg.role
+                  const mt = !prev ? 0 : crossAuthor ? 28 : sameAuthor ? 8 : 18
+                  items.push(
+                    <div key={msg.id} style={{ marginTop: mt }}>
+                      <MessageItem
+                        message={msg}
+                        isNew={i >= messages.length - 2}
+                        onToggleThinking={handleToggleThinking}
+                        onToggleToolCall={handleToggleToolCall}
+                        onScrollNeeded={scrollToBottom}
+                      />
+                    </div>
+                  )
+                })
+                return items
+              })()}
               <div className="h-4" />
             </div>
           </div>

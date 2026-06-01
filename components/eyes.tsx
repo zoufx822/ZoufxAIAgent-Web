@@ -29,15 +29,16 @@ interface Expr {
 }
 
 const MOOD_EXPR: Record<string, Expr> = {
-  '平静': { pr: 3.2, pdy:  0.0, esy: 1.00, blink: 6,   liddy: 0,   lidty: 0 },
-  '好奇': { pr: 5.0, pdy: -3.2, esy: 1.00, blink: 3.0, liddy: 0,   lidty: 0 },
-  '兴奋': { pr: 5.4, pdy: -3.0, esy: 1.08, blink: 2.0, liddy: 0,   lidty: 0, sparkle: true },
-  '困惑': { pr: 3.2, pdy:  0.0, esy: 1.00, blink: 5.0, liddy: 0,   lidty: 0, pdx: 1.8, question: true },
-  '难过': { pr: 3.0, pdy:  1.8, esy: 0.85, blink: 8,   liddy: 1.0, lidty: 6.0 },
-  '愤怒': { pr: 2.2, pdy:  0.0, esy: 0.85, blink: 7,   liddy: 5.0, lidty: 2.0, lidSlant: 8.0 },
+  平静: { pr: 3.2, pdy: 0.0, esy: 1.0, blink: 6, liddy: 0, lidty: 0 },
+  好奇: { pr: 5.0, pdy: -3.2, esy: 1.0, blink: 3.0, liddy: 0, lidty: 0 },
+  兴奋: { pr: 5.4, pdy: -3.0, esy: 1.08, blink: 2.0, liddy: 0, lidty: 0, sparkle: true },
+  困惑: { pr: 3.2, pdy: 0.0, esy: 1.0, blink: 5.0, liddy: 0, lidty: 0, pdx: 1.8, question: true },
+  难过: { pr: 3.0, pdy: 1.8, esy: 0.85, blink: 8, liddy: 1.0, lidty: 6.0 },
+  愤怒: { pr: 2.2, pdy: 0.0, esy: 0.85, blink: 7, liddy: 5.0, lidty: 2.0, lidSlant: 8.0 },
 }
 
 const DEFAULT_EXPR: Expr = { pr: 3.2, pdy: 0, esy: 1.0, blink: 6, liddy: 0, lidty: 0 }
+const ASLEEP_EXPR: Expr = { pr: 2.0, pdy: 2.4, esy: 0.26, blink: 8, liddy: 0, lidty: 0 }
 const MOOD_EXPR_MIN_SIZE = 28
 
 export type EyesContext = 'normal' | 'long-silence' | 'high-intensity'
@@ -72,9 +73,21 @@ interface EyesProps {
   mood?: string | null
   context?: EyesContext
   blinkDelay?: string
+  asleep?: boolean
+  drifting?: boolean
 }
 
-export function Eyes({ size = 64, busy = false, color, pupil, mood, context, blinkDelay }: EyesProps) {
+export function Eyes({
+  size = 64,
+  busy = false,
+  color,
+  pupil,
+  mood,
+  context,
+  blinkDelay,
+  asleep = false,
+  drifting = false,
+}: EyesProps) {
   const uid = useId().replace(/:/g, '')
   const w = Math.round(size * 2.2)
   const h = size
@@ -82,9 +95,11 @@ export function Eyes({ size = 64, busy = false, color, pupil, mood, context, bli
   const pp = pupil ?? 'var(--bg)'
 
   const expr = useMemo(() => {
-    const base = (size >= MOOD_EXPR_MIN_SIZE && mood && MOOD_EXPR[mood]) ? MOOD_EXPR[mood] : DEFAULT_EXPR
+    if (asleep) return ASLEEP_EXPR
+    const base =
+      size >= MOOD_EXPR_MIN_SIZE && mood && MOOD_EXPR[mood] ? MOOD_EXPR[mood] : DEFAULT_EXPR
     return applyContext(base, context)
-  }, [mood, size, context])
+  }, [asleep, mood, size, context])
 
   const ry = (17 * expr.esy).toFixed(2)
   const prL = expr.pr
@@ -113,7 +128,7 @@ export function Eyes({ size = 64, busy = false, color, pupil, mood, context, bli
 
   return (
     <svg
-      className={`eyes-z${busy ? ' busy' : ''}`}
+      className={`eyes-z${busy ? ' busy' : ''}${asleep ? ' asleep' : ''}${drifting ? ' drifting' : ''}`}
       width={w}
       height={h}
       viewBox="0 0 100 44"
@@ -145,8 +160,17 @@ export function Eyes({ size = 64, busy = false, color, pupil, mood, context, bli
         </g>
       )}
       {expr.question && (
-        <text className="eyes-question" x="50" y="14" textAnchor="middle" fill={fill}
-              fontSize="11" fontFamily="ui-serif, Georgia, serif">?</text>
+        <text
+          className="eyes-question"
+          x="50"
+          y="14"
+          textAnchor="middle"
+          fill={fill}
+          fontSize="11"
+          fontFamily="ui-serif, Georgia, serif"
+        >
+          ?
+        </text>
       )}
     </svg>
   )

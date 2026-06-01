@@ -30,7 +30,7 @@ export interface MemoryAnchor {
   createdAt: number
 }
 
-export type Status = 'idle' | 'thinking' | 'tooling' | 'writing' | 'error' | 'asleep'
+export type Status = 'idle' | 'thinking' | 'tooling' | 'writing' | 'error' | 'asleep' | 'drifting'
 
 interface Store {
   userId: string
@@ -61,14 +61,16 @@ interface Store {
   setAnchors: (anchors: MemoryAnchor[]) => void
   addAnchor: (anchor: MemoryAnchor) => void
   switchAnchor: (id: string) => void
-  deleteAnchor: (id: string) => void
   updateAnchorTitle: (id: string, title: string, force?: boolean) => void
   touchAnchor: (id: string, lastActiveAt: number) => void
 
   // ── message actions ──
   setMessages: (anchorId: string, msgs: Message[]) => void
   addMessage: (anchorId: string, msg: Message) => void
-  updateLastAssistantMessage: (anchorId: string, patch: Partial<Message>) => void
+  updateLastAssistantMessage: (
+    anchorId: string,
+    patch: Partial<Message> | ((last: Message) => Partial<Message>)
+  ) => void
   removeLastMessage: (anchorId: string) => void
   toggleThinking: (anchorId: string) => void
   appendToolCall: (anchorId: string, toolCall: ToolCall) => void
@@ -133,29 +135,10 @@ export const useStore = create<Store>()(
         set({ lastActiveAnchorId: currentAnchorId, currentAnchorId: id })
       },
 
-      deleteAnchor: (id) => {
-        const { anchors, currentAnchorId } = get()
-        if (anchors.length === 1) return
-        const idx = anchors.findIndex((a) => a.id === id)
-        if (idx === -1) return
-        const next = anchors.filter((a) => a.id !== id)
-        set((state) => {
-          const nextMessages = { ...state.messages }
-          delete nextMessages[id]
-          return {
-            anchors: next,
-            messages: nextMessages,
-            currentAnchorId: currentAnchorId === id ? next[Math.min(idx, next.length - 1)].id : currentAnchorId,
-          }
-        })
-      },
-
       updateAnchorTitle: (id, title, force = false) => {
         set((state) => ({
           anchors: state.anchors.map((a) =>
-            a.id === id && (force || a.title === '新对话')
-              ? { ...a, title: title.slice(0, 20) }
-              : a
+            a.id === id && (force || a.title === '新对话') ? { ...a, title: title.slice(0, 20) } : a
           ),
         }))
       },
@@ -184,7 +167,8 @@ export const useStore = create<Store>()(
           const msgs = [...(state.messages[anchorId] ?? [])]
           const last = msgs[msgs.length - 1]
           if (!last || last.role !== 'assistant') return state
-          msgs[msgs.length - 1] = { ...last, ...patch }
+          const resolved = typeof patch === 'function' ? patch(last) : patch
+          msgs[msgs.length - 1] = { ...last, ...resolved }
           return { messages: { ...state.messages, [anchorId]: msgs } }
         })
       },

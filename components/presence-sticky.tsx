@@ -1,8 +1,8 @@
 'use client'
 
 import { useStore } from '@/lib/store'
-import { useAsleepDetector } from '@/hooks/use-asleep-detector'
-import { useContextDetector } from '@/hooks/use-context-detector'
+import { STATUS_LABELS, MOOD_HIDDEN_STATUSES } from '@/lib/status-labels'
+import type { EyesContext } from './eyes'
 import { Eyes } from './eyes'
 
 /**
@@ -13,30 +13,21 @@ import { Eyes } from './eyes'
  * - Spotlight（170px）：mood 触发的高亮态，由 store.spotlight 持续 ~3s
  *
  * Spotlight 由 ChatStream onMood 通过 triggerSpotlight() 推送；纯 UI 反应。
+ * context 由父级 ChatWindow 计算后下传——避免与 ChatWindow 各跑一份探测器。
  */
 
-const STATUS_LABELS: Record<string, { zh: string; en: string }> = {
-  idle:     { zh: '等待交互', en: 'IDLE' },
-  thinking: { zh: '思考中',   en: 'THINKING' },
-  tooling:  { zh: '使用工具', en: 'TOOLING' },
-  writing:  { zh: '回复中',   en: 'WRITING' },
-  error:    { zh: '出错了',   en: 'ERROR' },
-  asleep:   { zh: '打盹中',   en: 'ASLEEP' },
-}
-
-const STATUS_HIDES_MOOD = new Set(['error', 'asleep'])
-
-function moodVisible(status: string, mood: string | null, lastMoodAt: number | null): { visible: boolean; stale: boolean } {
-  if (!mood || STATUS_HIDES_MOOD.has(status)) return { visible: false, stale: false }
+function moodVisible(
+  status: string,
+  mood: string | null,
+  lastMoodAt: number | null
+): { visible: boolean; stale: boolean } {
+  if (!mood || MOOD_HIDDEN_STATUSES.has(status)) return { visible: false, stale: false }
   const ageMin = lastMoodAt ? (Date.now() - lastMoodAt) / 60_000 : Infinity
   if (ageMin >= 15) return { visible: false, stale: false }
   return { visible: true, stale: ageMin >= 5 }
 }
 
-export function PresenceSticky() {
-  useAsleepDetector()
-  const context = useContextDetector()
-
+export function PresenceSticky({ context }: { context: EyesContext }) {
   const currentStatus = useStore((s) => s.currentStatus)
   const currentMood = useStore((s) => s.currentMood)
   const lastMoodAt = useStore((s) => s.lastMoodAt)
@@ -55,11 +46,17 @@ export function PresenceSticky() {
       <div className="presence-eyes-wrap">
         <Eyes
           size={spotlight ? 88 : 32}
-          busy={currentStatus === 'thinking' || currentStatus === 'tooling' || currentStatus === 'writing'}
+          busy={
+            currentStatus === 'thinking' ||
+            currentStatus === 'tooling' ||
+            currentStatus === 'writing'
+          }
           mood={currentMood}
           context={context}
           color="var(--accent)"
           pupil="var(--bg)"
+          asleep={currentStatus === 'asleep'}
+          drifting={currentStatus === 'drifting'}
         />
       </div>
       <div className="presence-label">
@@ -71,7 +68,9 @@ export function PresenceSticky() {
         {md.visible && (
           <>
             <span className="presence-sep">·</span>
-            <span key={currentMood} className={`presence-mood${md.stale ? ' stale' : ''}`}>{currentMood}</span>
+            <span key={currentMood} className={`presence-mood${md.stale ? ' stale' : ''}`}>
+              {currentMood}
+            </span>
           </>
         )}
       </div>

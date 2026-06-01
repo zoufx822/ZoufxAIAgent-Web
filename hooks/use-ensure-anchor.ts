@@ -21,28 +21,31 @@ export function useEnsureAnchor() {
   useEffect(() => {
     if (!userId || ensuredRef.current) return
     ensuredRef.current = true
-
     ;(async () => {
       try {
         const list = await api.listAnchors(userId)
         if (list.length > 0) {
-          useStore.getState().setAnchors(list.map((a) => ({
-            id: a.id,
-            title: a.title ?? '新对话',
-            lastActiveAt: a.lastActiveAt,
-            createdAt: a.createdAt,
-          })))
+          useStore.getState().setAnchors(
+            list.map((a) => ({
+              id: a.id,
+              title: a.title ?? '新对话',
+              lastActiveAt: a.lastActiveAt,
+              createdAt: a.createdAt,
+            }))
+          )
           return
         }
         // 后端为空：创建一条真锚点替换本地伪锚点
         const created = await api.createAnchor(userId)
         useStore.setState({
-          anchors: [{
-            id: created.id,
-            title: created.title ?? '新对话',
-            lastActiveAt: created.lastActiveAt,
-            createdAt: created.createdAt,
-          }],
+          anchors: [
+            {
+              id: created.id,
+              title: created.title ?? '新对话',
+              lastActiveAt: created.lastActiveAt,
+              createdAt: created.createdAt,
+            },
+          ],
           currentAnchorId: created.id,
           lastActiveAnchorId: null,
         })

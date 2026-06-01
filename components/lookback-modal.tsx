@@ -18,7 +18,9 @@ export function LookBackModal() {
 
   useEffect(() => {
     if (!open) return
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false)
+    }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [open, setOpen])
@@ -33,11 +35,18 @@ export function LookBackModal() {
           <button
             onClick={() => setOpen(false)}
             style={{
-              background: 'transparent', border: 'none', cursor: 'pointer',
-              color: 'var(--t2)', fontSize: 18, padding: '0 4px', lineHeight: 1,
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'var(--t2)',
+              fontSize: 18,
+              padding: '0 4px',
+              lineHeight: 1,
             }}
             aria-label="关闭"
-          >×</button>
+          >
+            ×
+          </button>
         </div>
         <div className="lookback-body">
           <div className="lookback-col">

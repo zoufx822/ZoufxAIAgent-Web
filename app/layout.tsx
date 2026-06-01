@@ -13,7 +13,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="zh" className={`${geistMono.variable} h-full`} suppressHydrationWarning>
-      <body className="h-full antialiased" style={{ backgroundColor: 'var(--bg)', color: 'var(--t1)' }}>
+      <body
+        className="h-full antialiased"
+        style={{ backgroundColor: 'var(--bg)', color: 'var(--t1)' }}
+      >
         <Providers>{children}</Providers>
       </body>
     </html>

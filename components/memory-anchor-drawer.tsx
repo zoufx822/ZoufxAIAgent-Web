@@ -18,12 +18,10 @@ interface AnchorItemProps {
   anchor: MemoryAnchor
   active: boolean
   onSelect: () => void
-  onDelete: () => void
 }
 
-function AnchorItem({ anchor, active, onSelect, onDelete }: AnchorItemProps) {
+function AnchorItem({ anchor, active, onSelect }: AnchorItemProps) {
   const { updateAnchorTitle } = useStore()
-  const [hovered, setHovered] = useState(false)
   const [editing, setEditing] = useState(false)
   const [val, setVal] = useState(anchor.title)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -44,16 +42,17 @@ function AnchorItem({ anchor, active, onSelect, onDelete }: AnchorItemProps) {
     setVal(v)
     if (v !== anchor.title) {
       updateAnchorTitle(anchor.id, v, true)
-      try { await api.renameAnchor(anchor.id, v) }
-      catch (err) { console.warn('renameAnchor failed', err) }
+      try {
+        await api.renameAnchor(anchor.id, v)
+      } catch (err) {
+        console.warn('renameAnchor failed', err)
+      }
     }
     setEditing(false)
   }
 
   return (
     <div
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
       onClick={() => !editing && onSelect()}
       onDoubleClick={() => setEditing(true)}
       className="flex items-center cursor-pointer transition-colors"
@@ -103,7 +102,10 @@ function AnchorItem({ anchor, active, onSelect, onDelete }: AnchorItemProps) {
           />
         ) : (
           <>
-            <div className="truncate" style={{ fontSize: 12, color: active ? 'var(--t1)' : 'var(--t2)' }}>
+            <div
+              className="truncate"
+              style={{ fontSize: 12, color: active ? 'var(--t1)' : 'var(--t2)' }}
+            >
               {anchor.title}
             </div>
             <div style={{ fontSize: 10, color: 'var(--t3)', marginTop: 2 }}>
@@ -112,32 +114,6 @@ function AnchorItem({ anchor, active, onSelect, onDelete }: AnchorItemProps) {
           </>
         )}
       </div>
-      {hovered && !editing && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation()
-            onDelete()
-          }}
-          className="flex items-center justify-center transition-colors"
-          style={{
-            width: 18,
-            height: 18,
-            border: 'none',
-            background: 'transparent',
-            color: 'var(--t3)',
-            cursor: 'pointer',
-            borderRadius: 4,
-            flexShrink: 0,
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--t1)' }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--t3)' }}
-        >
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
-      )}
     </div>
   )
 }
@@ -159,22 +135,26 @@ export function MemoryAnchorDrawer({ open, onClose }: DrawerProps) {
   const setAnchors = useStore((s) => s.setAnchors)
   const addAnchor = useStore((s) => s.addAnchor)
   const switchAnchor = useStore((s) => s.switchAnchor)
-  const deleteAnchor = useStore((s) => s.deleteAnchor)
 
   useEffect(() => {
     if (!open || !userId) return
     let cancelled = false
-    api.listAnchors(userId).then((list) => {
-      if (cancelled) return
-      const mapped = list.map((a) => ({
-        id: a.id,
-        title: a.title ?? '新对话',
-        lastActiveAt: a.lastActiveAt,
-        createdAt: a.createdAt,
-      }))
-      if (mapped.length > 0) setAnchors(mapped)
-    }).catch((err) => console.warn('listAnchors failed', err))
-    return () => { cancelled = true }
+    api
+      .listAnchors(userId)
+      .then((list) => {
+        if (cancelled) return
+        const mapped = list.map((a) => ({
+          id: a.id,
+          title: a.title ?? '新对话',
+          lastActiveAt: a.lastActiveAt,
+          createdAt: a.createdAt,
+        }))
+        if (mapped.length > 0) setAnchors(mapped)
+      })
+      .catch((err) => console.warn('listAnchors failed', err))
+    return () => {
+      cancelled = true
+    }
   }, [open, userId, setAnchors])
 
   if (!open) return null
@@ -279,7 +259,6 @@ export function MemoryAnchorDrawer({ open, onClose }: DrawerProps) {
                 switchAnchor(a.id)
                 onClose()
               }}
-              onDelete={() => !isLoading && deleteAnchor(a.id)}
             />
           ))}
         </div>
