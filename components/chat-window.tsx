@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState, Fragment } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { ArrowUp, Plus, Sparkles, Square } from 'lucide-react'
 import { Menu } from '@base-ui/react/menu'
@@ -50,6 +50,7 @@ function ChatInput({
   setThinkingEnabled,
   onSend,
   onStop,
+  onTyping,
   textareaRef,
 }: {
   input: string
@@ -59,6 +60,8 @@ function ChatInput({
   setThinkingEnabled: (fn: (v: boolean) => boolean) => void
   onSend: () => void
   onStop: () => void
+  /** 打字时调用（仅 onChange 触发，不在 focus 时触发） */
+  onTyping?: (active: boolean) => void
   textareaRef: React.RefObject<HTMLTextAreaElement | null>
 }) {
   const handleKeyDown = useCallback(
@@ -84,6 +87,22 @@ function ChatInput({
   const canSend = input.trim().length > 0
   const [focused, setFocused] = useState(false)
 
+  // 打字停顿 1.2s 后归中
+  const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const handleChange = useCallback(
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      setInput(e.target.value)
+      onTyping?.(true)
+      if (typingTimerRef.current) clearTimeout(typingTimerRef.current)
+      typingTimerRef.current = setTimeout(() => onTyping?.(false), 1200)
+    },
+    [setInput, onTyping]
+  )
+  const handleBlur = useCallback(() => {
+    if (typingTimerRef.current) clearTimeout(typingTimerRef.current)
+    onTyping?.(false)
+  }, [onTyping])
+
   return (
     <div
       className="transition-all duration-200"
@@ -99,7 +118,8 @@ function ChatInput({
       <Textarea
         ref={textareaRef}
         value={input}
-        onChange={(e) => setInput(e.target.value)}
+        onChange={handleChange}
+        onBlur={handleBlur}
         onKeyDown={handleKeyDown}
         placeholder="尽管问..."
         rows={1}
@@ -203,6 +223,24 @@ export function ChatWindow() {
   const [lastInputAt, setLastInputAt] = useState(() => Date.now())
   useAsleepDetector({ lastInputAt })
 
+  // 打字注视状态
+  const [typingActive, setTypingActive] = useState(false)
+  const handleTypingStart = useCallback((active: boolean) => setTypingActive(active), [])
+
+
+  // 全局交互监听——重置 lastInputAt，解除走神/更新 idle 时钟
+  useEffect(() => {
+    const reset = () => setLastInputAt(Date.now())
+    window.addEventListener('mousemove', reset, { passive: true })
+    window.addEventListener('keydown',   reset, { passive: true })
+    window.addEventListener('click',     reset, { passive: true })
+    return () => {
+      window.removeEventListener('mousemove', reset)
+      window.removeEventListener('keydown',   reset)
+      window.removeEventListener('click',     reset)
+    }
+  }, [])
+
   const { messages, isLoading, send, stop } = useChatStream()
   const { currentAnchorId, toggleThinking, toggleToolCallExpanded } = useStore(
     useShallow((s) => ({
@@ -216,6 +254,19 @@ export function ChatWindow() {
   const context = useContextDetector()
   const eyesBusy =
     currentStatus === 'thinking' || currentStatus === 'tooling' || currentStatus === 'writing'
+
+  // 唤醒动画：深夜（asleep 态）+ 打字中
+  const isWaking = typingActive && currentStatus === 'asleep'
+
+  // mood 变化时触发 home 页光晕动画
+  const prevMoodForGlowRef = useRef(currentMood)
+  const [homeGlowKey, setHomeGlowKey] = useState(0)
+  useEffect(() => {
+    if (prevMoodForGlowRef.current !== null && currentMood !== prevMoodForGlowRef.current) {
+      setHomeGlowKey((k) => k + 1)
+    }
+    prevMoodForGlowRef.current = currentMood
+  }, [currentMood])
 
   const { data: hot } = useMemoryHot('user-impression')
   const intimacy = useIntimacy(hot)
@@ -280,8 +331,17 @@ export function ChatWindow() {
           style={{ padding: '0 48px' }}
         >
           <div style={{ width: '100%', maxWidth: 620 }}>
-            <div className="home-nameplate" data-mood={currentStatus}>
+            <div
+              className="home-nameplate"
+              data-mood={currentStatus}
+              data-emotion={currentMood ?? undefined}
+            >
               <div className="home-eyes">
+                {homeGlowKey > 0 && (
+                  <Fragment key={homeGlowKey}>
+                    <div className="mood-glow" />
+                  </Fragment>
+                )}
                 <Eyes
                   size={80}
                   busy={eyesBusy}
@@ -291,6 +351,8 @@ export function ChatWindow() {
                   pupil="var(--bg)"
                   asleep={currentStatus === 'asleep'}
                   drifting={currentStatus === 'drifting'}
+                  lookDown={typingActive}
+                  waking={isWaking}
                 />
               </div>
               <div className="home-sig">
@@ -323,6 +385,7 @@ export function ChatWindow() {
                 setThinkingEnabled={setThinkingEnabled}
                 onSend={handleSend}
                 onStop={stop}
+                onTyping={handleTypingStart}
                 textareaRef={textareaRef}
               />
             </div>
@@ -362,7 +425,7 @@ export function ChatWindow() {
         </div>
       ) : (
         <>
-          <PresenceFloat context={context} />
+          <PresenceFloat context={context} lookDown={typingActive} waking={isWaking} />
           <div
             ref={scrollRef}
             className="flex-1 overflow-y-auto"
@@ -419,6 +482,7 @@ export function ChatWindow() {
                 setThinkingEnabled={setThinkingEnabled}
                 onSend={handleSend}
                 onStop={stop}
+                onTyping={handleTypingStart}
                 textareaRef={textareaRef}
               />
             </div>

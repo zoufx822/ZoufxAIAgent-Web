@@ -17,21 +17,27 @@ function moodVisible(
   return { visible: true, stale: ageMin >= 5 }
 }
 
-export function PresenceFloat({ context }: { context: EyesContext }) {
+interface PresenceFloatProps {
+  context: EyesContext
+  lookDown?: boolean
+  waking?: boolean
+}
+
+export function PresenceFloat({ context, lookDown = false, waking = false }: PresenceFloatProps) {
   const currentStatus = useStore((s) => s.currentStatus)
-  const currentMood = useStore((s) => s.currentMood)
-  const lastMoodAt = useStore((s) => s.lastMoodAt)
+  const currentMood   = useStore((s) => s.currentMood)
+  const lastMoodAt    = useStore((s) => s.lastMoodAt)
 
   const label = STATUS_LABELS[currentStatus] ?? STATUS_LABELS.idle
-  const md = moodVisible(currentStatus, currentMood, lastMoodAt)
+  const md    = moodVisible(currentStatus, currentMood, lastMoodAt)
 
-  // mood 变化（非首次、非从 null 浮现）时递增 ringKey，重挂载双环重播扩散动画
+  // mood 变化时递增 glowKey，重挂载光晕重播绽放动画
   const prevMoodRef = useRef(currentMood)
-  const [ringKey, setRingKey] = useState(0)
+  const [glowKey, setGlowKey] = useState(0)
 
   useEffect(() => {
     if (prevMoodRef.current !== null && currentMood !== prevMoodRef.current) {
-      setRingKey((k) => k + 1)
+      setGlowKey((k) => k + 1)
     }
     prevMoodRef.current = currentMood
   }, [currentMood])
@@ -40,14 +46,14 @@ export function PresenceFloat({ context }: { context: EyesContext }) {
     <div
       className="presence-float"
       data-mood={currentStatus}
+      data-emotion={currentMood ?? undefined}
       role="status"
       aria-live="polite"
     >
       <div className="presence-eyes-wrap">
-        {ringKey > 0 && (
-          <Fragment key={ringKey}>
-            <div className="mood-ring" />
-            <div className="mood-ring mood-ring-2" />
+        {glowKey > 0 && (
+          <Fragment key={glowKey}>
+            <div className="mood-glow" />
           </Fragment>
         )}
         <Eyes
@@ -63,6 +69,8 @@ export function PresenceFloat({ context }: { context: EyesContext }) {
           pupil="var(--bg)"
           asleep={currentStatus === 'asleep'}
           drifting={currentStatus === 'drifting'}
+          lookDown={lookDown}
+          waking={waking}
         />
       </div>
       <div className="presence-label">
@@ -74,7 +82,11 @@ export function PresenceFloat({ context }: { context: EyesContext }) {
         {md.visible && (
           <>
             <span className="presence-sep">·</span>
-            <span key={currentMood} className={`presence-mood${md.stale ? ' stale' : ''}`}>
+            <span
+              key={currentMood}
+              className={`presence-mood${md.stale ? ' stale' : ''}`}
+              style={{ color: md.stale ? undefined : 'var(--emotion-color)' }}
+            >
               {currentMood}
             </span>
           </>

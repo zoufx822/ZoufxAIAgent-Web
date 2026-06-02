@@ -476,7 +476,7 @@ button {
 .eyes-z .pupil {
   transform-box: fill-box;
   transform-origin: center;
-  animation: pupil-glance 14s ease-in-out infinite;
+  /* 全局不挂 pupil-glance——各情绪按 class 独立控制，无 class = 瞳孔固定 */
   transition:
     cx 0.28s cubic-bezier(0.4, 0, 0.2, 1),
     cy 0.28s cubic-bezier(0.4, 0, 0.2, 1),
@@ -546,10 +546,6 @@ button {
   .home-status-mood {
     animation: none !important;
   }
-  .mood-ring,
-  .mood-ring-2 {
-    animation: none !important;
-  }
 }
 
 /* ───────────────────────────────────────
@@ -575,35 +571,40 @@ button {
   position: relative;
   color: var(--accent);
 }
-/* 情绪变化的双环扩散脉冲——环色随 --mood-color 自动对应当前情绪 */
-.mood-ring {
+/* Gemini 风格柔和光晕——单个径向渐变，情绪色着色，z-index:-1 晕在眼睛后方 */
+.mood-glow {
   position: absolute;
-  top: 50%;
+  width: 380px;
+  height: 200px;
   left: 50%;
-  width: 148px;
-  height: 68px;
-  border-radius: 40%;
-  border: 1.5px solid var(--mood-color);
+  top: 50%;
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse at center,
+    var(--emotion-color, #94a3b8) 0%,
+    color-mix(in oklch, var(--emotion-color, #94a3b8), transparent 55%) 32%,
+    transparent 70%
+  );
+  filter: blur(16px);
   pointer-events: none;
-  animation: mood-ring-out 1.15s cubic-bezier(0.18, 0.6, 0.3, 1) forwards;
+  opacity: 0;
+  z-index: -1;
+  animation: mood-glow-bloom 2.6s ease-out forwards;
 }
-.mood-ring-2 {
-  animation-delay: 0.12s;
-  opacity: 0.3;
-  border-width: 1px;
+/* home 页光晕横向更宽，适配 size=80 */
+.home-eyes .mood-glow {
+  width: 500px;
+  height: 250px;
 }
-@keyframes mood-ring-out {
-  0% {
-    opacity: 0.55;
-    transform: translate(-50%, -50%) scale(0.82);
-  }
-  25% {
-    opacity: 0.38;
-  }
-  100% {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(2.1);
-  }
+@keyframes mood-glow-bloom {
+  0%   { opacity: 0;    transform: translate(-50%, -50%) scale(0.55); }
+  22%  { opacity: 0.62; transform: translate(-50%, -50%) scale(0.92); }
+  48%  { opacity: 0.5;  transform: translate(-50%, -50%) scale(1.05); }
+  100% { opacity: 0;    transform: translate(-50%, -50%) scale(1.3); }
+}
+/* reduced-motion 兼容 */
+@media (prefers-reduced-motion: reduce) {
+  .mood-glow { animation: none !important; }
 }
 .presence-label {
   display: inline-flex;
@@ -966,6 +967,8 @@ button {
 
 .home-eyes {
   margin-bottom: 10px;
+  position: relative;
+  width: fit-content;
   animation: home-float 5.4s ease-in-out infinite;
 }
 @keyframes home-float {
@@ -1104,61 +1107,41 @@ button {
   justify-content: center;
 }
 
-/* ── shared --mood-color / --mood-glow tokens (must come after .home-nameplate fallback) ── */
-[data-mood='idle'] {
-  --mood-color: #22c55e;
-  --mood-glow: #22c55e60;
-}
-[data-mood='thinking'] {
-  --mood-color: #2563eb;
-  --mood-glow: #2563eb80;
-}
-[data-mood='tooling'] {
-  --mood-color: #d97706;
-  --mood-glow: #d9770680;
-}
-[data-mood='writing'] {
-  --mood-color: #0891b2;
-  --mood-glow: #0891b280;
-}
-[data-mood='error'] {
-  --mood-color: #dc2626;
-  --mood-glow: #dc262680;
-}
-[data-mood='asleep'] {
-  --mood-color: #7c3aed;
-  --mood-glow: #7c3aed60;
-}
-.dark [data-mood='idle'] {
-  --mood-color: #4ade80;
-  --mood-glow: #4ade8060;
-}
-.dark [data-mood='thinking'] {
-  --mood-color: #60a5fa;
-  --mood-glow: #60a5fa80;
-}
-.dark [data-mood='tooling'] {
-  --mood-color: #fbbf24;
-  --mood-glow: #fbbf2480;
-}
-.dark [data-mood='writing'] {
-  --mood-color: #22d3ee;
-  --mood-glow: #22d3ee80;
-}
-.dark [data-mood='error'] {
-  --mood-color: #f87171;
-  --mood-glow: #f8717180;
-}
-.dark [data-mood='asleep'] {
-  --mood-color: #a78bfa;
-  --mood-glow: #a78bfa60;
-}
-[data-mood='drifting'] {
-  --mood-color: #94a3b8;
-}
-.dark [data-mood='drifting'] {
-  --mood-color: #94a3b8;
-}
+/* ── 状态色 --mood-color（由 data-mood 状态决定） ──
+ * 简化为 3 类：idle 绿 / tooling 琥珀（独立，时长较长） / 其余非 idle 统一蓝
+ * ── */
+[data-mood='idle']     { --mood-color: #22c55e; --mood-glow: #22c55e60; }
+[data-mood='thinking'] { --mood-color: #3b82f6; --mood-glow: #3b82f680; }
+[data-mood='tooling']  { --mood-color: #d97706; --mood-glow: #d9770680; }
+[data-mood='writing']  { --mood-color: #3b82f6; --mood-glow: #3b82f680; }
+[data-mood='error']    { --mood-color: #dc2626; --mood-glow: #dc262680; }
+[data-mood='asleep']   { --mood-color: #7c3aed; --mood-glow: #7c3aed60; }
+[data-mood='drifting'] { --mood-color: #94a3b8; --mood-glow: #94a3b860; }
+
+.dark [data-mood='idle']     { --mood-color: #4ade80;  --mood-glow: #4ade8060; }
+.dark [data-mood='thinking'] { --mood-color: #60a5fa;  --mood-glow: #60a5fa80; }
+.dark [data-mood='tooling']  { --mood-color: #fbbf24;  --mood-glow: #fbbf2480; }
+.dark [data-mood='writing']  { --mood-color: #60a5fa;  --mood-glow: #60a5fa80; }
+.dark [data-mood='error']    { --mood-color: #f87171;  --mood-glow: #f8717180; }
+.dark [data-mood='asleep']   { --mood-color: #a78bfa;  --mood-glow: #a78bfa60; }
+.dark [data-mood='drifting'] { --mood-color: #94a3b8; }
+
+/* ── 情绪色 --emotion-color（由 data-emotion 当前 mood 决定） ──
+ * 用途：① 聚光灯光晕 ② 情绪标签文字（.stale 覆盖褪为灰）
+ * ── */
+[data-emotion='平静'] { --emotion-color: #94a3b8; }
+[data-emotion='好奇'] { --emotion-color: #06b6d4; }
+[data-emotion='兴奋'] { --emotion-color: #f59e0b; }
+[data-emotion='困惑'] { --emotion-color: #a855f7; }
+[data-emotion='难过'] { --emotion-color: #5b80c0; }
+[data-emotion='愤怒'] { --emotion-color: #ef4444; }
+
+.dark [data-emotion='平静'] { --emotion-color: #94a3b8; }
+.dark [data-emotion='好奇'] { --emotion-color: #22d3ee; }
+.dark [data-emotion='兴奋'] { --emotion-color: #fbbf24; }
+.dark [data-emotion='困惑'] { --emotion-color: #c084fc; }
+.dark [data-emotion='难过'] { --emotion-color: #7d9fde; }
+.dark [data-emotion='愤怒'] { --emotion-color: #f87171; }
 .eyes-z.drifting .pupil {
   animation: pupil-drift 18s ease-in-out infinite;
 }
@@ -1167,4 +1150,32 @@ button {
   28%, 44%      { transform: translate(4.5px, -0.5px); }
   54%, 66%      { transform: translate(0, 0); }
   74%, 90%      { transform: translate(-3.8px, 0.5px); }
+}
+
+/* 平静：同步游移扫视，快速移动 + 停留，幅度随机感 */
+.eyes-z.calm .pupil {
+  animation: calm-wander 18s ease infinite;
+}
+@keyframes calm-wander {
+  0%,  3%  { transform: translate(0, 0); }
+  6%,  16% { transform: translate(2.4px, 0.5px); }
+  19%, 29% { transform: translate(3.6px, -0.7px); }
+  32%, 40% { transform: translate(0, 0); }
+  43%, 53% { transform: translate(-2.8px, 1.1px); }
+  56%, 64% { transform: translate(-1.0px, -1.3px); }
+  67%, 75% { transform: translate(0, 0); }
+  78%, 88% { transform: translate(3.2px, 0.4px); }
+  91%, 100%{ transform: translate(0, 0); }
+}
+
+/* 难过：左右平移，各停留约 4s，缓慢 */
+.eyes-z.sad .pupil {
+  animation: sad-sway 10s ease-in-out infinite;
+}
+@keyframes sad-sway {
+  0%,  4%  { transform: translate(0, 0); }
+  9%,  49% { transform: translate(-1.6px, 0); }
+  54%, 58% { transform: translate(0, 0); }
+  63%, 96% { transform: translate(1.6px, 0); }
+  100%     { transform: translate(0, 0); }
 }
