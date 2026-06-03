@@ -589,7 +589,7 @@ button {
   pointer-events: none;
   opacity: 0;
   z-index: -1;
-  animation: mood-glow-bloom 2.6s ease-out forwards;
+  animation: mood-glow-bloom 2.6s ease-out 0s 5 forwards;
 }
 /* home 页光晕横向更宽，适配 size=80 */
 .home-eyes .mood-glow {
