@@ -1,24 +1,47 @@
 'use client'
 
-import {useCallback, useEffect, useRef, useState} from 'react'
-import {ArrowUp, Plus, Sparkles, Square} from 'lucide-react'
-import {Menu} from '@base-ui/react/menu'
-import {Textarea} from '@/components/ui/textarea'
-import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip'
-import {MessageItem} from '@/components/message-item'
-import {useChatStream} from '@/hooks/use-chat-stream'
-import {useSmartScroll} from '@/hooks/use-smart-scroll'
-import {useStore} from '@/lib/store'
-import {cn} from '@/lib/utils'
+import React, { useCallback, useEffect, useMemo, useRef, useState, Fragment } from 'react'
+import { useShallow } from 'zustand/react/shallow'
+import { ArrowUp, Plus, Sparkles, Square } from 'lucide-react'
+import { Menu } from '@base-ui/react/menu'
+import { Textarea } from '@/components/ui/textarea'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { Eyes } from '@/components/eyes'
+import { MessageItem } from '@/components/message-item'
+import { PresenceFloat } from '@/components/presence-float'
+import { useChatStream } from '@/hooks/use-chat-stream'
+import { useSmartScroll } from '@/hooks/use-smart-scroll'
+import { useStore } from '@/lib/store'
+import { STATUS_LABELS, MOOD_HIDDEN_STATUSES } from '@/lib/status-labels'
+import { useAnchorMessages } from '@/hooks/use-anchor-messages'
+import { useContextDetector } from '@/hooks/use-context-detector'
+import { useMemoryHot } from '@/hooks/use-memory-hot'
+import { useIntimacy } from '@/hooks/use-intimacy'
+import { useAsleepDetector } from '@/hooks/use-asleep-detector'
+import { cn } from '@/lib/utils'
 
-const SUGGESTIONS = [
-  '帮我梳理一个方案',
-  '把这段内容写得更好',
-  '解释一个复杂概念',
-  '开始一次深度分析',
-]
+const SUGGESTIONS_BY_INTIMACY: Record<string, string[]> = {
+  stranger: ['你想聊点什么？', '你怎么称呼自己', '介绍一下你自己'],
+  'half-known': ['帮我梳理一个方案', '把这段写得更好', '解释一个复杂概念'],
+  'fully-known': ['帮我梳理一个方案', '把这段写得更好', '解释一个复杂概念', '深度分析'],
+}
 
-/* ── 输入框组件 ── */
+const INTIMACY_GREET: Record<string, string> = {
+  stranger: '我们才刚认识。先随便聊聊？',
+  'half-known': '继续聊吧——我还在慢慢认识你。',
+}
+
+function timeGreet(): string {
+  const h = new Date().getHours()
+  if (h < 5) return '还醒着？我陪你。'
+  if (h < 9) return '今天打算干点什么？'
+  if (h < 12) return '早上的脑子最清楚，开始吧。'
+  if (h < 14) return '吃过了吗？吃过我们就继续。'
+  if (h < 18) return '下午容易走神，需要我提醒你聚焦吗？'
+  if (h < 22) return '今天怎么样？想聊点什么？'
+  return '夜深了。别熬太晚，我也是。'
+}
+
 function ChatInput({
   input,
   setInput,
@@ -27,8 +50,8 @@ function ChatInput({
   setThinkingEnabled,
   onSend,
   onStop,
+  onTyping,
   textareaRef,
-  className,
 }: {
   input: string
   setInput: (v: string) => void
@@ -37,8 +60,9 @@ function ChatInput({
   setThinkingEnabled: (fn: (v: boolean) => boolean) => void
   onSend: () => void
   onStop: () => void
+  /** 打字时调用（仅 onChange 触发，不在 focus 时触发） */
+  onTyping?: (active: boolean) => void
   textareaRef: React.RefObject<HTMLTextAreaElement | null>
-  className?: string
 }) {
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -61,36 +85,48 @@ function ChatInput({
   }, [input, textareaRef])
 
   const canSend = input.trim().length > 0
-
   const [focused, setFocused] = useState(false)
+
+  // 打字停顿 1.2s 后归中
+  const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const handleChange = useCallback(
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      setInput(e.target.value)
+      onTyping?.(true)
+      if (typingTimerRef.current) clearTimeout(typingTimerRef.current)
+      typingTimerRef.current = setTimeout(() => onTyping?.(false), 1200)
+    },
+    [setInput, onTyping]
+  )
+  const handleBlur = useCallback(() => {
+    if (typingTimerRef.current) clearTimeout(typingTimerRef.current)
+    onTyping?.(false)
+  }, [onTyping])
 
   return (
     <div
       className="transition-all duration-200"
       style={{
         backgroundColor: 'var(--surface)',
-        borderColor: focused ? 'var(--accent)' : 'var(--border)',
-        borderWidth: '1.5px',
+        border: `1px solid ${focused ? 'var(--t1)' : 'var(--border)'}`,
         borderRadius: '16px',
-        boxShadow: focused ? `0 0 0 4px var(--accent-s), var(--shadow-lg)` : 'var(--shadow)',
+        boxShadow: focused ? 'none' : 'var(--shadow)',
       }}
       onFocus={() => setFocused(true)}
       onBlur={() => setFocused(false)}
     >
-      {/* 上层：textarea */}
       <Textarea
         ref={textareaRef}
         value={input}
-        onChange={(e) => setInput(e.target.value)}
+        onChange={handleChange}
+        onBlur={handleBlur}
         onKeyDown={handleKeyDown}
         placeholder="尽管问..."
         rows={1}
-        className="relative z-10 min-h-[58px] max-h-[160px] resize-none border-0 bg-transparent px-6 pt-5 pb-2 text-base leading-relaxed shadow-none focus-visible:ring-0 placeholder:text-muted-foreground/58"
+        className="relative z-10 min-h-[58px] max-h-[160px] resize-none border-0 bg-transparent px-6 pt-5 pb-2 text-base leading-relaxed shadow-none focus-visible:ring-0 focus-visible:border-0 outline-none placeholder:text-muted-foreground/58"
       />
 
-      {/* 下层：工具栏 */}
       <div className="relative z-10 flex items-center gap-1.5 px-5 pb-4">
-        {/* + 菜单触发 */}
         <Menu.Root>
           <Tooltip>
             <TooltipTrigger
@@ -124,17 +160,14 @@ function ChatInput({
                   )}
                 >
                   <Sparkles className="size-4" strokeWidth={2} />
-                  <span className="flex-1">思考一下</span>
-                  {thinkingEnabled && (
-                    <span className="size-1.5 rounded-full bg-primary" />
-                  )}
+                  <span className="flex-1">思考</span>
+                  {thinkingEnabled && <span className="size-1.5 rounded-full bg-primary" />}
                 </Menu.Item>
               </Menu.Popup>
             </Menu.Positioner>
           </Menu.Portal>
         </Menu.Root>
 
-        {/* 已激活芯片：点击关闭 */}
         {thinkingEnabled && (
           <Tooltip>
             <TooltipTrigger
@@ -149,29 +182,35 @@ function ChatInput({
               <Sparkles className="size-3.5" strokeWidth={2} />
               <span>思考</span>
             </TooltipTrigger>
-            <TooltipContent side="top">点击关闭思考模式</TooltipContent>
+            <TooltipContent side="top">点击关闭显示思考过程</TooltipContent>
           </Tooltip>
         )}
 
         <div className="flex-1" />
 
-        {/* 发送 / 停止 */}
         <button
           className={cn(
-            'mb-0.5 mr-0.5 inline-flex size-10 items-center justify-center rounded-full transition-all',
-            isLoading
-              ? 'bg-foreground text-background hover:opacity-80'
-              : canSend
-                ? 'bg-foreground text-background shadow-[0_10px_24px_oklch(0.25_0.01_256_/_0.16)] hover:opacity-90'
-                : 'bg-muted text-muted-foreground cursor-not-allowed'
+            'inline-flex items-center justify-center rounded-full transition-all',
+            isLoading ? 'hover:opacity-80' : canSend ? 'hover:opacity-90' : 'cursor-not-allowed'
           )}
+          style={{
+            width: '30px',
+            height: '30px',
+            background: isLoading ? 'var(--t1)' : canSend ? 'var(--accent)' : 'var(--border)',
+            boxShadow: canSend && !isLoading ? '0 2px 8px var(--accent-s)' : 'none',
+            flexShrink: 0,
+          }}
           onClick={isLoading ? onStop : onSend}
           disabled={!isLoading && !canSend}
         >
           {isLoading ? (
-            <Square className="size-3.5 fill-current" />
+            <Square className="size-3 fill-current" style={{ color: 'var(--bg)' }} />
           ) : (
-            <ArrowUp className="size-4" strokeWidth={2.5} />
+            <ArrowUp
+              className="size-3.5"
+              strokeWidth={2.5}
+              style={{ color: canSend ? 'var(--bg)' : 'var(--t3)' }}
+            />
           )}
         </button>
       </div>
@@ -179,10 +218,58 @@ function ChatInput({
   )
 }
 
-/* ── 主组件 ── */
 export function ChatWindow() {
+  useAnchorMessages()
+  const [lastInputAt, setLastInputAt] = useState(() => Date.now())
+  useAsleepDetector({ lastInputAt })
+
+  // 打字注视状态
+  const [typingActive, setTypingActive] = useState(false)
+  const handleTypingStart = useCallback((active: boolean) => setTypingActive(active), [])
+
+
+  // 全局交互监听——重置 lastInputAt，解除走神/更新 idle 时钟
+  useEffect(() => {
+    const reset = () => setLastInputAt(Date.now())
+    window.addEventListener('mousemove', reset, { passive: true })
+    window.addEventListener('keydown',   reset, { passive: true })
+    window.addEventListener('click',     reset, { passive: true })
+    return () => {
+      window.removeEventListener('mousemove', reset)
+      window.removeEventListener('keydown',   reset)
+      window.removeEventListener('click',     reset)
+    }
+  }, [])
+
   const { messages, isLoading, send, stop } = useChatStream()
-  const { currentSessionId, toggleThinking, toggleToolCallExpanded } = useStore()
+  const { currentAnchorId, toggleThinking, toggleToolCallExpanded } = useStore(
+    useShallow((s) => ({
+      currentAnchorId: s.currentAnchorId,
+      toggleThinking: s.toggleThinking,
+      toggleToolCallExpanded: s.toggleToolCallExpanded,
+    }))
+  )
+  const currentStatus = useStore((s) => s.currentStatus)
+  const currentMood = useStore((s) => s.currentMood)
+  const context = useContextDetector()
+  const eyesBusy =
+    currentStatus === 'thinking' || currentStatus === 'tooling' || currentStatus === 'writing'
+
+  // 唤醒动画：深夜（asleep 态）+ 打字中
+  const isWaking = typingActive && currentStatus === 'asleep'
+
+  // mood 变化时触发 home 页光晕动画
+  const prevMoodForGlowRef = useRef(currentMood)
+  const [homeGlowKey, setHomeGlowKey] = useState(0)
+  useEffect(() => {
+    if (prevMoodForGlowRef.current !== null && currentMood !== prevMoodForGlowRef.current) {
+      setHomeGlowKey((k) => k + 1)
+    }
+    prevMoodForGlowRef.current = currentMood
+  }, [currentMood])
+
+  const { data: hot } = useMemoryHot('user-impression')
+  const intimacy = useIntimacy(hot)
 
   const [input, setInput] = useState('')
   const [thinkingEnabled, setThinkingEnabled] = useState(false)
@@ -190,11 +277,13 @@ export function ChatWindow() {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const { scrollRef, scrollToBottom, forceScrollToBottom } = useSmartScroll()
 
-  useEffect(() => { scrollToBottom() }, [messages, scrollToBottom])
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages, scrollToBottom])
   useEffect(() => {
     forceScrollToBottom()
     textareaRef.current?.focus()
-  }, [currentSessionId, forceScrollToBottom])
+  }, [currentAnchorId, forceScrollToBottom])
 
   const isEmpty = messages.length <= 1
 
@@ -202,6 +291,7 @@ export function ChatWindow() {
     const text = input.trim()
     if (!text || isLoading) return
     setInput('')
+    setLastInputAt(Date.now())
     forceScrollToBottom()
     send(text, thinkingEnabled)
   }, [input, isLoading, send, thinkingEnabled, forceScrollToBottom])
@@ -209,45 +299,83 @@ export function ChatWindow() {
   const handleSuggestion = useCallback(
     (text: string) => {
       if (isLoading) return
+      setLastInputAt(Date.now())
       forceScrollToBottom()
       send(text, thinkingEnabled)
     },
     [isLoading, send, thinkingEnabled, forceScrollToBottom]
   )
 
+  const greeting = useMemo(() => INTIMACY_GREET[intimacy] ?? timeGreet(), [intimacy])
+
+  const statusLabel = STATUS_LABELS[currentStatus] ?? STATUS_LABELS.idle
+  const showMood = !MOOD_HIDDEN_STATUSES.has(currentStatus) && !!currentMood
+
+  const suggestions = SUGGESTIONS_BY_INTIMACY[intimacy] ?? SUGGESTIONS_BY_INTIMACY.stranger
+
+  // 稳定回调——配合 MessageItem 的 React.memo，避免每次渲染都给所有消息项换新引用
+  const handleToggleThinking = useCallback(
+    () => toggleThinking(currentAnchorId),
+    [toggleThinking, currentAnchorId]
+  )
+  const handleToggleToolCall = useCallback(
+    (toolCallId: string) => toggleToolCallExpanded(currentAnchorId, toolCallId),
+    [toggleToolCallExpanded, currentAnchorId]
+  )
+
   return (
     <div className="flex h-full flex-col">
       {isEmpty ? (
-        /* ── 空状态：居中布局 ── */
         <div
-          className="relative flex flex-1 flex-col items-center justify-center px-12 py-24"
-          style={{ animation: 'up 0.3s ease both' }}
+          className="page-enter flex flex-1 flex-col items-center justify-center"
+          style={{ padding: '0 48px' }}
         >
-          <div className="w-full max-w-2xl">
-            {/* 品牌名和副标题 */}
-            <div className="text-center mb-24">
-              <h1
-                className="font-bold mb-3.5 leading-none"
-                style={{
-                  fontSize: '64px',
-                  color: 'var(--accent)',
-                  letterSpacing: '-0.05em',
-                }}
-              >
-                Zoufx
-              </h1>
-              <p
-                className="text-base font-light leading-relaxed"
-                style={{
-                  color: 'var(--t2)',
-                  letterSpacing: '-0.01em',
-                }}
-              >
-                你好，需要我为你做些什么？
-              </p>
+          <div style={{ width: '100%', maxWidth: 620 }}>
+            <div
+              className="home-nameplate"
+              data-mood={currentStatus}
+              data-emotion={currentMood ?? undefined}
+            >
+              <div className="home-eyes">
+                {homeGlowKey > 0 && (
+                  <Fragment key={homeGlowKey}>
+                    <div className="mood-glow" />
+                  </Fragment>
+                )}
+                <Eyes
+                  size={80}
+                  busy={eyesBusy}
+                  mood={currentMood}
+                  context={context}
+                  color="var(--accent)"
+                  pupil="var(--bg)"
+                  asleep={currentStatus === 'asleep'}
+                  drifting={currentStatus === 'drifting'}
+                  lookDown={typingActive}
+                  waking={isWaking}
+                />
+              </div>
+              <div className="home-sig">
+                <span className="home-sig-rule"></span>
+                <span className="home-sig-name">小&thinsp;Z</span>
+                <span className="home-sig-rule"></span>
+              </div>
+              <div className="home-status">
+                <span className="home-status-dot"></span>
+                <span className="home-status-zh">{statusLabel.zh}</span>
+                <span className="home-status-en mono">{statusLabel.en}</span>
+                {showMood && (
+                  <>
+                    <span className="home-status-sep">·</span>
+                    <span key={currentMood ?? ''} className="home-status-mood">
+                      {currentMood}
+                    </span>
+                  </>
+                )}
+              </div>
+              <div className="home-line">{greeting}</div>
             </div>
 
-            {/* 输入框 */}
             <div className="mb-4">
               <ChatInput
                 input={input}
@@ -257,33 +385,36 @@ export function ChatWindow() {
                 setThinkingEnabled={setThinkingEnabled}
                 onSend={handleSend}
                 onStop={stop}
+                onTyping={handleTypingStart}
                 textareaRef={textareaRef}
               />
             </div>
 
-            {/* 建议 chips */}
-            <div className="flex flex-wrap justify-center gap-2">
-              {SUGGESTIONS.map((s) => (
+            <div className="flex flex-wrap justify-center gap-1.5">
+              {suggestions.map((s) => (
                 <button
                   key={s}
                   onClick={() => handleSuggestion(s)}
                   disabled={isLoading}
-                  className="px-4 py-1.5 rounded-full text-xs font-medium transition-all duration-150"
+                  className="rounded-full transition-colors duration-150"
                   style={{
-                    backgroundColor: 'var(--chip)',
-                    borderColor: 'var(--chip-brd)',
-                    borderWidth: '1px',
+                    background: 'transparent',
+                    border: '1px solid var(--border)',
+                    borderRadius: '100px',
+                    padding: '6px 15px',
+                    fontSize: '12px',
                     color: 'var(--t2)',
+                    fontFamily: 'inherit',
+                    cursor: 'pointer',
+                    letterSpacing: '-0.01em',
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--accent)'
-                    e.currentTarget.style.color = 'var(--accent)'
-                    e.currentTarget.style.backgroundColor = 'var(--accent-s)'
+                    e.currentTarget.style.borderColor = 'var(--t1)'
+                    e.currentTarget.style.color = 'var(--t1)'
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--chip-brd)'
+                    e.currentTarget.style.borderColor = 'var(--border)'
                     e.currentTarget.style.color = 'var(--t2)'
-                    e.currentTarget.style.backgroundColor = 'var(--chip)'
                   }}
                 >
                   {s}
@@ -291,36 +422,58 @@ export function ChatWindow() {
               ))}
             </div>
           </div>
-
-          {/* 免责文字 */}
-          <div
-            className="absolute bottom-5 text-xs"
-            style={{ color: 'var(--t3)' }}
-          >
-            AI 可能会出错，请核实重要信息
-          </div>
         </div>
       ) : (
-        /* ── 对话状态 ── */
         <>
-          <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 pt-3 md:px-8 md:pt-4">
-            <div className="mx-auto max-w-4xl">
-              {messages.map((msg, i) => (
-                <MessageItem
-                  key={msg.id ?? i}
-                  message={msg}
-                  onToggleThinking={() => toggleThinking(currentSessionId)}
-                  onToggleToolCall={(toolCallId) => toggleToolCallExpanded(currentSessionId, toolCallId)}
-                  onScrollNeeded={scrollToBottom}
-                />
-              ))}
+          <PresenceFloat context={context} lookDown={typingActive} waking={isWaking} />
+          <div
+            ref={scrollRef}
+            className="flex-1 overflow-y-auto"
+            style={{ padding: '8px clamp(16px, 5vw, 56px) 36px' }}
+          >
+            <div className="mx-auto" style={{ maxWidth: '720px' }}>
+              {(() => {
+                const items: React.ReactNode[] = []
+                let roundIdx = 0
+                messages.forEach((msg, i) => {
+                  const prev = messages[i - 1]
+                  if (msg.role === 'user') roundIdx++
+                  // 每 3 轮从第 4 轮起插呼吸分割线
+                  if (msg.role === 'user' && roundIdx > 1 && (roundIdx - 1) % 3 === 0) {
+                    items.push(
+                      <div key={`br-${i}`} className="breath-divider">
+                        <svg width="40" height="1">
+                          <line
+                            x1="0" y1="0.5" x2="40" y2="0.5"
+                            stroke="var(--border)" strokeWidth="1" strokeDasharray="2 4"
+                          />
+                        </svg>
+                      </div>
+                    )
+                  }
+                  const sameAuthor = prev && prev.role === msg.role
+                  const crossAuthor = prev && prev.role !== msg.role
+                  const mt = !prev ? 0 : crossAuthor ? 28 : sameAuthor ? 8 : 18
+                  items.push(
+                    <div key={msg.id} style={{ marginTop: mt }}>
+                      <MessageItem
+                        message={msg}
+                        isNew={i >= messages.length - 2}
+                        onToggleThinking={handleToggleThinking}
+                        onToggleToolCall={handleToggleToolCall}
+                        onScrollNeeded={scrollToBottom}
+                      />
+                    </div>
+                  )
+                })
+                return items
+              })()}
               <div className="h-4" />
             </div>
           </div>
 
-          {/* 底部输入 */}
-          <div className="px-4 py-4 md:px-8">
-            <div className="mx-auto max-w-4xl">
+          <div className="flex-shrink-0" style={{ padding: '0 clamp(16px, 5vw, 56px) 24px' }}>
+            <div className="mx-auto" style={{ maxWidth: '720px' }}>
               <ChatInput
                 input={input}
                 setInput={setInput}
@@ -329,11 +482,9 @@ export function ChatWindow() {
                 setThinkingEnabled={setThinkingEnabled}
                 onSend={handleSend}
                 onStop={stop}
+                onTyping={handleTypingStart}
                 textareaRef={textareaRef}
               />
-              <p className="mt-2 text-center text-[11px] text-muted-foreground/60">
-                AI 可能会犯错，请核实重要信息
-              </p>
             </div>
           </div>
         </>

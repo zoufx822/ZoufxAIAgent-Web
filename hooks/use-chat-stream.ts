@@ -1,40 +1,85 @@
 'use client'
 
-import { useCallback, useRef } from 'react'
+import { useCallback, useMemo, useRef } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { toast } from 'sonner'
 import { useStore } from '@/lib/store'
+import { useCapabilityStore } from '@/lib/capability'
 import { streamChat } from '@/lib/chat-stream'
 
+const EMPTY_MESSAGES: never[] = []
+
 export function useChatStream() {
+  // useShallow：actions 是稳定引用，仅 currentAnchorId/lastActiveAnchorId/isLoading 变化才重渲，
+  // mood/status/spotlight 等无关 state 变更不再触发本 hook 重跑。
   const {
-    sessions,
-    currentSessionId,
+    currentAnchorId,
+    lastActiveAnchorId,
     isLoading,
     addMessage,
     updateLastAssistantMessage,
     removeLastMessage,
-    updateSessionTitle,
+    updateAnchorTitle,
+    touchAnchor,
     appendToolCall,
     updateLastRunningToolCall,
     markRunningToolCallsFailed,
     setLoading,
-  } = useStore()
+    setStatus,
+    setMood,
+    bumpHotMemoryVersion,
+  } = useStore(
+    useShallow((s) => ({
+      currentAnchorId: s.currentAnchorId,
+      lastActiveAnchorId: s.lastActiveAnchorId,
+      isLoading: s.isLoading,
+      addMessage: s.addMessage,
+      updateLastAssistantMessage: s.updateLastAssistantMessage,
+      removeLastMessage: s.removeLastMessage,
+      updateAnchorTitle: s.updateAnchorTitle,
+      touchAnchor: s.touchAnchor,
+      appendToolCall: s.appendToolCall,
+      updateLastRunningToolCall: s.updateLastRunningToolCall,
+      markRunningToolCallsFailed: s.markRunningToolCallsFailed,
+      setLoading: s.setLoading,
+      setStatus: s.setStatus,
+      setMood: s.setMood,
+      bumpHotMemoryVersion: s.bumpHotMemoryVersion,
+    }))
+  )
 
-  const currentSession = sessions.find((s) => s.id === currentSessionId)
-  const messages = currentSession?.messages ?? []
+  // selector 必须返回稳定引用——空 anchor 用模块级空数组兜底，避免无限循环。
+  const rawMessages = useStore((s) => s.messages[s.currentAnchorId])
+  const messages = useMemo(() => rawMessages ?? EMPTY_MESSAGES, [rawMessages])
 
   const ctrlRef = useRef<AbortController | null>(null)
+  /** tail buffer：保留末尾 50 字符不 emit，防止跨 chunk 的 <!--mood:...--> 逃脱前端过滤 */
+  const tailRef = useRef('')
 
+  /**
+   * 第二参数 showThinking 控制前端是否展示思考块。
+   * 是否真让 LLM 思考由 capability.thinkingToggle 决定——支持时透传按钮状态给后端；
+   * 不支持时（如 deepseek-v4、降级现状的 minimax）始终传 false，LLM 行为不受按钮影响。
+   */
   const send = useCallback(
-    async (text: string, thinking: boolean) => {
+    async (text: string, showThinking: boolean) => {
       if (!text.trim() || isLoading) return
 
-      const sessionId = currentSessionId
-      ctrlRef.current = new AbortController()
-      setLoading(true)
+      const capabilities = useCapabilityStore.getState().capabilities
+      const sendThinking = capabilities?.thinkingToggle ? showThinking : false
 
-      // 用户消息
-      addMessage(sessionId, {
+      const anchorId = currentAnchorId
+      // prevAnchorId 只在切锚后的首条消息发送一次，发完即清空
+      const prevAnchorId =
+        lastActiveAnchorId && lastActiveAnchorId !== anchorId ? lastActiveAnchorId : null
+      if (prevAnchorId) useStore.setState({ lastActiveAnchorId: null })
+
+      ctrlRef.current = new AbortController()
+      tailRef.current = ''
+      setLoading(true)
+      setStatus('thinking')
+
+      addMessage(anchorId, {
         id: crypto.randomUUID(),
         role: 'user',
         content: text,
@@ -42,12 +87,13 @@ export function useChatStream() {
         thinkingExpanded: false,
         toolCalls: [],
         isStreaming: false,
+        isError: false,
       })
 
-      updateSessionTitle(sessionId, text)
+      updateAnchorTitle(anchorId, text)
+      touchAnchor(anchorId, Date.now())
 
-      // AI 占位消息
-      addMessage(sessionId, {
+      addMessage(anchorId, {
         id: crypto.randomUUID(),
         role: 'assistant',
         content: '',
@@ -55,49 +101,50 @@ export function useChatStream() {
         thinkingExpanded: false,
         toolCalls: [],
         isStreaming: true,
+        isError: false,
       })
 
       await streamChat({
         message: text,
-        sessionId,
-        thinking,
+        anchorId,
+        prevAnchorId,
+        thinking: sendThinking,
+        userId: useStore.getState().userId,
         signal: ctrlRef.current.signal,
 
         onThinking: (chunk) => {
-          useStore.setState((state) => ({
-            sessions: state.sessions.map((s) => {
-              if (s.id !== sessionId) return s
-              const msgs = [...s.messages]
-              const last = msgs[msgs.length - 1]
-              if (!last || last.role !== 'assistant') return s
-              const isFirst = !last.thinking
-              msgs[msgs.length - 1] = {
-                ...last,
-                thinking: last.thinking + chunk,
-                thinkingExpanded: isFirst ? true : last.thinkingExpanded,
-              }
-              return { ...s, messages: msgs }
-            }),
+          if (!showThinking) return
+          setStatus('thinking')
+          updateLastAssistantMessage(anchorId, (last) => ({
+            thinking: last.thinking + chunk,
+            // 首次出现思考内容时自动展开
+            thinkingExpanded: last.thinking ? last.thinkingExpanded : true,
           }))
         },
 
         onContent: (chunk) => {
-          useStore.setState((state) => ({
-            sessions: state.sessions.map((s) => {
-              if (s.id !== sessionId) return s
-              const msgs = [...s.messages]
-              const last = msgs[msgs.length - 1]
-              if (!last || last.role !== 'assistant') return s
-              msgs[msgs.length - 1] = { ...last, content: last.content + chunk }
-              return { ...s, messages: msgs }
-            }),
-          }))
+          // tail buffer 防御：保留末尾 50 字符防止跨 chunk mood 标记逃脱
+          tailRef.current += chunk
+          const clean = tailRef.current.replace(/<!--\s*mood\s*:\s*[^>]*?-->/gi, '')
+          const emitLen = Math.max(0, clean.length - 50)
+          if (emitLen > 0) {
+            const emit = clean.substring(0, emitLen)
+            tailRef.current = clean.substring(emitLen)
+            setStatus('writing')
+            updateLastAssistantMessage(anchorId, (last) => ({ content: last.content + emit }))
+          }
         },
 
         onToolCall: (payload) => {
-          appendToolCall(sessionId, {
+          tailRef.current = '' // tool_call 边界清空
+          setStatus('tooling')
+          // ReAct 渲染：tool_call 触发时清空之前累积的 content（LLM preamble），
+          // 让 tool 后的最终回复重新累积。避免 silent tool 前后双份回复。
+          updateLastAssistantMessage(anchorId, { content: '' })
+          appendToolCall(anchorId, {
             id: crypto.randomUUID(),
             tool: payload.tool,
+            toolDisplay: payload.toolDisplay,
             query: payload.query,
             status: 'running',
             expanded: false,
@@ -105,41 +152,106 @@ export function useChatStream() {
         },
 
         onToolResult: (payload) => {
-          updateLastRunningToolCall(sessionId, {
+          updateLastRunningToolCall(anchorId, {
             status: 'completed',
             count: payload.count,
             resultPreview: payload.resultPreview,
           })
         },
 
+        onMood: (payload) => {
+          setMood(payload.keyword)
+        },
+
         onComplete: () => {
-          markRunningToolCallsFailed(sessionId)
-          updateLastAssistantMessage(sessionId, { isStreaming: false })
+          // flush tail buffer 残留
+          if (tailRef.current) {
+            const clean = tailRef.current.replace(/<!--\s*mood\s*:\s*[^>]*?-->/gi, '')
+            if (clean) {
+              updateLastAssistantMessage(anchorId, (last) => ({ content: last.content + clean }))
+            }
+            tailRef.current = ''
+          }
+          markRunningToolCallsFailed(anchorId)
+          const lastMsg = useStore.getState().messages[anchorId]?.at(-1)
+          if (
+            lastMsg &&
+            lastMsg.role === 'assistant' &&
+            !lastMsg.content &&
+            !lastMsg.thinking &&
+            lastMsg.toolCalls.length === 0
+          ) {
+            // 流正常结束但无内容——后端发生了静默错误（如 RST_STREAM error event 未送达）
+            updateLastAssistantMessage(anchorId, { isError: true, isStreaming: false })
+            setStatus('error')
+          } else {
+            updateLastAssistantMessage(anchorId, { isStreaming: false })
+            setStatus('idle')
+          }
+          touchAnchor(anchorId, Date.now())
+          bumpHotMemoryVersion()
           setLoading(false)
           ctrlRef.current = null
         },
 
         onError: (err) => {
-          markRunningToolCallsFailed(sessionId)
-          // 移除空占位消息，用 toast 显示错误
-          removeLastMessage(sessionId)
+          tailRef.current = ''
+          markRunningToolCallsFailed(anchorId)
+          updateLastAssistantMessage(anchorId, { isError: true, isStreaming: false })
           toast.error(err.message || '请求出错，请稍后重试')
+          setStatus('error')
           setLoading(false)
           ctrlRef.current = null
         },
       })
     },
-    [currentSessionId, isLoading, addMessage, updateLastAssistantMessage, removeLastMessage, updateSessionTitle, appendToolCall, updateLastRunningToolCall, markRunningToolCallsFailed, setLoading]
+    [
+      currentAnchorId,
+      lastActiveAnchorId,
+      isLoading,
+      addMessage,
+      updateLastAssistantMessage,
+      removeLastMessage,
+      updateAnchorTitle,
+      touchAnchor,
+      appendToolCall,
+      updateLastRunningToolCall,
+      markRunningToolCallsFailed,
+      setLoading,
+      setStatus,
+      setMood,
+      bumpHotMemoryVersion,
+    ]
   )
 
   const stop = useCallback(() => {
+    tailRef.current = ''
     ctrlRef.current?.abort()
     ctrlRef.current = null
-    const sessionId = currentSessionId
-    markRunningToolCallsFailed(sessionId)
-    updateLastAssistantMessage(sessionId, { isStreaming: false })
+    const anchorId = currentAnchorId
+    markRunningToolCallsFailed(anchorId)
+    const lastMsg = useStore.getState().messages[anchorId]?.at(-1)
+    if (
+      lastMsg &&
+      lastMsg.role === 'assistant' &&
+      !lastMsg.content &&
+      !lastMsg.thinking &&
+      lastMsg.toolCalls.length === 0
+    ) {
+      removeLastMessage(anchorId)
+    } else {
+      updateLastAssistantMessage(anchorId, { isStreaming: false })
+    }
+    setStatus('idle')
     setLoading(false)
-  }, [currentSessionId, markRunningToolCallsFailed, updateLastAssistantMessage, setLoading])
+  }, [
+    currentAnchorId,
+    markRunningToolCallsFailed,
+    updateLastAssistantMessage,
+    removeLastMessage,
+    setLoading,
+    setStatus,
+  ])
 
   return { messages, isLoading, send, stop }
 }

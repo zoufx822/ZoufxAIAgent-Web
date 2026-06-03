@@ -5,10 +5,20 @@ import { ThemeProvider } from 'next-themes'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Toaster } from '@/components/ui/sonner'
 import { useStore } from '@/lib/store'
+import { useCapabilityStore } from '@/lib/capability'
 
 export function Providers({ children }: { children: React.ReactNode }) {
   useEffect(() => {
-    useStore.persist.rehydrate()
+    // rehydrate 后若无 userId，生成 UUID（全新用户兜底）
+    void (async () => {
+      await useStore.persist.rehydrate()
+      if (!useStore.getState().userId) {
+        useStore.setState({ userId: crypto.randomUUID() })
+      }
+    })()
+
+    // 启动时拉一次 LLM 能力声明，网络失败走兜底不阻塞 UI
+    void useCapabilityStore.getState().fetch()
   }, [])
 
   return (
