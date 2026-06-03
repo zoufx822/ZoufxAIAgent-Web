@@ -50,7 +50,6 @@ interface Store {
   // 情绪状态（非持久化）
   currentStatus: Status
   currentMood: string | null
-  lastMoodAt: number | null
 
   // UI 状态（非持久化）
   lookbackOpen: boolean
@@ -106,7 +105,6 @@ export const useStore = create<Store>()(
       isLoading: false,
       currentStatus: 'idle',
       currentMood: '平静',
-      lastMoodAt: Date.now(),
       lookbackOpen: false,
       hotMemoryVersion: 0,
 
@@ -249,11 +247,7 @@ export const useStore = create<Store>()(
       },
 
       setMood: (keyword) => {
-        if (keyword === null) {
-          set({ currentMood: null, lastMoodAt: null })
-        } else {
-          set({ currentMood: keyword, lastMoodAt: Date.now() })
-        }
+        set({ currentMood: keyword })
       },
 
       setLookbackOpen: (v) => set({ lookbackOpen: v }),

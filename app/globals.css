@@ -662,9 +662,6 @@ button {
   letter-spacing: 0.02em;
   animation: moodIn 0.26s ease both;
 }
-.presence-mood.stale {
-  opacity: 0.55;
-}
 
 /* eyes 兴奋星芒 / 困惑问号 */
 .eyes-sparkle circle {
@@ -1127,7 +1124,7 @@ button {
 .dark [data-mood='drifting'] { --mood-color: #94a3b8; }
 
 /* ── 情绪色 --emotion-color（由 data-emotion 当前 mood 决定） ──
- * 用途：① 聚光灯光晕 ② 情绪标签文字（.stale 覆盖褪为灰）
+ * 用途：① 聚光灯光晕 ② 情绪标签文字
  * ── */
 [data-emotion='平静'] { --emotion-color: #94a3b8; }
 [data-emotion='好奇'] { --emotion-color: #06b6d4; }

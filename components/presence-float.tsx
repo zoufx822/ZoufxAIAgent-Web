@@ -6,17 +6,6 @@ import { STATUS_LABELS, MOOD_HIDDEN_STATUSES } from '@/lib/status-labels'
 import type { EyesContext } from './eyes'
 import { Eyes } from './eyes'
 
-function moodVisible(
-  status: string,
-  mood: string | null,
-  lastMoodAt: number | null
-): { visible: boolean; stale: boolean } {
-  if (!mood || MOOD_HIDDEN_STATUSES.has(status)) return { visible: false, stale: false }
-  const ageMin = lastMoodAt ? (Date.now() - lastMoodAt) / 60_000 : Infinity
-  if (ageMin >= 15) return { visible: false, stale: false }
-  return { visible: true, stale: ageMin >= 5 }
-}
-
 interface PresenceFloatProps {
   context: EyesContext
   lookDown?: boolean
@@ -26,10 +15,9 @@ interface PresenceFloatProps {
 export function PresenceFloat({ context, lookDown = false, waking = false }: PresenceFloatProps) {
   const currentStatus = useStore((s) => s.currentStatus)
   const currentMood   = useStore((s) => s.currentMood)
-  const lastMoodAt    = useStore((s) => s.lastMoodAt)
 
   const label = STATUS_LABELS[currentStatus] ?? STATUS_LABELS.idle
-  const md    = moodVisible(currentStatus, currentMood, lastMoodAt)
+  const moodVisible = !!currentMood && !MOOD_HIDDEN_STATUSES.has(currentStatus)
 
   // mood 变化时递增 glowKey，重挂载光晕重播绽放动画
   const prevMoodRef = useRef(currentMood)
@@ -79,13 +67,13 @@ export function PresenceFloat({ context, lookDown = false, waking = false }: Pre
           <span className="status-zh">{label.zh}</span>
           <span className="status-en">{label.en}</span>
         </span>
-        {md.visible && (
+        {moodVisible && (
           <>
             <span className="presence-sep">·</span>
             <span
               key={currentMood}
-              className={`presence-mood${md.stale ? ' stale' : ''}`}
-              style={{ color: md.stale ? undefined : 'var(--emotion-color)' }}
+              className="presence-mood"
+              style={{ color: 'var(--emotion-color)' }}
             >
               {currentMood}
             </span>
