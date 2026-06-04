@@ -477,19 +477,55 @@ button {
   transform-box: fill-box;
   transform-origin: center;
   /* 全局不挂 pupil-glance——各情绪按 class 独立控制，无 class = 瞳孔固定 */
+  /* ease-out 收尾曲线：被下次 mood 打断时立即朝新目标走、再缓缓落定，连发不跳动 */
   transition:
-    cx 0.28s cubic-bezier(0.4, 0, 0.2, 1),
-    cy 0.28s cubic-bezier(0.4, 0, 0.2, 1),
-    r  0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    cx 0.36s cubic-bezier(0.22, 1, 0.36, 1),
+    cy 0.36s cubic-bezier(0.22, 1, 0.36, 1),
+    r  0.36s cubic-bezier(0.22, 1, 0.36, 1);
 }
 .eyes-z ellipse {
-  transition: ry 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: ry 0.36s cubic-bezier(0.22, 1, 0.36, 1);
 }
+/* busy 只叠加忙碌律动，绝不抹平情绪几何（瞳孔大小 / 眼睑 / 星芒由 MOOD_EXPR 驱动照常生效）。
+ * pupil-busy 用 transform:translate 游移，不碰 cx/cy/r，与情绪切换的几何 transition 互不干扰。 */
 .eyes-z.busy .eye {
-  animation: eye-busy 1.6s ease-in-out infinite;
+  animation: eye-blink 3.4s ease-in-out infinite; /* 略快于常态 6s */
+}
+.eyes-z.busy .eye.eye-r {
+  animation-delay: 0.05s;
 }
 .eyes-z.busy .pupil {
-  animation: none;
+  animation: pupil-busy 2.4s ease-in-out infinite;
+}
+@keyframes pupil-busy {
+  0%, 100% { transform: translate(0, 0); }
+  22%      { transform: translate(1.1px, -0.5px); }
+  50%      { transform: translate(-0.9px, 0.6px); }
+  74%      { transform: translate(0.7px, 0.4px); }
+}
+
+/* 第一反应节拍：一轮首个情绪落地的"读脸"高光时刻——快速眨一下 + 瞳孔先收缩再放大到目标。
+ * 0.74s 一次性接管 busy/mood 的瞳孔律动，结束自动还原；克制不卡通。 */
+.eyes-z.first-react .eye {
+  animation: first-react-blink 0.74s ease both !important;
+}
+.eyes-z.first-react .eye.eye-r {
+  animation: first-react-blink 0.74s ease 0.03s both !important;
+}
+.eyes-z.first-react .pupil {
+  animation: first-react-pupil 0.74s cubic-bezier(0.22, 1, 0.36, 1) both !important;
+}
+@keyframes first-react-blink {
+  0%   { transform: scaleY(1); }
+  12%  { transform: scaleY(0.07); }
+  27%  { transform: scaleY(1); }
+  100% { transform: scaleY(1); }
+}
+@keyframes first-react-pupil {
+  0%   { transform: scale(1); }
+  20%  { transform: scale(0.58); }
+  56%  { transform: scale(1.1); }
+  100% { transform: scale(1); }
 }
 
 @keyframes eye-blink {
@@ -510,15 +546,6 @@ button {
     transform: scaleY(1);
   }
 }
-@keyframes eye-busy {
-  0%,
-  100% {
-    transform: scaleY(1);
-  }
-  50% {
-    transform: scaleY(0.6);
-  }
-}
 @keyframes pupil-glance {
   0%,
   28%,
@@ -536,15 +563,36 @@ button {
   }
 }
 
-/* reduced-motion：关掉脉冲 / 眨眼 / 斜视 / 半眯，只保留颜色 */
+/* reduced-motion：关掉所有律动 / 绽放 / 节拍，只保留情绪颜色；常驻光晕降为静态淡色。
+ * first-react / busy / asleep 用 !important 且特异性更高，必须逐一显式覆盖。 */
 @media (prefers-reduced-motion: reduce) {
   .eyes-z .eye,
-  .eyes-z .pupil {
+  .eyes-z .eye.eye-r,
+  .eyes-z .pupil,
+  .eyes-z.busy .eye,
+  .eyes-z.busy .pupil,
+  .eyes-z.first-react .eye,
+  .eyes-z.first-react .eye.eye-r,
+  .eyes-z.first-react .pupil,
+  .eyes-z.drifting .pupil,
+  .eyes-z.calm .pupil,
+  .eyes-z.sad .pupil,
+  .eyes-z.asleep .eye,
+  .eyes-sparkle circle,
+  .eyes-question,
+  .mood-ambient.on {
     animation: none !important;
   }
   .presence-mood,
   .home-status-mood {
     animation: none !important;
+  }
+  .mood-glow {
+    animation: none !important;
+    opacity: 0 !important;
+  }
+  .mood-ambient.on {
+    opacity: 0.24 !important; /* 只留静态淡色 */
   }
 }
 
@@ -571,7 +619,9 @@ button {
   position: relative;
   color: var(--accent);
 }
-/* Gemini 风格柔和光晕——单个径向渐变，情绪色着色，z-index:-1 晕在眼睛后方 */
+/* Gemini 风格柔和光晕——径向渐变，z-index:-1 晕在眼睛后方。
+ * 光晕"池化"：每束冻结自身情绪色（--glow-c），单次绽放、播完即由 JS 卸载；
+ * 多束叠加接管——上一束没散完时新束接上，连发不闪烁（池上限 3）。 */
 .mood-glow {
   position: absolute;
   width: 380px;
@@ -581,15 +631,15 @@ button {
   border-radius: 50%;
   background: radial-gradient(
     ellipse at center,
-    var(--emotion-color, #94a3b8) 0%,
-    color-mix(in oklch, var(--emotion-color, #94a3b8), transparent 55%) 32%,
+    var(--glow-c, var(--emotion-color, #94a3b8)) 0%,
+    color-mix(in oklch, var(--glow-c, var(--emotion-color, #94a3b8)), transparent 55%) 32%,
     transparent 70%
   );
   filter: blur(16px);
   pointer-events: none;
   opacity: 0;
   z-index: -1;
-  animation: mood-glow-bloom 2.6s ease-out 0s 5 forwards;
+  animation: mood-glow-bloom 2.2s cubic-bezier(0.22, 1, 0.36, 1) 1 forwards; /* 单次绽放 */
 }
 /* home 页光晕横向更宽，适配 size=80 */
 .home-eyes .mood-glow {
@@ -597,14 +647,45 @@ button {
   height: 250px;
 }
 @keyframes mood-glow-bloom {
-  0%   { opacity: 0;    transform: translate(-50%, -50%) scale(0.55); }
-  22%  { opacity: 0.62; transform: translate(-50%, -50%) scale(0.92); }
-  48%  { opacity: 0.5;  transform: translate(-50%, -50%) scale(1.05); }
-  100% { opacity: 0;    transform: translate(-50%, -50%) scale(1.3); }
+  0%   { opacity: 0;    transform: translate(-50%, -50%) scale(0.6); }
+  26%  { opacity: 0.6;  transform: translate(-50%, -50%) scale(0.95); }
+  55%  { opacity: 0.42; transform: translate(-50%, -50%) scale(1.06); }
+  100% { opacity: 0;    transform: translate(-50%, -50%) scale(1.28); }
 }
-/* reduced-motion 兼容 */
-@media (prefers-reduced-motion: reduce) {
-  .mood-glow { animation: none !important; }
+
+/* 常驻呼吸光晕——情绪保持期底层垫的一层很淡、缓慢明灭的余韵（burst 绽放叠在其上）。
+ * 用实时 var(--emotion-color)，换情绪时颜色随 @property 融变；情绪消失时 0.6s 淡出。 */
+.mood-ambient {
+  position: absolute;
+  width: 340px;
+  height: 180px;
+  left: 50%;
+  top: 50%;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(
+    ellipse at center,
+    var(--emotion-color, #94a3b8) 0%,
+    color-mix(in oklch, var(--emotion-color, #94a3b8), transparent 48%) 36%,
+    transparent 70%
+  );
+  filter: blur(18px);
+  pointer-events: none;
+  z-index: -2;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+.mood-ambient.on {
+  animation: mood-ambient-breath 4.4s ease-in-out infinite;
+}
+@keyframes mood-ambient-breath {
+  0%, 100% { opacity: 0.2;  transform: translate(-50%, -50%) scale(0.95); }
+  50%      { opacity: 0.36; transform: translate(-50%, -50%) scale(1.05); }
+}
+/* 首页眼睛更大，常驻光晕同步放大 */
+.home-eyes .mood-ambient {
+  width: 440px;
+  height: 225px;
 }
 .presence-label {
   display: inline-flex;
@@ -1125,7 +1206,25 @@ button {
 
 /* ── 情绪色 --emotion-color（由 data-emotion 当前 mood 决定） ──
  * 用途：① 聚光灯光晕 ② 情绪标签文字
+ * 注册成可动画的 <color>，换情绪时在 data-emotion 容器上"融"变（后代随继承值逐帧融变）。
+ * @property 不支持时降级为硬切，与改前一致，安全。
  * ── */
+@property --emotion-color {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #94a3b8;
+}
+/* 在 data-emotion 容器上过渡变量本身；保留各自原有 bg/text 过渡 */
+.presence-float,
+.home-nameplate {
+  transition: --emotion-color 0.4s ease;
+}
+/* 直接消费 var(--emotion-color) 的情绪标签：补 0.4s 颜色过渡 */
+.presence-mood,
+.home-status-mood {
+  transition: color 0.4s ease, opacity 0.35s ease;
+}
+
 [data-emotion='平静'] { --emotion-color: #94a3b8; }
 [data-emotion='好奇'] { --emotion-color: #06b6d4; }
 [data-emotion='兴奋'] { --emotion-color: #f59e0b; }

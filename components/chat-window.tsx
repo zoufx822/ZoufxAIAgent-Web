@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useCallback, useEffect, useMemo, useRef, useState, Fragment } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { ArrowUp, Plus, Sparkles, Square } from 'lucide-react'
 import { Menu } from '@base-ui/react/menu'
@@ -18,6 +18,7 @@ import { useContextDetector } from '@/hooks/use-context-detector'
 import { useMemoryHot } from '@/hooks/use-memory-hot'
 import { useIntimacy } from '@/hooks/use-intimacy'
 import { useAsleepDetector } from '@/hooks/use-asleep-detector'
+import { useMoodPresence } from '@/hooks/use-mood-presence'
 import { cn } from '@/lib/utils'
 
 const SUGGESTIONS_BY_INTIMACY: Record<string, string[]> = {
@@ -258,15 +259,8 @@ export function ChatWindow() {
   // 唤醒动画：深夜（asleep 态）+ 打字中
   const isWaking = typingActive && currentStatus === 'asleep'
 
-  // mood 变化时触发 home 页光晕动画
-  const prevMoodForGlowRef = useRef(currentMood)
-  const [homeGlowKey, setHomeGlowKey] = useState(0)
-  useEffect(() => {
-    if (prevMoodForGlowRef.current !== null && currentMood !== prevMoodForGlowRef.current) {
-      setHomeGlowKey((k) => k + 1)
-    }
-    prevMoodForGlowRef.current = currentMood
-  }, [currentMood])
+  // 情绪连发 → home 页光晕池叠加 + 第一反应节拍
+  const { glowEls: homeGlowEls, beatKey: homeBeatKey } = useMoodPresence(currentMood)
 
   const { data: hot } = useMemoryHot('user-impression')
   const intimacy = useIntimacy(hot)
@@ -337,11 +331,8 @@ export function ChatWindow() {
               data-emotion={currentMood ?? undefined}
             >
               <div className="home-eyes">
-                {homeGlowKey > 0 && (
-                  <Fragment key={homeGlowKey}>
-                    <div className="mood-glow" />
-                  </Fragment>
-                )}
+                <div className={`mood-ambient${showMood ? ' on' : ''}`} />
+                {homeGlowEls}
                 <Eyes
                   size={80}
                   busy={eyesBusy}
@@ -353,6 +344,7 @@ export function ChatWindow() {
                   drifting={currentStatus === 'drifting'}
                   lookDown={typingActive}
                   waking={isWaking}
+                  beatKey={homeBeatKey}
                 />
               </div>
               <div className="home-sig">

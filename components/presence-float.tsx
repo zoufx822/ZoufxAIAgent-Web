@@ -1,8 +1,8 @@
 'use client'
 
-import { Fragment, useEffect, useRef, useState } from 'react'
 import { useStore } from '@/lib/store'
 import { STATUS_LABELS, MOOD_HIDDEN_STATUSES } from '@/lib/status-labels'
+import { useMoodPresence } from '@/hooks/use-mood-presence'
 import type { EyesContext } from './eyes'
 import { Eyes } from './eyes'
 
@@ -19,16 +19,8 @@ export function PresenceFloat({ context, lookDown = false, waking = false }: Pre
   const label = STATUS_LABELS[currentStatus] ?? STATUS_LABELS.idle
   const moodVisible = !!currentMood && !MOOD_HIDDEN_STATUSES.has(currentStatus)
 
-  // mood 变化时递增 glowKey，重挂载光晕重播绽放动画
-  const prevMoodRef = useRef(currentMood)
-  const [glowKey, setGlowKey] = useState(0)
-
-  useEffect(() => {
-    if (prevMoodRef.current !== null && currentMood !== prevMoodRef.current) {
-      setGlowKey((k) => k + 1)
-    }
-    prevMoodRef.current = currentMood
-  }, [currentMood])
+  // 情绪连发 → 光晕池叠加 + 第一反应节拍
+  const { glowEls, beatKey } = useMoodPresence(currentMood)
 
   return (
     <div
@@ -39,11 +31,8 @@ export function PresenceFloat({ context, lookDown = false, waking = false }: Pre
       aria-live="polite"
     >
       <div className="presence-eyes-wrap">
-        {glowKey > 0 && (
-          <Fragment key={glowKey}>
-            <div className="mood-glow" />
-          </Fragment>
-        )}
+        <div className={`mood-ambient${moodVisible ? ' on' : ''}`} />
+        {glowEls}
         <Eyes
           size={60}
           busy={
@@ -59,6 +48,7 @@ export function PresenceFloat({ context, lookDown = false, waking = false }: Pre
           drifting={currentStatus === 'drifting'}
           lookDown={lookDown}
           waking={waking}
+          beatKey={beatKey}
         />
       </div>
       <div className="presence-label">

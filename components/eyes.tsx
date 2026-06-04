@@ -80,6 +80,8 @@ interface EyesProps {
   lookDown?: boolean
   /** 深夜 + 打字时触发唤醒动画：esy 从 0.26 插值到目标情绪值（1.4s） */
   waking?: boolean
+  /** 「第一反应」节拍信号：递增即播一次快眨 + 瞳孔收放（读脸高光时刻），760ms 后自还原 */
+  beatKey?: number
 }
 
 export function Eyes({
@@ -94,6 +96,7 @@ export function Eyes({
   drifting = false,
   lookDown = false,
   waking = false,
+  beatKey = 0,
 }: EyesProps) {
   const uid = useId().replace(/:/g, '')
   const w   = Math.round(size * 2.2)
@@ -148,6 +151,20 @@ export function Eyes({
     }
   }, [waking, targetExpr.esy])
 
+  // ── 第一反应节拍：beatKey 变化时加 .first-react 播一次，760ms 后移除 ──
+  const [beating, setBeating] = useState(false)
+  const beatTimer = useRef<number | undefined>(undefined)
+  const prevBeat = useRef(beatKey)
+  useEffect(() => {
+    if (beatKey > 0 && beatKey !== prevBeat.current) {
+      setBeating(true)
+      clearTimeout(beatTimer.current)
+      beatTimer.current = window.setTimeout(() => setBeating(false), 760)
+    }
+    prevBeat.current = beatKey
+    return () => clearTimeout(beatTimer.current)
+  }, [beatKey])
+
   // ── 几何计算 ──
   const esyValue = waking && wakingEsy !== null ? wakingEsy : expr.esy
   const ry = (17 * esyValue).toFixed(2)
@@ -197,6 +214,7 @@ export function Eyes({
   if (drifting)          classes.push('drifting')
   if (calmDrift)         classes.push('calm')
   if (sadSway)           classes.push('sad')
+  if (beating)           classes.push('first-react')
 
   return (
     <svg
