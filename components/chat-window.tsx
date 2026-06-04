@@ -253,14 +253,15 @@ export function ChatWindow() {
   const currentStatus = useStore((s) => s.currentStatus)
   const currentMood = useStore((s) => s.currentMood)
   const context = useContextDetector()
-  const eyesBusy =
-    currentStatus === 'thinking' || currentStatus === 'tooling' || currentStatus === 'writing'
 
   // 唤醒动画：深夜（asleep 态）+ 打字中
   const isWaking = typingActive && currentStatus === 'asleep'
 
-  // 情绪连发 → home 页光晕池叠加 + 第一反应节拍
-  const { glowEls: homeGlowEls, beatKey: homeBeatKey } = useMoodPresence(currentMood)
+  // 情绪连发 → home 页光晕池叠加 + 第一反应节拍 + 最小播放锁
+  const { glowEls: homeGlowEls, beatKey: homeBeatKey, moodLocked } = useMoodPresence(currentMood)
+  // 思考中 = 系统处于思考/调用工具态；锁内情绪优先于思考占位脸
+  const showThinking =
+    (currentStatus === 'thinking' || currentStatus === 'tooling') && !moodLocked
 
   const { data: hot } = useMemoryHot('user-impression')
   const intimacy = useIntimacy(hot)
@@ -335,17 +336,25 @@ export function ChatWindow() {
                 {homeGlowEls}
                 <Eyes
                   size={80}
-                  busy={eyesBusy}
+                  busy={currentStatus === 'writing'}
                   mood={currentMood}
                   context={context}
                   color="var(--accent)"
                   pupil="var(--bg)"
                   asleep={currentStatus === 'asleep'}
                   drifting={currentStatus === 'drifting'}
+                  thinking={showThinking}
                   lookDown={typingActive}
                   waking={isWaking}
                   beatKey={homeBeatKey}
                 />
+                {showThinking && (
+                  <span className="think-dots">
+                    <i />
+                    <i />
+                    <i />
+                  </span>
+                )}
               </div>
               <div className="home-sig">
                 <span className="home-sig-rule"></span>

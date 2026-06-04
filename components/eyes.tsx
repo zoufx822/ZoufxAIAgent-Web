@@ -8,7 +8,9 @@ import { useEffect, useMemo, useRef, useState, useId } from 'react'
  * 六词情绪谱：平静 / 好奇 / 兴奋 / 困惑 / 难过 / 愤怒。
  * 几何驱动：pr 瞳孔半径，pdy 瞳孔下移，esy 眼眶纵向缩放，blink 眨眼周期，
  *           liddy 上睑下垂，lidty 下睑上抬，lidSlant 上眼睑斜率（愤怒 angry brow），
- *           pdx 瞳孔水平偏移（困惑 askew），sparkle 兴奋星芒，question 困惑问号。
+ *           pdx 瞳孔水平偏移，sparkle 兴奋星芒，question 困惑问号。
+ * 右眼专用属性 prR / esyR / liddyR / pdxR：左右不等时单独覆盖右眼，缺省回落左眼值——困惑的不对称发懵靠它。
+ * 系统态 thinking（与情绪正交）：瞳孔上抬出神，由 CSS .thinking 驱动游移，跳过 applyContext 保持形态干净。
  * 次级 context（applyContext）：long-silence 半闭眼放慢眨眼；high-intensity 瞳孔放大、眨眼加快。
  * 眼睑用 clipPath 多边形遮罩——SVG 上不能改 ellipse 边缘，只能切。
  * 动态 clip 边界：eyeTop/eyeBot 根据 ry 实时计算，任何 esy 都不截顶/截底。
@@ -25,6 +27,8 @@ interface Expr {
   pdx?: number
   pdxR?: number
   prR?: number
+  esyR?: number
+  liddyR?: number
   sparkle?: boolean
   question?: boolean
 }
@@ -33,13 +37,15 @@ const MOOD_EXPR: Record<string, Expr> = {
   平静: { pr: 3.2, pdy: 0.0,  esy: 1.0,  blink: 6,   liddy: 0,   lidty: 0 },
   好奇: { pr: 5.0, pdy: -3.2, esy: 1.0,  blink: 3.0, liddy: 0,   lidty: 0 },
   兴奋: { pr: 6.2, pdy: -2.6, esy: 1.0,  blink: 1.8, liddy: 0,   lidty: 0, sparkle: true },
-  困惑: { pr: 3.2, pdy: 0.0,  esy: 1.0,  blink: 5.0, liddy: 0,   lidty: 0, pdx: 1.8, question: true },
+  困惑: { pr: 3.6, prR: 2.7, pdy: 0.0, esy: 1.02, esyR: 0.60, blink: 5.0, liddy: 0, lidty: 0, liddyR: 2.2, question: true },
   难过: { pr: 3.0, pdy: 1.8,  esy: 0.85, blink: 8,   liddy: 1.0, lidty: 6.0 },
   愤怒: { pr: 2.2, pdy: 0.0,  esy: 0.85, blink: 7,   liddy: 5.0, lidty: 2.0, lidSlant: 8.0 },
 }
 
 const DEFAULT_EXPR: Expr = { pr: 3.2, pdy: 0, esy: 1.0, blink: 6, liddy: 0, lidty: 0 }
 const ASLEEP_EXPR: Expr  = { pr: 2.0, pdy: 2.4, esy: 0.26, blink: 8, liddy: 0, lidty: 0 }
+// 思考中：瞳孔上抬、眼睛略放松——系统态占位脸，CSS .thinking 再叠加出神游移。
+const THINKING_EXPR: Expr = { pr: 3.0, pdy: -1.4, esy: 0.95, blink: 5, liddy: 0, lidty: 0, lidSlant: 0 }
 const MOOD_EXPR_MIN_SIZE = 28
 
 export type EyesContext = 'normal' | 'long-silence' | 'high-intensity'
@@ -76,6 +82,8 @@ interface EyesProps {
   blinkDelay?: string
   asleep?: boolean
   drifting?: boolean
+  /** 系统态「思考中」占位脸（正在思考/调用工具），与 LLM 情绪正交；优先级低于已落定情绪 */
+  thinking?: boolean
   /** 打字时瞳孔向下注视：好奇/兴奋 +7px，其余 +4.5px；睡眠/唤醒时屏蔽 */
   lookDown?: boolean
   /** 深夜 + 打字时触发唤醒动画：esy 从 0.26 插值到目标情绪值（1.4s） */
@@ -94,6 +102,7 @@ export function Eyes({
   blinkDelay,
   asleep = false,
   drifting = false,
+  thinking = false,
   lookDown = false,
   waking = false,
   beatKey = 0,
@@ -111,11 +120,13 @@ export function Eyes({
     return applyContext(base, context)
   }, [mood, size, context])
 
-  // 实际渲染用表情
+  // 实际渲染用表情——形态优先级：waking → asleep → thinking → mood。
+  // thinking 返回原始 THINKING_EXPR（不叠 applyContext），形态干净。
   const expr = useMemo(() => {
     if (asleep && !waking) return ASLEEP_EXPR
+    if (thinking) return THINKING_EXPR
     return targetExpr
-  }, [asleep, waking, targetExpr])
+  }, [asleep, waking, thinking, targetExpr])
 
   // ── Waking RAF 动画 ──
   const [wakingEsy, setWakingEsy] = useState<number | null>(null)
@@ -165,20 +176,26 @@ export function Eyes({
     return () => clearTimeout(beatTimer.current)
   }, [beatKey])
 
-  // ── 几何计算 ──
-  const esyValue = waking && wakingEsy !== null ? wakingEsy : expr.esy
-  const ry = (17 * esyValue).toFixed(2)
+  // ── 几何计算 ── 左右眼独立：右眼缺省回落左眼值，有 esyR/liddyR 时不对称（困惑发懵）。
+  // waking 只动整体 esy，不引入左右差异。
+  const esyL = waking && wakingEsy !== null ? wakingEsy : expr.esy
+  const esyR = waking && wakingEsy !== null ? wakingEsy : (expr.esyR ?? expr.esy)
+  const ryL = (17 * esyL).toFixed(2)
+  const ryR = (17 * esyR).toFixed(2)
 
-  // 动态 clip 边界：防止任何 esy 截顶/截底
-  const ryNum    = 17 * esyValue
-  const eyeTop   = Math.min(5,  22 - ryNum)
-  const eyeBot   = Math.max(39, 22 + ryNum)
+  // 动态 clip 边界：防止任何 esy 截顶/截底，左右各算一套
+  const ryNumL  = 17 * esyL
+  const ryNumR  = 17 * esyR
+  const eyeTopL = Math.min(5,  22 - ryNumL)
+  const eyeBotL = Math.max(39, 22 + ryNumL)
+  const eyeTopR = Math.min(5,  22 - ryNumR)
+  const eyeBotR = Math.max(39, 22 + ryNumR)
 
   const prL = expr.pr
   const prR = expr.prR ?? expr.pr
 
-  // lookDown：睡眠/唤醒态屏蔽；好奇/兴奋 +7px 抵消其负 pdy
-  const lookDownOffset = lookDown && !asleep && !waking
+  // lookDown：睡眠/唤醒/思考态屏蔽；好奇/兴奋 +7px 抵消其负 pdy
+  const lookDownOffset = lookDown && !asleep && !waking && !thinking
     ? (mood === '好奇' || mood === '兴奋') ? 7.0 : 4.5
     : 0
 
@@ -188,14 +205,14 @@ export function Eyes({
   const cxR = 72 + (expr.pdxR ?? 0) + (expr.pdx ?? 0)
 
   const liddyL = expr.liddy ?? 0
-  const liddyR = expr.liddy ?? 0
+  const liddyR = expr.liddyR ?? expr.liddy ?? 0
   const lidtyL = expr.lidty ?? 0
   const lidtyR = expr.lidty ?? 0
   const slant  = expr.lidSlant ?? 0
 
-  // clipPath 多边形：动态 eyeTop/eyeBot 替代硬编码的 5/39
-  const polyL = `14,${eyeTop + liddyL} 42,${eyeTop + liddyL + slant} 42,${eyeBot - lidtyL} 14,${eyeBot - lidtyL}`
-  const polyR = `58,${eyeTop + liddyR + slant} 86,${eyeTop + liddyR} 86,${eyeBot - lidtyR} 58,${eyeBot - lidtyR}`
+  // clipPath 多边形：动态 eyeTop/eyeBot 替代硬编码的 5/39，左右各用自己的边界
+  const polyL = `14,${eyeTopL + liddyL} 42,${eyeTopL + liddyL + slant} 42,${eyeBotL - lidtyL} 14,${eyeBotL - lidtyL}`
+  const polyR = `58,${eyeTopR + liddyR + slant} 86,${eyeTopR + liddyR} 86,${eyeBotR - lidtyR} 58,${eyeBotR - lidtyR}`
 
   const cssVars: Record<string, string> = { '--blink-dur': `${expr.blink}s` }
   if (blinkDelay) cssVars['--blink-delay'] = blinkDelay
@@ -205,12 +222,12 @@ export function Eyes({
   const clipRId = `eye-clip-r-${uid}`
 
   // CSS class 控制瞳孔动效
-  const calmDrift = mood === '平静' && !busy && !asleep && !waking && !lookDown && !drifting
-  const sadSway   = mood === '难过' && !asleep && !waking && !lookDown
+  const calmDrift = mood === '平静' && !busy && !asleep && !waking && !thinking && !lookDown && !drifting
+  const sadSway   = mood === '难过' && !asleep && !waking && !thinking && !lookDown
 
   const classes = ['eyes-z']
-  if (busy)              classes.push('busy')
   if (asleep && !waking) classes.push('asleep')  // waking 期间去掉 asleep class，防止 eye-flutter 压制
+  if (thinking)          classes.push('thinking')
   if (drifting)          classes.push('drifting')
   if (calmDrift)         classes.push('calm')
   if (sadSway)           classes.push('sad')
@@ -237,11 +254,11 @@ export function Eyes({
         </clipPath>
       </defs>
       <g className="eye eye-l" clipPath={`url(#${clipLId})`}>
-        <ellipse cx="28" cy="22" rx="13" ry={ry} fill={fill} />
+        <ellipse cx="28" cy="22" rx="13" ry={ryL} fill={fill} />
         <circle className="pupil pupil-l" cx={cxL} cy={cyL} r={prL} fill={pp} />
       </g>
       <g className="eye eye-r" clipPath={`url(#${clipRId})`}>
-        <ellipse cx="72" cy="22" rx="13" ry={ry} fill={fill} />
+        <ellipse cx="72" cy="22" rx="13" ry={ryR} fill={fill} />
         <circle className="pupil pupil-r" cx={cxR} cy={cyR} r={prR} fill={pp} />
       </g>
       {expr.sparkle && (

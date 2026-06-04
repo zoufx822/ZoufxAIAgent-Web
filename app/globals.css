@@ -486,22 +486,50 @@ button {
 .eyes-z ellipse {
   transition: ry 0.36s cubic-bezier(0.22, 1, 0.36, 1);
 }
-/* busy 只叠加忙碌律动，绝不抹平情绪几何（瞳孔大小 / 眼睑 / 星芒由 MOOD_EXPR 驱动照常生效）。
- * pupil-busy 用 transform:translate 游移，不碰 cx/cy/r，与情绪切换的几何 transition 互不干扰。 */
-.eyes-z.busy .eye {
-  animation: eye-blink 3.4s ease-in-out infinite; /* 略快于常态 6s */
+/* 思考中：瞳孔缓缓上抬、向两侧出神游移 + 略放松的眨眼——系统态占位脸。
+ * transform:translate 游移不碰 cx/cy/r，与情绪切换的几何 transition 互不干扰。 */
+.eyes-z.thinking .eye {
+  animation: eye-blink 4.6s ease-in-out infinite;
 }
-.eyes-z.busy .eye.eye-r {
-  animation-delay: 0.05s;
+.eyes-z.thinking .eye.eye-r {
+  animation-delay: 0.06s;
 }
-.eyes-z.busy .pupil {
-  animation: pupil-busy 2.4s ease-in-out infinite;
+.eyes-z.thinking .pupil {
+  animation: pupil-think 4.4s ease-in-out infinite;
 }
-@keyframes pupil-busy {
-  0%, 100% { transform: translate(0, 0); }
-  22%      { transform: translate(1.1px, -0.5px); }
-  50%      { transform: translate(-0.9px, 0.6px); }
-  74%      { transform: translate(0.7px, 0.4px); }
+.eyes-z.thinking .pupil.pupil-r {
+  animation-delay: 0.12s;
+}
+@keyframes pupil-think {
+  0%, 100% { transform: translate(0, -0.6px); }
+  28%      { transform: translate(2.3px, -2.8px); }
+  58%      { transform: translate(-1.6px, -2.4px); }
+  82%      { transform: translate(0.6px, -1.2px); }
+}
+
+/* 眼睛右侧三点律动——强化"正在想"。挂在 Eyes 同级（父容器 position:relative）。 */
+.think-dots {
+  position: absolute;
+  left: calc(100% + 12px);
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  gap: 5px;
+  pointer-events: none;
+}
+.think-dots i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0.28;
+  animation: think-dot 1.4s ease-in-out infinite;
+}
+.think-dots i:nth-child(2) { animation-delay: 0.18s; }
+.think-dots i:nth-child(3) { animation-delay: 0.36s; }
+@keyframes think-dot {
+  0%, 100% { opacity: 0.22; transform: translateY(1px); }
+  42%      { opacity: 0.95; transform: translateY(-2px); }
 }
 
 /* 第一反应节拍：一轮首个情绪落地的"读脸"高光时刻——快速眨一下 + 瞳孔先收缩再放大到目标。
@@ -564,13 +592,14 @@ button {
 }
 
 /* reduced-motion：关掉所有律动 / 绽放 / 节拍，只保留情绪颜色；常驻光晕降为静态淡色。
- * first-react / busy / asleep 用 !important 且特异性更高，必须逐一显式覆盖。 */
+ * first-react / thinking / asleep 用 !important 且特异性更高，必须逐一显式覆盖。 */
 @media (prefers-reduced-motion: reduce) {
   .eyes-z .eye,
   .eyes-z .eye.eye-r,
   .eyes-z .pupil,
-  .eyes-z.busy .eye,
-  .eyes-z.busy .pupil,
+  .eyes-z.thinking .eye,
+  .eyes-z.thinking .pupil,
+  .think-dots i,
   .eyes-z.first-react .eye,
   .eyes-z.first-react .eye.eye-r,
   .eyes-z.first-react .pupil,

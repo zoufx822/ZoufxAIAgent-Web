@@ -8,7 +8,13 @@ import { useCallback, useEffect, useRef, useState } from 'react'
  * 一轮对话两个情绪来源：瞬时 mood（早于正文 ~1.1s）+ 行内转折（可多次）。
  * 每次情绪变化 push 一束光晕（冻结当时情绪色），上限 3 束，播完自移除——上一束没散完时
  * 新束叠加接管，不闪烁。仅"第一反应"（与上次间隔 > 600ms）抬 beatKey，触发眼睛专属节拍。
+ *
+ * 最小播放锁 moodLocked：情绪一到立即锁 {@link MOOD_MIN_MS}，锁内情绪优先于「思考中」占位脸；
+ * 锁过期后渲染端再重新判系统态。覆盖"情绪在思考/工具途中提前到达"（如瞬时分类情绪）的边界。
  */
+
+// 情绪最小播放时长：情绪事件一到立即播放并锁定这么久，锁内优先于思考中。
+const MOOD_MIN_MS = 1500
 
 // 情绪色查表，与 CSS [data-emotion] token 对齐（亮暗各一套），供光晕冻结颜色。
 const EMOTION_HEX: Record<'light' | 'dark', Record<string, string>> = {
@@ -28,8 +34,10 @@ let _glowCounter = 0
 export function useMoodPresence(mood: string | null) {
   const [glows, setGlows] = useState<{ id: number; c: string }[]>([])
   const [beatKey, setBeatKey] = useState(0)
+  const [moodLocked, setMoodLocked] = useState(false)
   const lastFire = useRef(0)
   const prevMood = useRef(mood)
+  const lockRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const fire = useCallback((m: string) => {
     const now = performance.now()
@@ -39,12 +47,18 @@ export function useMoodPresence(mood: string | null) {
     const id = ++_glowCounter
     setGlows((g) => [...g.slice(-2), { id, c: emotionHex(m) }]) // 池上限 3
     if (gap > 600) setBeatKey((k) => k + 1) // 仅"第一反应"起节拍
+    // 情绪到达即锁：锁内优先于思考中，MOOD_MIN_MS 后释放
+    setMoodLocked(true)
+    if (lockRef.current) clearTimeout(lockRef.current)
+    lockRef.current = setTimeout(() => setMoodLocked(false), MOOD_MIN_MS)
   }, [])
 
   useEffect(() => {
     if (prevMood.current !== null && mood !== null && mood !== prevMood.current) fire(mood)
     prevMood.current = mood
   }, [mood, fire]) // 行内连发也会逐次触发
+
+  useEffect(() => () => { if (lockRef.current) clearTimeout(lockRef.current) }, [])
 
   const glowEls = glows.map((g) => (
     <div
@@ -55,5 +69,5 @@ export function useMoodPresence(mood: string | null) {
     />
   ))
 
-  return { glowEls, beatKey }
+  return { glowEls, beatKey, moodLocked }
 }
