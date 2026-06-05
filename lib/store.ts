@@ -55,6 +55,8 @@ interface Store {
   lookbackOpen: boolean
   /** 对话完成后递增，useMemoryHot 监听此值触发重拉印象 */
   hotMemoryVersion: number
+  /** 回复流式真正结束时递增（上升沿驱动输入框自动 refocus）；错误/中止不递增 */
+  focusInputSignal: number
 
   // ── anchor actions ──
   setAnchors: (anchors: MemoryAnchor[]) => void
@@ -82,6 +84,7 @@ interface Store {
   setMood: (keyword: string | null) => void
   setLookbackOpen: (v: boolean) => void
   bumpHotMemoryVersion: () => void
+  bumpFocusInput: () => void
 }
 
 function genId() {
@@ -107,6 +110,7 @@ export const useStore = create<Store>()(
       currentMood: '平静',
       lookbackOpen: false,
       hotMemoryVersion: 0,
+      focusInputSignal: 0,
 
       setAnchors: (anchors) => {
         const cur = get().currentAnchorId
@@ -253,6 +257,7 @@ export const useStore = create<Store>()(
       setLookbackOpen: (v) => set({ lookbackOpen: v }),
 
       bumpHotMemoryVersion: () => set((s) => ({ hotMemoryVersion: s.hotMemoryVersion + 1 })),
+      bumpFocusInput: () => set((s) => ({ focusInputSignal: s.focusInputSignal + 1 })),
     }),
     {
       name: 'zoufx-chat-sessions',

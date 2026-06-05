@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useStore } from '@/lib/store'
 import { STATUS_LABELS, MOOD_HIDDEN_STATUSES } from '@/lib/status-labels'
 import { useMoodPresence } from '@/hooks/use-mood-presence'
+import { runFlip, type FlipRect } from '@/lib/flip'
 import type { EyesContext } from './eyes'
 import { Eyes } from './eyes'
 
@@ -11,9 +12,16 @@ interface PresenceFloatProps {
   context: EyesContext
   lookDown?: boolean
   waking?: boolean
+  /** 起始页眼睛旧位置/尺寸——非空时挂载瞬间从该处 FLIP 飞入（仅首条消息那次） */
+  flyFrom?: FlipRect | null
 }
 
-export function PresenceFloat({ context, lookDown = false, waking = false }: PresenceFloatProps) {
+export function PresenceFloat({
+  context,
+  lookDown = false,
+  waking = false,
+  flyFrom = null,
+}: PresenceFloatProps) {
   const currentStatus = useStore((s) => s.currentStatus)
   const currentMood   = useStore((s) => s.currentMood)
 
@@ -35,6 +43,14 @@ export function PresenceFloat({ context, lookDown = false, waking = false }: Pre
     prevErrRef.current = isErr
   }, [currentStatus])
 
+  // 起始页→聊天页：眼睛从起始页中央位置连续飞到顶部并缩小（80→60），无"先消失再出现"。
+  // 仅挂载时跑一次（PresenceFloat 在首条消息时才挂载，chat→chat 不重挂载）。
+  const eyesWrapRef = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    if (flyFrom && eyesWrapRef.current) runFlip(eyesWrapRef.current, flyFrom, { scale: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   return (
     <div
       className="presence-float"
@@ -43,7 +59,7 @@ export function PresenceFloat({ context, lookDown = false, waking = false }: Pre
       role="status"
       aria-live="polite"
     >
-      <div className="presence-eyes-wrap">
+      <div className="presence-eyes-wrap" ref={eyesWrapRef}>
         <div className={`mood-ambient${moodVisible ? ' on' : ''}`} />
         {glowEls}
         <Eyes

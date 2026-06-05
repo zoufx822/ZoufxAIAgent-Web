@@ -1,6 +1,13 @@
 'use client'
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { ArrowUp, Plus, Sparkles, Square } from 'lucide-react'
 import { Menu } from '@base-ui/react/menu'
@@ -19,6 +26,7 @@ import { useMemoryHot } from '@/hooks/use-memory-hot'
 import { useIntimacy } from '@/hooks/use-intimacy'
 import { useAsleepDetector } from '@/hooks/use-asleep-detector'
 import { useMoodPresence } from '@/hooks/use-mood-presence'
+import { runFlip, type FlipRect } from '@/lib/flip'
 import { cn } from '@/lib/utils'
 
 const SUGGESTIONS_BY_INTIMACY: Record<string, string[]> = {
@@ -280,25 +288,75 @@ export function ChatWindow() {
     textareaRef.current?.focus()
   }, [currentAnchorId, forceScrollToBottom])
 
+  // ① 回复流式真正结束 → 自动 refocus 输入框（focusInputSignal 上升沿驱动；错误/中止不触发）
+  const focusInputSignal = useStore((s) => s.focusInputSignal)
+  const prevFocusSignalRef = useRef(focusInputSignal)
+  useEffect(() => {
+    if (focusInputSignal !== prevFocusSignalRef.current) {
+      textareaRef.current?.focus()
+      prevFocusSignalRef.current = focusInputSignal
+    }
+  }, [focusInputSignal])
+
   const isEmpty = messages.length <= 1
+
+  // ② 起始页→聊天页 FLIP 转场：发送瞬间（DOM 仍是起始页）量取的眼睛/输入框旧 rect，
+  //    挂载时由目标元素"放回"再补间，看起来同一双眼睛/输入框连续移动。chat→chat 不飞。
+  // 眼睛 from-rect 走 state（渲染期作为 prop 透传给挂载的 PresenceFloat）；
+  // 输入框 from-rect 走 ref（仅在 useLayoutEffect 内消费，不参与渲染）。
+  const [flyEyesFrom, setFlyEyesFrom] = useState<FlipRect | null>(null)
+  const pendingFlyInputRef = useRef<FlipRect | null>(null)
+  const inputSlotRef = useRef<HTMLDivElement>(null)
+  const [flying, setFlying] = useState(false)
+  const flyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => { if (flyTimerRef.current) clearTimeout(flyTimerRef.current) }, [])
+
+  // 聊天页输入框挂载（isEmpty true→false）时从起始页居中大框 FLIP 滑入（仅平移，避免圆角变形）
+  useLayoutEffect(() => {
+    if (!isEmpty && pendingFlyInputRef.current && inputSlotRef.current) {
+      runFlip(inputSlotRef.current, pendingFlyInputRef.current, { scale: false })
+      pendingFlyInputRef.current = null
+    }
+  }, [isEmpty])
+
+  /** 起始页发送：量取眼睛/输入框旧 rect 触发 FLIP；chat→chat 写 null 不飞。须在切到聊天页前调用。 */
+  const captureFlyOrigin = useCallback(() => {
+    if (!isEmpty) {
+      setFlyEyesFrom(null)
+      pendingFlyInputRef.current = null
+      return
+    }
+    const toRect = (el: Element | null): FlipRect | null => {
+      if (!el) return null
+      const r = el.getBoundingClientRect()
+      return { left: r.left, top: r.top, width: r.width, height: r.height }
+    }
+    setFlyEyesFrom(toRect(document.querySelector('.home-eyes .eyes-z')))
+    pendingFlyInputRef.current = toRect(document.querySelector('.home-input-slot'))
+    setFlying(true)
+    if (flyTimerRef.current) clearTimeout(flyTimerRef.current)
+    flyTimerRef.current = setTimeout(() => setFlying(false), 520)
+  }, [isEmpty])
 
   const handleSend = useCallback(() => {
     const text = input.trim()
     if (!text || isLoading) return
+    captureFlyOrigin()
     setInput('')
     setLastInputAt(Date.now())
     forceScrollToBottom()
     send(text, thinkingEnabled)
-  }, [input, isLoading, send, thinkingEnabled, forceScrollToBottom])
+  }, [input, isLoading, send, thinkingEnabled, forceScrollToBottom, captureFlyOrigin])
 
   const handleSuggestion = useCallback(
     (text: string) => {
       if (isLoading) return
+      captureFlyOrigin()
       setLastInputAt(Date.now())
       forceScrollToBottom()
       send(text, thinkingEnabled)
     },
-    [isLoading, send, thinkingEnabled, forceScrollToBottom]
+    [isLoading, send, thinkingEnabled, forceScrollToBottom, captureFlyOrigin]
   )
 
   const greeting = useMemo(() => INTIMACY_GREET[intimacy] ?? timeGreet(), [intimacy])
@@ -319,7 +377,7 @@ export function ChatWindow() {
   )
 
   return (
-    <div className="flex h-full flex-col">
+    <div className={cn('flex h-full flex-col', flying && 'chat-flying')}>
       {isEmpty ? (
         <div
           className="page-enter flex flex-1 flex-col items-center justify-center"
@@ -377,7 +435,7 @@ export function ChatWindow() {
               <div className="home-line">{greeting}</div>
             </div>
 
-            <div className="mb-4">
+            <div className="home-input-slot mb-4">
               <ChatInput
                 input={input}
                 setInput={setInput}
@@ -426,10 +484,15 @@ export function ChatWindow() {
         </div>
       ) : (
         <>
-          <PresenceFloat context={context} lookDown={typingActive} waking={isWaking} />
+          <PresenceFloat
+            context={context}
+            lookDown={typingActive}
+            waking={isWaking}
+            flyFrom={flyEyesFrom}
+          />
           <div
             ref={scrollRef}
-            className="flex-1 overflow-y-auto"
+            className="chat-scroll-area flex-1 overflow-y-auto"
             style={{ padding: '8px clamp(16px, 5vw, 56px) 36px' }}
           >
             <div className="mx-auto" style={{ maxWidth: '720px' }}>
@@ -473,8 +536,11 @@ export function ChatWindow() {
             </div>
           </div>
 
-          <div className="flex-shrink-0" style={{ padding: '0 clamp(16px, 5vw, 56px) 24px' }}>
-            <div className="mx-auto" style={{ maxWidth: '720px' }}>
+          <div
+            className="chat-input-area flex-shrink-0"
+            style={{ padding: '0 clamp(16px, 5vw, 56px) 24px' }}
+          >
+            <div ref={inputSlotRef} className="mx-auto" style={{ maxWidth: '720px' }}>
               <ChatInput
                 input={input}
                 setInput={setInput}

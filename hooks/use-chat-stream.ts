@@ -28,6 +28,7 @@ export function useChatStream() {
     setStatus,
     setMood,
     bumpHotMemoryVersion,
+    bumpFocusInput,
   } = useStore(
     useShallow((s) => ({
       currentAnchorId: s.currentAnchorId,
@@ -45,6 +46,7 @@ export function useChatStream() {
       setStatus: s.setStatus,
       setMood: s.setMood,
       bumpHotMemoryVersion: s.bumpHotMemoryVersion,
+      bumpFocusInput: s.bumpFocusInput,
     }))
   )
 
@@ -187,6 +189,8 @@ export function useChatStream() {
           } else {
             updateLastAssistantMessage(anchorId, { isStreaming: false })
             setStatus('idle')
+            // 回复真正完成——自动把焦点还给输入框（错误/静默错误分支不触发）
+            bumpFocusInput()
           }
           touchAnchor(anchorId, Date.now())
           bumpHotMemoryVersion()
@@ -221,6 +225,7 @@ export function useChatStream() {
       setStatus,
       setMood,
       bumpHotMemoryVersion,
+      bumpFocusInput,
     ]
   )
 

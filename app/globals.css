@@ -206,7 +206,17 @@
     }
   }
 
-  
+
+/* ── 起始页→聊天页 FLIP 转场（贴合原型 Zoufx AI.html）──────────────
+   眼睛 / 输入框的位移由 JS runFlip 接管（在目标元素上做 First-Last-Invert-Play）；
+   根容器不做整体上飘，改为聊天内容分层淡入——消息区延迟 .16s，避免第一条用户气泡在飞行途中突兀蹦出。 */
+.chat-flying .chat-scroll-area{animation:chatContentIn .44s ease .16s both;}
+.chat-flying .chat-input-area{animation:chatContentIn .40s ease .06s both;}
+@keyframes chatContentIn{from{opacity:0;}to{opacity:1;}}
+@media (prefers-reduced-motion: reduce){
+  .chat-flying .chat-scroll-area,.chat-flying .chat-input-area{animation:none;}
+}
+
 /* ── 工具块（贴合原型 Zoufx AI.html）─────────────────────────────
    ① 出现时 max-height "长出"+淡入（挂载即播）；② running 时 dot 脉冲 + JS 计时跳动；
    ③ 完成 0.4s 后未展开 → 收扁（.flat）：head 变薄、整体压暗；hover 还原。
