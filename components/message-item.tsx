@@ -1,11 +1,14 @@
 'use client'
 
-import { memo, useEffect } from 'react'
-import { AnimatePresence, motion } from 'motion/react'
-import { ChevronDown, ChevronRight } from 'lucide-react'
+import { memo, useEffect, useRef, useState } from 'react'
+import { motion } from 'motion/react'
 import { cn } from '@/lib/utils'
 import type { Message, ToolCall } from '@/lib/store'
 import { StreamMarkdown } from '@/components/ui/stream-markdown'
+
+function fmtToolDur(ms: number) {
+  return ms < 1000 ? Math.round(ms) + 'ms' : (ms / 1000).toFixed(2) + 's'
+}
 
 interface Props {
   message: Message
@@ -15,202 +18,163 @@ interface Props {
   onScrollNeeded?: () => void
 }
 
+/**
+ * 思考块折叠的唯一数据源：流式中不折叠，流式结束 1.5s 折叠成单行。
+ * 初值 !streaming —— 历史消息（一挂载即非流式）默认折叠成单行，可点开；与原型唯一的差异，
+ * 避免切锚加载时大段历史思考全摊开。open 由组件自治（collapsed 基线 + userOpen 覆盖）。
+ */
+function useAutoCollapse(streaming: boolean, delay = 1500) {
+  const [collapsed, setCollapsed] = useState(!streaming)
+  const [userOpen, setUserOpen] = useState(false)
+  const prevStream = useRef(streaming)
+  useEffect(() => {
+    let t: ReturnType<typeof setTimeout> | undefined
+    if (prevStream.current && !streaming) {
+      t = setTimeout(() => setCollapsed(true), delay)
+    }
+    prevStream.current = streaming
+    return () => { if (t) clearTimeout(t) }
+  }, [streaming, delay])
+  return { open: !collapsed || userOpen, collapsible: !streaming, toggle: () => setUserOpen((o) => !o) }
+}
+
+function ThinkCaret({ open }: { open: boolean }) {
+  return (
+    <span className="think-caret-i" style={{ transform: open ? 'rotate(90deg)' : 'none' }}>
+      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
+        <polyline points="9 18 15 12 9 6" />
+      </svg>
+    </span>
+  )
+}
+
 /** Thinking 块——mono 字体 + 左侧细线 + char-in 渐入。 */
 function ThinkingBlock({
   thinking,
-  expanded,
-  onToggle,
+  isStreaming,
 }: {
   thinking: string
-  expanded: boolean
-  onToggle: () => void
+  isStreaming?: boolean
 }) {
+  // 折叠唯一数据源：流式中不折叠，流式结束 1.5s 折叠成单行（贴合原型 ThinkingA）
+  const streaming = isStreaming ?? false
+  const { open, collapsible, toggle } = useAutoCollapse(streaming)
+
+  // 折叠单行视图（仅流式结束后的折叠态可达）
+  if (collapsible && !open) {
+    const peek = (thinking || '').replace(/\s+/g, ' ').trim()
+    return (
+      <div className="think-a collapsed">
+        <div className="think-collapsed-row" onClick={toggle}>
+          <span className="think-head-label">思考过程</span>
+          <span className="think-peek">{peek.length > 54 ? peek.slice(0, 54) + '…' : peek}</span>
+          <ThinkCaret open={false} />
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div
-      style={{
-        borderLeft: '1px solid var(--border)',
-        paddingLeft: 14,
-      }}
-    >
-      <button
-        onClick={onToggle}
-        className="mono flex w-full items-center gap-2 transition-colors"
-        style={{
-          background: 'transparent',
-          border: 'none',
-          padding: 0,
-          fontSize: 10,
-          letterSpacing: '0.16em',
-          textTransform: 'uppercase',
-          color: 'var(--t3)',
-          cursor: 'pointer',
-          marginBottom: 6,
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.color = 'var(--t2)'
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.color = 'var(--t3)'
-        }}
+    <div className="think-a">
+      <div
+        className={`think-head${collapsible ? ' clickable' : ''}`}
+        onClick={collapsible ? toggle : undefined}
       >
-        {expanded ? (
-          <ChevronDown className="h-3 w-3" strokeWidth={1.8} />
-        ) : (
-          <ChevronRight className="h-3 w-3" strokeWidth={1.8} />
-        )}
-        <span>thinking</span>
-        <span style={{ color: 'var(--t3)', opacity: 0.6 }}>·</span>
-        <span style={{ fontFeatureSettings: '"tnum"' }}>{thinking.length}</span>
-      </button>
-      <AnimatePresence initial={false}>
-        {expanded && (
-          <motion.div
-            key="thinking-body"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2, ease: 'easeInOut' }}
-            style={{ overflow: 'hidden' }}
-          >
-            <div
-              className="mono think-char whitespace-pre-wrap"
-              style={{
-                fontSize: 12.5,
-                lineHeight: 1.7,
-                color: 'var(--t2)',
-                letterSpacing: '0.005em',
-                paddingTop: 4,
-              }}
-            >
-              {thinking}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+        {streaming && <span className="think-head-dot" />}
+        <span>{streaming ? '思考中' : '思考过程'}</span>
+        {collapsible && <ThinkCaret open={true} />}
+      </div>
+      {thinking}
     </div>
   )
 }
 
 /**
- * Tool call 卡片：精密仪器感。
- * - Header: mono 字体 [tool] · status · meta
- * - Running 时底部 1px tool-runbar 横向脉动
- * - Completed 状态可折叠 resultPreview
+ * Tool call 卡片（贴合原型 Zoufx AI.html）：
+ * - Header: tool-dot（running 脉冲）+ tool-name + 右簇 meta（中文状态 ｜ 耗时）+ caret
+ * - running 实时计时，完成后定格；完成 0.4s 未展开 → 收扁（.flat）
+ * - query/result 进可展开 body
  */
 function ToolCallCard({ toolCall, onToggle }: { toolCall: ToolCall; onToggle?: () => void }) {
-  const { status, tool, toolDisplay, query, count, resultPreview, expanded } = toolCall
+  const { status, tool, toolDisplay, query, resultPreview, expanded } = toolCall
   const canExpand = status === 'completed' && !!resultPreview
 
-  const statusLabel = status === 'running' ? 'running' : status === 'failed' ? 'failed' : 'done'
-  const statusColor =
-    status === 'running' ? 'var(--t1)' : status === 'failed' ? '#dc2626' : 'var(--t2)'
+  // running 计时跳动：运行时实时累加，结束定格为最终耗时
+  const [elapsed, setElapsed] = useState(0)
+  const [finalDur, setFinalDur] = useState<string | undefined>(undefined)
+  const t0Ref = useRef<number | null>(null)
+  useEffect(() => {
+    if (status !== 'running') return
+    t0Ref.current = performance.now()
+    setFinalDur(undefined)
+    setElapsed(0)
+    const iv = setInterval(() => setElapsed(performance.now() - t0Ref.current!), 70)
+    return () => {
+      clearInterval(iv)
+      // 清理时定格最终耗时（不受 interval 粒度影响）
+      if (t0Ref.current != null) setFinalDur(fmtToolDur(performance.now() - t0Ref.current))
+      t0Ref.current = null
+    }
+  }, [status])
+  const durText = status === 'running' ? fmtToolDur(elapsed) : finalDur
 
-  const meta = (() => {
-    if (status === 'running') return query ? `query=${query}` : 'pending…'
-    if (status === 'failed') return query ? `query=${query} · aborted` : 'aborted'
-    // completed：写工具（count 恒 0 且无 query）只显示 done，不强加"0 results"语义
-    const parts: string[] = []
-    if (count && count > 0) parts.push(`${count} results`)
-    if (query) parts.push(`query=${query}`)
-    return parts.join(' · ')
-  })()
+  // 完成 0.4s 后若未展开 → 收扁
+  const [flat, setFlat] = useState(false)
+  useEffect(() => {
+    if ((status === 'completed' || status === 'failed') && !expanded) {
+      const t = setTimeout(() => setFlat(true), 400)
+      return () => clearTimeout(t)
+    }
+    setFlat(false)
+  }, [status, expanded])
+
+  const statusText = status === 'running' ? '运行中' : status === 'failed' ? '出错' : '完成'
+  const dotClass = status === 'running' ? 'running' : status === 'failed' ? 'error' : 'done'
+  const open = canExpand && expanded
 
   return (
-    <div
-      style={{
-        background: 'var(--surface)',
-        border: '1px solid var(--border)',
-        borderRadius: 8,
-        overflow: 'hidden',
-      }}
-    >
-      <button
+    <div className={`tool${flat ? ' flat' : ''}`}>
+      <div
+        className={`tool-head${open ? '' : ' closed'}`}
         onClick={canExpand ? onToggle : undefined}
-        disabled={!canExpand}
-        className="mono flex w-full items-center"
-        style={{
-          background: 'transparent',
-          border: 'none',
-          padding: '8px 12px',
-          gap: 10,
-          fontSize: 11,
-          letterSpacing: '0.02em',
-          color: 'var(--t2)',
-          cursor: canExpand ? 'pointer' : 'default',
-          textAlign: 'left',
-        }}
+        style={canExpand ? undefined : { cursor: 'default' }}
       >
-        <span
-          style={{
-            width: 6,
-            height: 6,
-            borderRadius: '50%',
-            background: statusColor,
-            flexShrink: 0,
-            ...(status === 'running' ? { animation: 'pulse-dot 1.4s ease infinite' } : {}),
-          }}
-        />
-        <span style={{ color: 'var(--t1)', fontWeight: 500 }}>{toolDisplay || tool}</span>
-        <span style={{ color: 'var(--t3)' }}>·</span>
-        <span style={{ color: statusColor }}>{statusLabel}</span>
-        {meta && (
-          <>
-            <span style={{ color: 'var(--t3)' }}>·</span>
-            <span
-              style={{
-                flex: 1,
-                color: 'var(--t3)',
-                minWidth: 0,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {meta}
-            </span>
-          </>
-        )}
-        {!meta && <span style={{ flex: 1 }} />}
+        <span className={`tool-dot ${dotClass}`} />
+        <span className="tool-name">{toolDisplay || tool}</span>
+        <span className="tool-meta">
+          <span>{statusText}</span>
+          {durText && (
+            <>
+              <span className="sep" />
+              <span className="dur">{durText}</span>
+            </>
+          )}
+        </span>
         {canExpand && (
-          <span style={{ color: 'var(--t3)', flexShrink: 0 }}>
-            {expanded ? (
-              <ChevronDown className="h-3 w-3" strokeWidth={1.8} />
-            ) : (
-              <ChevronRight className="h-3 w-3" strokeWidth={1.8} />
-            )}
+          <span className={`tool-caret${expanded ? ' open' : ''}`}>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
           </span>
         )}
-      </button>
+      </div>
 
-      {/* Running 时的脉动 runbar */}
-      {status === 'running' && <div className="tool-runbar" />}
-
-      {/* 完成态可折叠 result preview */}
-      <AnimatePresence initial={false}>
-        {canExpand && expanded && (
-          <motion.div
-            key="tool-result"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2, ease: 'easeInOut' }}
-            style={{ overflow: 'hidden' }}
-          >
-            <div
-              className="mono whitespace-pre-wrap"
-              style={{
-                borderTop: '1px solid var(--border)',
-                padding: '10px 12px',
-                fontSize: 11.5,
-                lineHeight: 1.65,
-                color: 'var(--t2)',
-              }}
-            >
-              {resultPreview}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {open && (
+        <div className="tool-body">
+          {query && (
+            <>
+              <span className="lbl">parameters</span>
+              <div className="v">{query}</div>
+            </>
+          )}
+          {resultPreview && (
+            <>
+              <span className="lbl">result</span>
+              <div className="v">{resultPreview}</div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -218,7 +182,6 @@ function ToolCallCard({ toolCall, onToggle }: { toolCall: ToolCall; onToggle?: (
 function MessageItemBase({
   message,
   isNew = false,
-  onToggleThinking,
   onToggleToolCall,
   onScrollNeeded,
 }: Props) {
@@ -275,8 +238,7 @@ function MessageItemBase({
                 {message.thinking && (
                   <ThinkingBlock
                     thinking={message.thinking}
-                    expanded={message.thinkingExpanded}
-                    onToggle={onToggleThinking}
+                    isStreaming={message.isStreaming}
                   />
                 )}
 

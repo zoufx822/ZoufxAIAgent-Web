@@ -90,6 +90,8 @@ interface EyesProps {
   waking?: boolean
   /** 「第一反应」节拍信号：递增即播一次快眨 + 瞳孔收放（读脸高光时刻），760ms 后自还原 */
   beatKey?: number
+  /** error 摇头信号：递增即播一次水平轻抖（出错身体语言），640ms 后自还原 */
+  errorKey?: number
 }
 
 export function Eyes({
@@ -106,6 +108,7 @@ export function Eyes({
   lookDown = false,
   waking = false,
   beatKey = 0,
+  errorKey = 0,
 }: EyesProps) {
   const uid = useId().replace(/:/g, '')
   const w   = Math.round(size * 2.2)
@@ -176,6 +179,20 @@ export function Eyes({
     return () => clearTimeout(beatTimer.current)
   }, [beatKey])
 
+  // ── error 摇头节拍：errorKey 变化时加 .error-shake 播一次，640ms 后移除 ──
+  const [shaking, setShaking] = useState(false)
+  const shakeTimer = useRef<number | undefined>(undefined)
+  const prevErr = useRef(errorKey)
+  useEffect(() => {
+    if (errorKey > 0 && errorKey !== prevErr.current) {
+      setShaking(true)
+      clearTimeout(shakeTimer.current)
+      shakeTimer.current = window.setTimeout(() => setShaking(false), 640)
+    }
+    prevErr.current = errorKey
+    return () => clearTimeout(shakeTimer.current)
+  }, [errorKey])
+
   // ── 几何计算 ── 左右眼独立：右眼缺省回落左眼值，有 esyR/liddyR 时不对称（困惑发懵）。
   // waking 只动整体 esy，不引入左右差异。
   const esyL = waking && wakingEsy !== null ? wakingEsy : expr.esy
@@ -232,6 +249,7 @@ export function Eyes({
   if (calmDrift)         classes.push('calm')
   if (sadSway)           classes.push('sad')
   if (beating)           classes.push('first-react')
+  if (shaking)           classes.push('error-shake')
 
   return (
     <svg

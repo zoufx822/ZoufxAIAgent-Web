@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useRef, useState } from 'react'
 import { useStore } from '@/lib/store'
 import { STATUS_LABELS, MOOD_HIDDEN_STATUSES } from '@/lib/status-labels'
 import { useMoodPresence } from '@/hooks/use-mood-presence'
@@ -25,6 +26,15 @@ export function PresenceFloat({ context, lookDown = false, waking = false }: Pre
   const thinkingState = currentStatus === 'thinking' || currentStatus === 'tooling'
   const showThinking = thinkingState && !moodLocked
 
+  // error 系统态上升沿触发一次摇头（errorKey 驱动 Eyes）
+  const [errKey, setErrKey] = useState(0)
+  const prevErrRef = useRef(false)
+  useEffect(() => {
+    const isErr = currentStatus === 'error'
+    if (isErr && !prevErrRef.current) setErrKey((k) => k + 1)
+    prevErrRef.current = isErr
+  }, [currentStatus])
+
   return (
     <div
       className="presence-float"
@@ -49,6 +59,7 @@ export function PresenceFloat({ context, lookDown = false, waking = false }: Pre
           lookDown={lookDown}
           waking={waking}
           beatKey={beatKey}
+          errorKey={errKey}
         />
         {showThinking && (
           <span className="think-dots">
