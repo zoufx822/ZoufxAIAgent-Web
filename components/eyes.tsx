@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState, useId } from 'react'
 /**
  * Eyes SVG 字标——v0.14 rev7（设计同步）。
  *
- * 六词情绪谱：平静 / 好奇 / 兴奋 / 困惑 / 难过 / 愤怒。
+ * 七词情绪谱：平静 / 愉快 / 好奇 / 兴奋 / 困惑 / 难过 / 愤怒。
  * 几何驱动：pr 瞳孔半径，pdy 瞳孔下移，esy 眼眶纵向缩放，blink 眨眼周期，
  *           liddy 上睑下垂，lidty 下睑上抬，lidSlant 上眼睑斜率（愤怒 angry brow），
  *           pdx 瞳孔水平偏移，sparkle 兴奋星芒，question 困惑问号。
@@ -34,18 +34,38 @@ interface Expr {
 }
 
 const MOOD_EXPR: Record<string, Expr> = {
-  平静: { pr: 3.2, pdy: 0.0,  esy: 1.0,  blink: 6,   liddy: 0,   lidty: 0 },
-  好奇: { pr: 5.0, pdy: -3.2, esy: 1.0,  blink: 3.0, liddy: 0,   lidty: 0 },
-  兴奋: { pr: 6.2, pdy: -2.6, esy: 1.0,  blink: 1.8, liddy: 0,   lidty: 0, sparkle: true },
-  困惑: { pr: 3.6, prR: 2.7, pdy: 0.0, esy: 1.02, esyR: 0.60, blink: 5.0, liddy: 0, lidty: 0, liddyR: 2.2, question: true },
-  难过: { pr: 3.0, pdy: 1.8,  esy: 0.85, blink: 8,   liddy: 1.0, lidty: 6.0 },
-  愤怒: { pr: 2.2, pdy: 0.0,  esy: 0.85, blink: 7,   liddy: 5.0, lidty: 2.0, lidSlant: 8.0 },
+  平静: { pr: 3.2, pdy: 0.0, esy: 1.0, blink: 6, liddy: 0, lidty: 0 },
+  愉快: { pr: 3.9, pdy: 0, esy: 1.0, blink: 4.0, liddy: 0, lidty: 0 },
+  好奇: { pr: 5.0, pdy: -3.2, esy: 1.0, blink: 3.0, liddy: 0, lidty: 0 },
+  兴奋: { pr: 6.2, pdy: -2.6, esy: 1.0, blink: 1.8, liddy: 0, lidty: 0, sparkle: true },
+  困惑: {
+    pr: 3.6,
+    prR: 2.7,
+    pdy: 0.0,
+    esy: 1.02,
+    esyR: 0.6,
+    blink: 5.0,
+    liddy: 0,
+    lidty: 0,
+    liddyR: 2.2,
+    question: true,
+  },
+  难过: { pr: 3.0, pdy: 1.8, esy: 0.85, blink: 8, liddy: 1.0, lidty: 6.0 },
+  愤怒: { pr: 2.2, pdy: 0.0, esy: 0.85, blink: 7, liddy: 5.0, lidty: 2.0, lidSlant: 8.0 },
 }
 
 const DEFAULT_EXPR: Expr = { pr: 3.2, pdy: 0, esy: 1.0, blink: 6, liddy: 0, lidty: 0 }
-const ASLEEP_EXPR: Expr  = { pr: 2.0, pdy: 2.4, esy: 0.26, blink: 8, liddy: 0, lidty: 0 }
+const ASLEEP_EXPR: Expr = { pr: 2.0, pdy: 2.4, esy: 0.26, blink: 8, liddy: 0, lidty: 0 }
 // 思考中：瞳孔上抬、眼睛略放松——系统态占位脸，CSS .thinking 再叠加出神游移。
-const THINKING_EXPR: Expr = { pr: 3.0, pdy: -1.4, esy: 0.95, blink: 5, liddy: 0, lidty: 0, lidSlant: 0 }
+const THINKING_EXPR: Expr = {
+  pr: 3.0,
+  pdy: -1.4,
+  esy: 0.95,
+  blink: 5,
+  liddy: 0,
+  lidty: 0,
+  lidSlant: 0,
+}
 const MOOD_EXPR_MIN_SIZE = 28
 
 export type EyesContext = 'normal' | 'long-silence' | 'high-intensity'
@@ -54,19 +74,19 @@ function applyContext(e: Expr, ctx?: EyesContext): Expr {
   if (ctx === 'long-silence') {
     return {
       ...e,
-      blink:  e.blink * 1.5,
-      pdy:    (e.pdy ?? 0) + 0.6,
-      esy:    Math.max(0.35, e.esy * 0.78),
-      liddy:  (e.liddy ?? 0) + 2.4,
+      blink: e.blink * 1.5,
+      pdy: (e.pdy ?? 0) + 0.6,
+      esy: Math.max(0.35, e.esy * 0.78),
+      liddy: (e.liddy ?? 0) + 2.4,
     }
   }
   if (ctx === 'high-intensity') {
     return {
       ...e,
       blink: e.blink * 0.6,
-      pr:    e.pr * 1.08,
-      prR:   (e.prR ?? e.pr) * 1.08,
-      esy:   Math.min(1.15, e.esy * 1.02),
+      pr: e.pr * 1.08,
+      prR: (e.prR ?? e.pr) * 1.08,
+      esy: Math.min(1.15, e.esy * 1.02),
     }
   }
   return e
@@ -111,10 +131,10 @@ export function Eyes({
   errorKey = 0,
 }: EyesProps) {
   const uid = useId().replace(/:/g, '')
-  const w   = Math.round(size * 2.2)
-  const h   = size
+  const w = Math.round(size * 2.2)
+  const h = size
   const fill = color ?? 'currentColor'
-  const pp   = pupil ?? 'var(--bg)'
+  const pp = pupil ?? 'var(--bg)'
 
   // 目标情绪表情（忽略 asleep）——waking 动画终点
   const targetExpr = useMemo(() => {
@@ -139,10 +159,10 @@ export function Eyes({
   useEffect(() => {
     if (waking && !wasWakingRef.current) {
       wasWakingRef.current = true
-      const startEsy = ASLEEP_EXPR.esy       // 0.26
-      const endEsy   = targetExpr.esy        // 目标情绪
+      const startEsy = ASLEEP_EXPR.esy // 0.26
+      const endEsy = targetExpr.esy // 目标情绪
       const startTime = performance.now()
-      const duration  = 1400
+      const duration = 1400
 
       const animate = (now: number) => {
         const t = Math.min(1, (now - startTime) / duration)
@@ -201,20 +221,23 @@ export function Eyes({
   const ryR = (17 * esyR).toFixed(2)
 
   // 动态 clip 边界：防止任何 esy 截顶/截底，左右各算一套
-  const ryNumL  = 17 * esyL
-  const ryNumR  = 17 * esyR
-  const eyeTopL = Math.min(5,  22 - ryNumL)
+  const ryNumL = 17 * esyL
+  const ryNumR = 17 * esyR
+  const eyeTopL = Math.min(5, 22 - ryNumL)
   const eyeBotL = Math.max(39, 22 + ryNumL)
-  const eyeTopR = Math.min(5,  22 - ryNumR)
+  const eyeTopR = Math.min(5, 22 - ryNumR)
   const eyeBotR = Math.max(39, 22 + ryNumR)
 
   const prL = expr.pr
   const prR = expr.prR ?? expr.pr
 
   // lookDown：睡眠/唤醒/思考态屏蔽；好奇/兴奋 +7px 抵消其负 pdy
-  const lookDownOffset = lookDown && !asleep && !waking && !thinking
-    ? (mood === '好奇' || mood === '兴奋') ? 7.0 : 4.5
-    : 0
+  const lookDownOffset =
+    lookDown && !asleep && !waking && !thinking
+      ? mood === '好奇' || mood === '兴奋'
+        ? 7.0
+        : 4.5
+      : 0
 
   const cyL = 22 + expr.pdy + lookDownOffset
   const cyR = 22 + expr.pdy + lookDownOffset
@@ -225,7 +248,7 @@ export function Eyes({
   const liddyR = expr.liddyR ?? expr.liddy ?? 0
   const lidtyL = expr.lidty ?? 0
   const lidtyR = expr.lidty ?? 0
-  const slant  = expr.lidSlant ?? 0
+  const slant = expr.lidSlant ?? 0
 
   // clipPath 多边形：动态 eyeTop/eyeBot 替代硬编码的 5/39，左右各用自己的边界
   const polyL = `14,${eyeTopL + liddyL} 42,${eyeTopL + liddyL + slant} 42,${eyeBotL - lidtyL} 14,${eyeBotL - lidtyL}`
@@ -239,17 +262,22 @@ export function Eyes({
   const clipRId = `eye-clip-r-${uid}`
 
   // CSS class 控制瞳孔动效
-  const calmDrift = mood === '平静' && !busy && !asleep && !waking && !thinking && !lookDown && !drifting
-  const sadSway   = mood === '难过' && !asleep && !waking && !thinking && !lookDown
+  const calmDrift =
+    mood === '平静' && !busy && !asleep && !waking && !thinking && !lookDown && !drifting
+  const sadSway = mood === '难过' && !asleep && !waking && !thinking && !lookDown
+  const happyDrift =
+    mood === '愉快' && !drifting && !asleep && !waking && !busy && !lookDown && !thinking
+  const happyFace = mood === '愉快' && !asleep && !waking && !thinking && !drifting
 
   const classes = ['eyes-z']
-  if (asleep && !waking) classes.push('asleep')  // waking 期间去掉 asleep class，防止 eye-flutter 压制
-  if (thinking)          classes.push('thinking')
-  if (drifting)          classes.push('drifting')
-  if (calmDrift)         classes.push('calm')
-  if (sadSway)           classes.push('sad')
-  if (beating)           classes.push('first-react')
-  if (shaking)           classes.push('error-shake')
+  if (asleep && !waking) classes.push('asleep') // waking 期间去掉 asleep class，防止 eye-flutter 压制
+  if (thinking) classes.push('thinking')
+  if (drifting) classes.push('drifting')
+  if (calmDrift) classes.push('calm')
+  if (sadSway) classes.push('sad')
+  if (beating) classes.push('first-react')
+  if (shaking) classes.push('error-shake')
+  if (happyDrift) classes.push('happy')
 
   return (
     <svg
@@ -260,7 +288,7 @@ export function Eyes({
       fill="none"
       role="img"
       aria-label={`小Z${mood ? '·' + mood : ''}`}
-      style={style}
+      style={{ ...style, overflow: 'visible' }}
       shapeRendering="geometricPrecision"
     >
       <defs>
@@ -271,14 +299,55 @@ export function Eyes({
           <polygon points={polyR} />
         </clipPath>
       </defs>
-      <g className="eye eye-l" clipPath={`url(#${clipLId})`}>
+      {/* 愉快：新月瞳孔 + 红点腮红 */}
+      {happyFace && (
+        <g className="happy-face">
+          <circle className="happy-dot" cx="11" cy="37" r="2.9" fill="#f06070" />
+          <circle className="happy-dot r" cx="89" cy="37" r="2.9" fill="#f06070" />
+          <g className="eye eye-l" clipPath={`url(#${clipLId})`}>
+            <ellipse cx="28" cy="22" rx="13" ry={ryL} fill={fill} />
+            <g className="pupil happy-pupil pupil-l">
+              <circle cx="28" cy="22" r="3.9" fill={pp} />
+              <circle cx="28" cy="25.1" r="3.55" fill={fill} />
+            </g>
+          </g>
+          <g className="eye eye-r" clipPath={`url(#${clipRId})`}>
+            <ellipse cx="72" cy="22" rx="13" ry={ryR} fill={fill} />
+            <g className="pupil happy-pupil pupil-r">
+              <circle cx="72" cy="22" r="3.9" fill={pp} />
+              <circle cx="72" cy="25.1" r="3.55" fill={fill} />
+            </g>
+          </g>
+        </g>
+      )}
+
+      {/* 常规眼睛（愉快时通过 display:none 隐藏，避免 React 卸载/挂载） */}
+      <g
+        className="eye eye-l"
+        clipPath={`url(#${clipLId})`}
+        style={{ display: happyFace ? 'none' : undefined }}
+      >
         <ellipse cx="28" cy="22" rx="13" ry={ryL} fill={fill} />
         <circle className="pupil pupil-l" cx={cxL} cy={cyL} r={prL} fill={pp} />
       </g>
-      <g className="eye eye-r" clipPath={`url(#${clipRId})`}>
+      <g
+        className="eye eye-r"
+        clipPath={`url(#${clipRId})`}
+        style={{ display: happyFace ? 'none' : undefined }}
+      >
         <ellipse cx="72" cy="22" rx="13" ry={ryR} fill={fill} />
         <circle className="pupil pupil-r" cx={cxR} cy={cyR} r={prR} fill={pp} />
       </g>
+
+      {/* 思考中三点：SVG 内部，两眼正上方 */}
+      {thinking && !asleep && (
+        <g className="z-think-dots">
+          <circle cx="41" cy="-2" r="1.8" fill={fill} />
+          <circle cx="50" cy="-2" r="1.8" fill={fill} />
+          <circle cx="59" cy="-2" r="1.8" fill={fill} />
+        </g>
+      )}
+
       {expr.sparkle && (
         <g className="eyes-sparkle" fill={fill}>
           <circle cx="20" cy="9" r="1.2" />

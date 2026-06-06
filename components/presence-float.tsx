@@ -23,7 +23,7 @@ export function PresenceFloat({
   flyFrom = null,
 }: PresenceFloatProps) {
   const currentStatus = useStore((s) => s.currentStatus)
-  const currentMood   = useStore((s) => s.currentMood)
+  const currentMood = useStore((s) => s.currentMood)
 
   const label = STATUS_LABELS[currentStatus] ?? STATUS_LABELS.idle
   const moodVisible = !!currentMood && !MOOD_HIDDEN_STATUSES.has(currentStatus)
@@ -77,13 +77,6 @@ export function PresenceFloat({
           beatKey={beatKey}
           errorKey={errKey}
         />
-        {showThinking && (
-          <span className="think-dots">
-            <i />
-            <i />
-            <i />
-          </span>
-        )}
       </div>
       <div className="presence-label">
         <span className="presence-dot" />

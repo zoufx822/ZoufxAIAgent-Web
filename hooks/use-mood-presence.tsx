@@ -18,13 +18,30 @@ const MOOD_MIN_MS = 1500
 
 // 情绪色查表，与 CSS [data-emotion] token 对齐（亮暗各一套），供光晕冻结颜色。
 const EMOTION_HEX: Record<'light' | 'dark', Record<string, string>> = {
-  light: { 平静: '#94a3b8', 好奇: '#06b6d4', 兴奋: '#f59e0b', 困惑: '#a855f7', 难过: '#5b80c0', 愤怒: '#ef4444' },
-  dark: { 平静: '#94a3b8', 好奇: '#22d3ee', 兴奋: '#fbbf24', 困惑: '#c084fc', 难过: '#7d9fde', 愤怒: '#f87171' },
+  light: {
+    平静: '#78b4a0',
+    愉快: '#10b981',
+    好奇: '#06b6d4',
+    兴奋: '#f59e0b',
+    困惑: '#a855f7',
+    难过: '#5b80c0',
+    愤怒: '#ef4444',
+  },
+  dark: {
+    平静: '#8ecabc',
+    愉快: '#34d399',
+    好奇: '#22d3ee',
+    兴奋: '#fbbf24',
+    困惑: '#c084fc',
+    难过: '#7d9fde',
+    愤怒: '#f87171',
+  },
 }
 
 function emotionHex(mood: string): string {
   // next-themes attribute="class"：暗色 = html.dark
-  const dark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark')
+  const dark =
+    typeof document !== 'undefined' && document.documentElement.classList.contains('dark')
   const table = dark ? EMOTION_HEX.dark : EMOTION_HEX.light
   return table[mood] ?? '#94a3b8'
 }
@@ -58,7 +75,12 @@ export function useMoodPresence(mood: string | null) {
     prevMood.current = mood
   }, [mood, fire]) // 行内连发也会逐次触发
 
-  useEffect(() => () => { if (lockRef.current) clearTimeout(lockRef.current) }, [])
+  useEffect(
+    () => () => {
+      if (lockRef.current) clearTimeout(lockRef.current)
+    },
+    []
+  )
 
   const glowEls = glows.map((g) => (
     <div

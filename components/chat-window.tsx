@@ -1,13 +1,6 @@
 'use client'
 
-import React, {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react'
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { ArrowUp, Plus, Sparkles, Square } from 'lucide-react'
 import { Menu } from '@base-ui/react/menu'
@@ -236,17 +229,16 @@ export function ChatWindow() {
   const [typingActive, setTypingActive] = useState(false)
   const handleTypingStart = useCallback((active: boolean) => setTypingActive(active), [])
 
-
   // 全局交互监听——重置 lastInputAt，解除走神/更新 idle 时钟
   useEffect(() => {
     const reset = () => setLastInputAt(Date.now())
     window.addEventListener('mousemove', reset, { passive: true })
-    window.addEventListener('keydown',   reset, { passive: true })
-    window.addEventListener('click',     reset, { passive: true })
+    window.addEventListener('keydown', reset, { passive: true })
+    window.addEventListener('click', reset, { passive: true })
     return () => {
       window.removeEventListener('mousemove', reset)
-      window.removeEventListener('keydown',   reset)
-      window.removeEventListener('click',     reset)
+      window.removeEventListener('keydown', reset)
+      window.removeEventListener('click', reset)
     }
   }, [])
 
@@ -268,8 +260,7 @@ export function ChatWindow() {
   // 情绪连发 → home 页光晕池叠加 + 第一反应节拍 + 最小播放锁
   const { glowEls: homeGlowEls, beatKey: homeBeatKey, moodLocked } = useMoodPresence(currentMood)
   // 思考中 = 系统处于思考/调用工具态；锁内情绪优先于思考占位脸
-  const showThinking =
-    (currentStatus === 'thinking' || currentStatus === 'tooling') && !moodLocked
+  const showThinking = (currentStatus === 'thinking' || currentStatus === 'tooling') && !moodLocked
 
   const { data: hot } = useMemoryHot('user-impression')
   const intimacy = useIntimacy(hot)
@@ -309,7 +300,12 @@ export function ChatWindow() {
   const inputSlotRef = useRef<HTMLDivElement>(null)
   const [flying, setFlying] = useState(false)
   const flyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  useEffect(() => () => { if (flyTimerRef.current) clearTimeout(flyTimerRef.current) }, [])
+  useEffect(
+    () => () => {
+      if (flyTimerRef.current) clearTimeout(flyTimerRef.current)
+    },
+    []
+  )
 
   // 聊天页输入框挂载（isEmpty true→false）时从起始页居中大框 FLIP 滑入（仅平移，避免圆角变形）
   useLayoutEffect(() => {
@@ -406,13 +402,6 @@ export function ChatWindow() {
                   waking={isWaking}
                   beatKey={homeBeatKey}
                 />
-                {showThinking && (
-                  <span className="think-dots">
-                    <i />
-                    <i />
-                    <i />
-                  </span>
-                )}
               </div>
               <div className="home-sig">
                 <span className="home-sig-rule"></span>
@@ -508,8 +497,13 @@ export function ChatWindow() {
                       <div key={`br-${i}`} className="breath-divider">
                         <svg width="40" height="1">
                           <line
-                            x1="0" y1="0.5" x2="40" y2="0.5"
-                            stroke="var(--border)" strokeWidth="1" strokeDasharray="2 4"
+                            x1="0"
+                            y1="0.5"
+                            x2="40"
+                            y2="0.5"
+                            stroke="var(--border)"
+                            strokeWidth="1"
+                            strokeDasharray="2 4"
                           />
                         </svg>
                       </div>

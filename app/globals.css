@@ -206,68 +206,279 @@
     }
   }
 
-
-/* ── 起始页→聊天页 FLIP 转场（贴合原型 Zoufx AI.html）──────────────
+  /* ── 起始页→聊天页 FLIP 转场（贴合原型 Zoufx AI.html）──────────────
    眼睛 / 输入框的位移由 JS runFlip 接管（在目标元素上做 First-Last-Invert-Play）；
    根容器不做整体上飘，改为聊天内容分层淡入——消息区延迟 .16s，避免第一条用户气泡在飞行途中突兀蹦出。 */
-.chat-flying .chat-scroll-area{animation:chatContentIn .44s ease .16s both;}
-.chat-flying .chat-input-area{animation:chatContentIn .40s ease .06s both;}
-@keyframes chatContentIn{from{opacity:0;}to{opacity:1;}}
-@media (prefers-reduced-motion: reduce){
-  .chat-flying .chat-scroll-area,.chat-flying .chat-input-area{animation:none;}
-}
+  .chat-flying .chat-scroll-area {
+    animation: chatContentIn 0.44s ease 0.16s both;
+  }
+  .chat-flying .chat-input-area {
+    animation: chatContentIn 0.4s ease 0.06s both;
+  }
+  @keyframes chatContentIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .chat-flying .chat-scroll-area,
+    .chat-flying .chat-input-area {
+      animation: none;
+    }
+  }
 
-/* ── 工具块（贴合原型 Zoufx AI.html）─────────────────────────────
+  /* ── 工具块（贴合原型 Zoufx AI.html）─────────────────────────────
    ① 出现时 max-height "长出"+淡入（挂载即播）；② running 时 dot 脉冲 + JS 计时跳动；
    ③ 完成 0.4s 后未展开 → 收扁（.flat）：head 变薄、整体压暗；hover 还原。
    meta 簇 margin-left:auto 右对齐，query/result 进可展开 body。 */
-@keyframes toolPulse{0%,100%{transform:scale(1);opacity:.55;}50%{transform:scale(1.5);opacity:1;}}
-.tool{font-family:var(--mono);border:1px solid var(--border);background:var(--surface);border-radius:6px;margin:8px 0 18px;overflow:hidden;font-size:12px;animation:tool-grow .42s cubic-bezier(.22,1,.36,1);}
-@keyframes tool-grow{
-  0%  {opacity:0;max-height:0;transform:translateY(-3px);}
-  100%{opacity:1;max-height:260px;transform:translateY(0);}
-}
-.tool-head{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--sidebar);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;transition:padding .32s cubic-bezier(.22,1,.36,1),opacity .32s ease,background-color .22s ease,border-color .22s ease;}
-.tool-head.closed{border-bottom:none;}
-.tool-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;background:var(--t1);}
-.tool-dot.running{animation:toolPulse 1.2s ease-in-out infinite;}
-.tool-dot.done{background:var(--t2);}
-.tool-dot.error{background:#dc2626;}
-.tool-name{font-weight:500;color:var(--t1);letter-spacing:.01em;font-size:11.5px;}
-.tool-meta{margin-left:auto;color:var(--t3);font-size:10.5px;letter-spacing:.06em;display:flex;align-items:center;gap:8px;transition:opacity .28s ease;}
-.tool-meta .sep{width:1px;height:9px;background:var(--border);}
-.tool-meta .dur{font-variant-numeric:tabular-nums;font-feature-settings:'tnum' 1;min-width:42px;text-align:right;display:inline-block;}
-.tool-caret{color:var(--t3);transition:transform .2s;display:flex;}
-.tool-caret.open{transform:rotate(90deg);}
-.tool-body{padding:10px 12px;font-size:11.5px;color:var(--t2);line-height:1.7;overflow:auto;}
-.tool-body .lbl{display:block;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--t3);margin:0 0 5px;}
-.tool-body .lbl + .v{margin:0 0 10px;color:var(--t1);font-size:11.5px;white-space:pre-wrap;}
-.tool-body .lbl:not(:first-child){margin-top:4px;}
-.tool.flat{opacity:.78;}
-.tool.flat .tool-head{padding-top:5px;padding-bottom:5px;}
-.tool.flat .tool-meta{opacity:.5;}
-.tool.flat:hover{opacity:1;}
-.tool.flat:hover .tool-head{padding-top:8px;padding-bottom:8px;}
-.tool.flat:hover .tool-meta{opacity:1;}
-@media (prefers-reduced-motion: reduce){
-  .tool{animation:none;}
-}
+  @keyframes toolPulse {
+    0%,
+    100% {
+      transform: scale(1);
+      opacity: 0.55;
+    }
+    50% {
+      transform: scale(1.5);
+      opacity: 1;
+    }
+  }
+  .tool {
+    font-family: var(--mono);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    border-radius: 6px;
+    margin: 8px 0 18px;
+    overflow: hidden;
+    font-size: 12px;
+    animation: tool-grow 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  @keyframes tool-grow {
+    0% {
+      opacity: 0;
+      max-height: 0;
+      transform: translateY(-3px);
+    }
+    100% {
+      opacity: 1;
+      max-height: 260px;
+      transform: translateY(0);
+    }
+  }
+  .tool-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    background: var(--sidebar);
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    user-select: none;
+    transition:
+      padding 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.32s ease,
+      background-color 0.22s ease,
+      border-color 0.22s ease;
+  }
+  .tool-head.closed {
+    border-bottom: none;
+  }
+  .tool-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: var(--t1);
+  }
+  .tool-dot.running {
+    animation: toolPulse 1.2s ease-in-out infinite;
+  }
+  .tool-dot.done {
+    background: var(--t2);
+  }
+  .tool-dot.error {
+    background: #dc2626;
+  }
+  .tool-name {
+    font-weight: 500;
+    color: var(--t1);
+    letter-spacing: 0.01em;
+    font-size: 11.5px;
+  }
+  .tool-meta {
+    margin-left: auto;
+    color: var(--t3);
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: opacity 0.28s ease;
+  }
+  .tool-meta .sep {
+    width: 1px;
+    height: 9px;
+    background: var(--border);
+  }
+  .tool-meta .dur {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1;
+    min-width: 42px;
+    text-align: right;
+    display: inline-block;
+  }
+  .tool-caret {
+    color: var(--t3);
+    transition: transform 0.2s;
+    display: flex;
+  }
+  .tool-caret.open {
+    transform: rotate(90deg);
+  }
+  .tool-body {
+    padding: 10px 12px;
+    font-size: 11.5px;
+    color: var(--t2);
+    line-height: 1.7;
+    overflow: auto;
+  }
+  .tool-body .lbl {
+    display: block;
+    font-size: 9.5px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--t3);
+    margin: 0 0 5px;
+  }
+  .tool-body .lbl + .v {
+    margin: 0 0 10px;
+    color: var(--t1);
+    font-size: 11.5px;
+    white-space: pre-wrap;
+  }
+  .tool-body .lbl:not(:first-child) {
+    margin-top: 4px;
+  }
+  .tool.flat {
+    opacity: 0.78;
+  }
+  .tool.flat .tool-head {
+    padding-top: 5px;
+    padding-bottom: 5px;
+  }
+  .tool.flat .tool-meta {
+    opacity: 0.5;
+  }
+  .tool.flat:hover {
+    opacity: 1;
+  }
+  .tool.flat:hover .tool-head {
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+  .tool.flat:hover .tool-meta {
+    opacity: 1;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .tool {
+      animation: none;
+    }
+  }
 
-/* ── 思考块（贴合原型）：流式中 dot+「思考中」；结束后 1.5s 折叠成单行可展开 ── */
-@keyframes thinkPulse{0%,100%{opacity:.35;}50%{opacity:1;}}
-.think-a{position:relative;font-family:var(--mono);font-size:12.5px;line-height:1.85;color:var(--t2);padding:6px 0 6px 14px;margin:4px 0 14px;border-left:1px solid var(--border);letter-spacing:0;white-space:pre-wrap;}
-.think-head{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:6px;display:flex;align-items:center;gap:6px;}
-.think-head-dot{width:5px;height:5px;border-radius:50%;background:var(--t2);animation:thinkPulse 1.6s ease-in-out infinite;}
-.think-a.collapsed{padding-top:4px;padding-bottom:4px;margin-bottom:10px;}
-.think-collapsed-row{display:flex;align-items:center;gap:10px;cursor:pointer;animation:fadeIn .3s ease both;}
-.think-collapsed-row .think-head-label{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);flex-shrink:0;}
-.think-peek{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--t3);font-style:italic;font-size:11.5px;letter-spacing:.005em;}
-.think-caret-i{display:flex;color:var(--t3);flex-shrink:0;transition:transform .2s,color .2s;}
-.think-collapsed-row:hover .think-caret-i{color:var(--t2);}
-.think-collapsed-row:hover .think-peek{color:var(--t2);}
-.think-head.clickable{cursor:pointer;}
-.think-head .think-caret-i{margin-left:auto;}
-/* thinking 字符渐入（阶段 B 用） */
+  /* ── 思考块（贴合原型）：流式中 dot+「思考中」；结束后 1.5s 折叠成单行可展开 ── */
+  @keyframes thinkPulse {
+    0%,
+    100% {
+      opacity: 0.35;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+  .think-a {
+    position: relative;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.85;
+    color: var(--t2);
+    padding: 6px 0 6px 14px;
+    margin: 4px 0 14px;
+    border-left: 1px solid var(--border);
+    letter-spacing: 0;
+    white-space: pre-wrap;
+  }
+  .think-head {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--t3);
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .think-head-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--t2);
+    animation: thinkPulse 1.6s ease-in-out infinite;
+  }
+  .think-a.collapsed {
+    padding-top: 4px;
+    padding-bottom: 4px;
+    margin-bottom: 10px;
+  }
+  .think-collapsed-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    animation: fadeIn 0.3s ease both;
+  }
+  .think-collapsed-row .think-head-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--t3);
+    flex-shrink: 0;
+  }
+  .think-peek {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--t3);
+    font-style: italic;
+    font-size: 11.5px;
+    letter-spacing: 0.005em;
+  }
+  .think-caret-i {
+    display: flex;
+    color: var(--t3);
+    flex-shrink: 0;
+    transition:
+      transform 0.2s,
+      color 0.2s;
+  }
+  .think-collapsed-row:hover .think-caret-i {
+    color: var(--t2);
+  }
+  .think-collapsed-row:hover .think-peek {
+    color: var(--t2);
+  }
+  .think-head.clickable {
+    cursor: pointer;
+  }
+  .think-head .think-caret-i {
+    margin-left: auto;
+  }
+  /* thinking 字符渐入（阶段 B 用） */
   @keyframes char-in {
     from {
       opacity: 0;
@@ -542,7 +753,7 @@ button {
   transition:
     cx 0.36s cubic-bezier(0.22, 1, 0.36, 1),
     cy 0.36s cubic-bezier(0.22, 1, 0.36, 1),
-    r  0.36s cubic-bezier(0.22, 1, 0.36, 1);
+    r 0.36s cubic-bezier(0.22, 1, 0.36, 1);
 }
 .eyes-z ellipse {
   transition: ry 0.36s cubic-bezier(0.22, 1, 0.36, 1);
@@ -562,37 +773,54 @@ button {
   animation-delay: 0.12s;
 }
 @keyframes pupil-think {
-  0%,9%     { transform: translate(2.3px, -2.6px); }
-  22%,32%   { transform: translate(3.9px, -1.3px); }
-  44%,50%   { transform: translate(2.7px, -2.3px); }
-  62%,74%   { transform: translate(4.1px, -0.3px); }
-  86%,95%   { transform: translate(3.0px, -1.8px); }
-  100%      { transform: translate(2.3px, -2.6px); }
+  0%,
+  9% {
+    transform: translate(2.3px, -2.6px);
+  }
+  22%,
+  32% {
+    transform: translate(3.9px, -1.3px);
+  }
+  44%,
+  50% {
+    transform: translate(2.7px, -2.3px);
+  }
+  62%,
+  74% {
+    transform: translate(4.1px, -0.3px);
+  }
+  86%,
+  95% {
+    transform: translate(3px, -1.8px);
+  }
+  100% {
+    transform: translate(2.3px, -2.6px);
+  }
 }
 
-/* 眼睛右侧三点律动——强化"正在想"。挂在 Eyes 同级（父容器 position:relative）。 */
-.think-dots {
-  position: absolute;
-  left: calc(100% + 12px);
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-  gap: 5px;
-  pointer-events: none;
-}
-.think-dots i {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--accent);
-  opacity: 0.28;
+/* SVG think-dots：两眼正上方三点律动（思考中） */
+.z-think-dots circle {
+  transform-box: fill-box;
+  transform-origin: center;
   animation: think-dot 1.4s ease-in-out infinite;
+  opacity: 0.28;
 }
-.think-dots i:nth-child(2) { animation-delay: 0.18s; }
-.think-dots i:nth-child(3) { animation-delay: 0.36s; }
+.z-think-dots circle:nth-child(2) {
+  animation-delay: 0.18s;
+}
+.z-think-dots circle:nth-child(3) {
+  animation-delay: 0.36s;
+}
 @keyframes think-dot {
-  0%, 100% { opacity: 0.22; transform: translateY(1px); }
-  42%      { opacity: 0.95; transform: translateY(-2px); }
+  0%,
+  100% {
+    opacity: 0.22;
+    transform: translateY(1px);
+  }
+  42% {
+    opacity: 0.95;
+    transform: translateY(-2px);
+  }
 }
 
 /* 第一反应节拍：一轮首个情绪落地的"读脸"高光时刻——快速眨一下 + 瞳孔先收缩再放大到目标。
@@ -607,16 +835,32 @@ button {
   animation: first-react-pupil 0.74s cubic-bezier(0.22, 1, 0.36, 1) both !important;
 }
 @keyframes first-react-blink {
-  0%   { transform: scaleY(1); }
-  12%  { transform: scaleY(0.07); }
-  27%  { transform: scaleY(1); }
-  100% { transform: scaleY(1); }
+  0% {
+    transform: scaleY(1);
+  }
+  12% {
+    transform: scaleY(0.07);
+  }
+  27% {
+    transform: scaleY(1);
+  }
+  100% {
+    transform: scaleY(1);
+  }
 }
 @keyframes first-react-pupil {
-  0%   { transform: scale(1); }
-  20%  { transform: scale(0.58); }
-  56%  { transform: scale(1.1); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(1);
+  }
+  20% {
+    transform: scale(0.58);
+  }
+  56% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 @keyframes eye-blink {
@@ -662,7 +906,9 @@ button {
   .eyes-z .pupil,
   .eyes-z.thinking .eye,
   .eyes-z.thinking .pupil,
-  .think-dots i,
+  .z-think-dots circle,
+  .eyes-z.happy .happy-pupil,
+  .eyes-z.happy .happy-dot,
   .eyes-z.first-react .eye,
   .eyes-z.first-react .eye.eye-r,
   .eyes-z.first-react .pupil,
@@ -699,7 +945,7 @@ button {
   flex-direction: column;
   align-items: center;
   gap: 10px;
-  padding: 28px 24px 18px;
+  padding: 10px 24px 18px;
   background: var(--bg);
   flex-shrink: 0;
   pointer-events: none;
@@ -739,10 +985,22 @@ button {
   height: 250px;
 }
 @keyframes mood-glow-bloom {
-  0%   { opacity: 0;    transform: translate(-50%, -50%) scale(0.6); }
-  26%  { opacity: 0.6;  transform: translate(-50%, -50%) scale(0.95); }
-  55%  { opacity: 0.42; transform: translate(-50%, -50%) scale(1.06); }
-  100% { opacity: 0;    transform: translate(-50%, -50%) scale(1.28); }
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.6);
+  }
+  26% {
+    opacity: 0.6;
+    transform: translate(-50%, -50%) scale(0.95);
+  }
+  55% {
+    opacity: 0.42;
+    transform: translate(-50%, -50%) scale(1.06);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.28);
+  }
 }
 
 /* 常驻呼吸光晕——情绪保持期底层垫的一层很淡、缓慢明灭的余韵（burst 绽放叠在其上）。
@@ -771,8 +1029,15 @@ button {
   animation: mood-ambient-breath 4.4s ease-in-out infinite;
 }
 @keyframes mood-ambient-breath {
-  0%, 100% { opacity: 0.2;  transform: translate(-50%, -50%) scale(0.95); }
-  50%      { opacity: 0.36; transform: translate(-50%, -50%) scale(1.05); }
+  0%,
+  100% {
+    opacity: 0.2;
+    transform: translate(-50%, -50%) scale(0.95);
+  }
+  50% {
+    opacity: 0.36;
+    transform: translate(-50%, -50%) scale(1.05);
+  }
 }
 /* 首页眼睛更大，常驻光晕同步放大 */
 .home-eyes .mood-ambient {
@@ -842,16 +1107,32 @@ button {
   animation: eye-headshake 0.6s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
 }
 @keyframes eye-headshake {
-  0%   { transform: translateX(0)    rotate(0);     }
-  13%  { transform: translateX(-3.2px) rotate(-1.7deg); }
-  31%  { transform: translateX(2.7px)  rotate(1.3deg);  }
-  50%  { transform: translateX(-2.1px) rotate(-1deg);   }
-  69%  { transform: translateX(1.3px)  rotate(0.6deg);  }
-  86%  { transform: translateX(-0.5px) rotate(-0.2deg); }
-  100% { transform: translateX(0)     rotate(0);     }
+  0% {
+    transform: translateX(0) rotate(0);
+  }
+  13% {
+    transform: translateX(-3.2px) rotate(-1.7deg);
+  }
+  31% {
+    transform: translateX(2.7px) rotate(1.3deg);
+  }
+  50% {
+    transform: translateX(-2.1px) rotate(-1deg);
+  }
+  69% {
+    transform: translateX(1.3px) rotate(0.6deg);
+  }
+  86% {
+    transform: translateX(-0.5px) rotate(-0.2deg);
+  }
+  100% {
+    transform: translateX(0) rotate(0);
+  }
 }
 @media (prefers-reduced-motion: reduce) {
-  .eyes-z.error-shake { animation: none; }
+  .eyes-z.error-shake {
+    animation: none;
+  }
 }
 
 /* eyes 兴奋星芒 / 困惑问号 */
@@ -886,6 +1167,55 @@ button {
     transform: translateY(-1.5px);
     opacity: 0.9;
   }
+}
+
+/* ── 愉快表情：新月瞳孔 + 红点腮红 ── */
+@keyframes happy-bob {
+  0%,
+  4% {
+    transform: translate(0, 0);
+  }
+  12%,
+  22% {
+    transform: translate(1.8px, -0.9px);
+  }
+  30%,
+  40% {
+    transform: translate(0, -0.5px);
+  }
+  48%,
+  58% {
+    transform: translate(-1.8px, -0.9px);
+  }
+  66%,
+  76% {
+    transform: translate(0.6px, -0.3px);
+  }
+  84%,
+  100% {
+    transform: translate(0, 0);
+  }
+}
+@keyframes happy-dot-pulse {
+  0%,
+  100% {
+    opacity: 0.82;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.eyes-z.happy .happy-pupil {
+  animation: happy-bob 9s ease-in-out infinite;
+}
+.eyes-z.happy .pupil-r {
+  animation-delay: 0.12s;
+}
+.eyes-z.happy .happy-dot {
+  animation: happy-dot-pulse 3.8s ease-in-out infinite;
+}
+.eyes-z.happy .happy-dot.r {
+  animation-delay: 0.28s;
 }
 
 /* ───────────────────────────────────────
@@ -1200,12 +1530,22 @@ button {
   animation: sig-name-in 0.45s ease 0.15s both;
 }
 @keyframes sig-rule-expand {
-  from { transform: scaleX(0); }
-  to   { transform: scaleX(1); }
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
 }
 @keyframes sig-name-in {
-  from { opacity: 0; letter-spacing: 0.4em; }
-  to   { opacity: 1; letter-spacing: 0.18em; }
+  from {
+    opacity: 0;
+    letter-spacing: 0.4em;
+  }
+  to {
+    opacity: 1;
+    letter-spacing: 0.18em;
+  }
 }
 
 .home-status {
@@ -1232,8 +1572,13 @@ button {
   animation: home-float-asleep 8s ease-in-out infinite;
 }
 @keyframes home-float-asleep {
-  0%, 100% { transform: translateY(0); }
-  50%       { transform: translateY(-1.5px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-1.5px);
+  }
 }
 .eyes-z.asleep .eye {
   animation: eye-flutter 12s ease-in-out infinite;
@@ -1242,9 +1587,17 @@ button {
   animation: none;
 }
 @keyframes eye-flutter {
-  0%, 80%, 100% { transform: scaleY(1); }
-  86%           { transform: scaleY(0.55); }
-  90%           { transform: scaleY(1); }
+  0%,
+  80%,
+  100% {
+    transform: scaleY(1);
+  }
+  86% {
+    transform: scaleY(0.55);
+  }
+  90% {
+    transform: scaleY(1);
+  }
 }
 .home-status-zh {
   font-family: 'Space Grotesk', 'Noto Sans SC', sans-serif;
@@ -1298,21 +1651,62 @@ button {
 /* ── 状态色 --mood-color（由 data-mood 状态决定） ──
  * 简化为 3 类：idle 绿 / tooling 琥珀（独立，时长较长） / 其余非 idle 统一蓝
  * ── */
-[data-mood='idle']     { --mood-color: #22c55e; --mood-glow: #22c55e60; }
-[data-mood='thinking'] { --mood-color: #3b82f6; --mood-glow: #3b82f680; }
-[data-mood='tooling']  { --mood-color: #d97706; --mood-glow: #d9770680; }
-[data-mood='writing']  { --mood-color: #3b82f6; --mood-glow: #3b82f680; }
-[data-mood='error']    { --mood-color: #dc2626; --mood-glow: #dc262680; }
-[data-mood='asleep']   { --mood-color: #7c3aed; --mood-glow: #7c3aed60; }
-[data-mood='drifting'] { --mood-color: #94a3b8; --mood-glow: #94a3b860; }
+[data-mood='idle'] {
+  --mood-color: #22c55e;
+  --mood-glow: #22c55e60;
+}
+[data-mood='thinking'] {
+  --mood-color: #3b82f6;
+  --mood-glow: #3b82f680;
+}
+[data-mood='tooling'] {
+  --mood-color: #d97706;
+  --mood-glow: #d9770680;
+}
+[data-mood='writing'] {
+  --mood-color: #3b82f6;
+  --mood-glow: #3b82f680;
+}
+[data-mood='error'] {
+  --mood-color: #dc2626;
+  --mood-glow: #dc262680;
+}
+[data-mood='asleep'] {
+  --mood-color: #7c3aed;
+  --mood-glow: #7c3aed60;
+}
+[data-mood='drifting'] {
+  --mood-color: #94a3b8;
+  --mood-glow: #94a3b860;
+}
 
-.dark [data-mood='idle']     { --mood-color: #4ade80;  --mood-glow: #4ade8060; }
-.dark [data-mood='thinking'] { --mood-color: #60a5fa;  --mood-glow: #60a5fa80; }
-.dark [data-mood='tooling']  { --mood-color: #fbbf24;  --mood-glow: #fbbf2480; }
-.dark [data-mood='writing']  { --mood-color: #60a5fa;  --mood-glow: #60a5fa80; }
-.dark [data-mood='error']    { --mood-color: #f87171;  --mood-glow: #f8717180; }
-.dark [data-mood='asleep']   { --mood-color: #a78bfa;  --mood-glow: #a78bfa60; }
-.dark [data-mood='drifting'] { --mood-color: #94a3b8; }
+.dark [data-mood='idle'] {
+  --mood-color: #4ade80;
+  --mood-glow: #4ade8060;
+}
+.dark [data-mood='thinking'] {
+  --mood-color: #60a5fa;
+  --mood-glow: #60a5fa80;
+}
+.dark [data-mood='tooling'] {
+  --mood-color: #fbbf24;
+  --mood-glow: #fbbf2480;
+}
+.dark [data-mood='writing'] {
+  --mood-color: #60a5fa;
+  --mood-glow: #60a5fa80;
+}
+.dark [data-mood='error'] {
+  --mood-color: #f87171;
+  --mood-glow: #f8717180;
+}
+.dark [data-mood='asleep'] {
+  --mood-color: #a78bfa;
+  --mood-glow: #a78bfa60;
+}
+.dark [data-mood='drifting'] {
+  --mood-color: #94a3b8;
+}
 
 /* ── 情绪色 --emotion-color（由 data-emotion 当前 mood 决定） ──
  * 用途：① 聚光灯光晕 ② 情绪标签文字
@@ -1332,30 +1726,75 @@ button {
 /* 直接消费 var(--emotion-color) 的情绪标签：补 0.4s 颜色过渡 */
 .presence-mood,
 .home-status-mood {
-  transition: color 0.4s ease, opacity 0.35s ease;
+  transition:
+    color 0.4s ease,
+    opacity 0.35s ease;
 }
 
-[data-emotion='平静'] { --emotion-color: #94a3b8; }
-[data-emotion='好奇'] { --emotion-color: #06b6d4; }
-[data-emotion='兴奋'] { --emotion-color: #f59e0b; }
-[data-emotion='困惑'] { --emotion-color: #a855f7; }
-[data-emotion='难过'] { --emotion-color: #5b80c0; }
-[data-emotion='愤怒'] { --emotion-color: #ef4444; }
+[data-emotion='平静'] {
+  --emotion-color: #78b4a0;
+}
+[data-emotion='愉快'] {
+  --emotion-color: #10b981;
+}
+[data-emotion='好奇'] {
+  --emotion-color: #06b6d4;
+}
+[data-emotion='兴奋'] {
+  --emotion-color: #f59e0b;
+}
+[data-emotion='困惑'] {
+  --emotion-color: #a855f7;
+}
+[data-emotion='难过'] {
+  --emotion-color: #5b80c0;
+}
+[data-emotion='愤怒'] {
+  --emotion-color: #ef4444;
+}
 
-.dark [data-emotion='平静'] { --emotion-color: #94a3b8; }
-.dark [data-emotion='好奇'] { --emotion-color: #22d3ee; }
-.dark [data-emotion='兴奋'] { --emotion-color: #fbbf24; }
-.dark [data-emotion='困惑'] { --emotion-color: #c084fc; }
-.dark [data-emotion='难过'] { --emotion-color: #7d9fde; }
-.dark [data-emotion='愤怒'] { --emotion-color: #f87171; }
+.dark [data-emotion='平静'] {
+  --emotion-color: #8ecabc;
+}
+.dark [data-emotion='愉快'] {
+  --emotion-color: #34d399;
+}
+.dark [data-emotion='好奇'] {
+  --emotion-color: #22d3ee;
+}
+.dark [data-emotion='兴奋'] {
+  --emotion-color: #fbbf24;
+}
+.dark [data-emotion='困惑'] {
+  --emotion-color: #c084fc;
+}
+.dark [data-emotion='难过'] {
+  --emotion-color: #7d9fde;
+}
+.dark [data-emotion='愤怒'] {
+  --emotion-color: #f87171;
+}
 .eyes-z.drifting .pupil {
   animation: pupil-drift 18s ease-in-out infinite;
 }
 @keyframes pupil-drift {
-  0%, 20%, 100% { transform: translate(0, 0); }
-  28%, 44%      { transform: translate(4.5px, -0.5px); }
-  54%, 66%      { transform: translate(0, 0); }
-  74%, 90%      { transform: translate(-3.8px, 0.5px); }
+  0%,
+  20%,
+  100% {
+    transform: translate(0, 0);
+  }
+  28%,
+  44% {
+    transform: translate(4.5px, -0.5px);
+  }
+  54%,
+  66% {
+    transform: translate(0, 0);
+  }
+  74%,
+  90% {
+    transform: translate(-3.8px, 0.5px);
+  }
 }
 
 /* 平静：同步游移扫视，快速移动 + 停留，幅度随机感 */
@@ -1363,15 +1802,42 @@ button {
   animation: calm-wander 18s ease infinite;
 }
 @keyframes calm-wander {
-  0%,  3%  { transform: translate(0, 0); }
-  6%,  16% { transform: translate(2.4px, 0.5px); }
-  19%, 29% { transform: translate(3.6px, -0.7px); }
-  32%, 40% { transform: translate(0, 0); }
-  43%, 53% { transform: translate(-2.8px, 1.1px); }
-  56%, 64% { transform: translate(-1.0px, -1.3px); }
-  67%, 75% { transform: translate(0, 0); }
-  78%, 88% { transform: translate(3.2px, 0.4px); }
-  91%, 100%{ transform: translate(0, 0); }
+  0%,
+  3% {
+    transform: translate(0, 0);
+  }
+  6%,
+  16% {
+    transform: translate(2.4px, 0.5px);
+  }
+  19%,
+  29% {
+    transform: translate(3.6px, -0.7px);
+  }
+  32%,
+  40% {
+    transform: translate(0, 0);
+  }
+  43%,
+  53% {
+    transform: translate(-2.8px, 1.1px);
+  }
+  56%,
+  64% {
+    transform: translate(-1px, -1.3px);
+  }
+  67%,
+  75% {
+    transform: translate(0, 0);
+  }
+  78%,
+  88% {
+    transform: translate(3.2px, 0.4px);
+  }
+  91%,
+  100% {
+    transform: translate(0, 0);
+  }
 }
 
 /* 难过：左右平移，各停留约 4s，缓慢 */
@@ -1379,9 +1845,23 @@ button {
   animation: sad-sway 10s ease-in-out infinite;
 }
 @keyframes sad-sway {
-  0%,  4%  { transform: translate(0, 0); }
-  9%,  49% { transform: translate(-1.6px, 0); }
-  54%, 58% { transform: translate(0, 0); }
-  63%, 96% { transform: translate(1.6px, 0); }
-  100%     { transform: translate(0, 0); }
+  0%,
+  4% {
+    transform: translate(0, 0);
+  }
+  9%,
+  49% {
+    transform: translate(-1.6px, 0);
+  }
+  54%,
+  58% {
+    transform: translate(0, 0);
+  }
+  63%,
+  96% {
+    transform: translate(1.6px, 0);
+  }
+  100% {
+    transform: translate(0, 0);
+  }
 }
