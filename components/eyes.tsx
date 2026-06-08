@@ -6,6 +6,9 @@ import { useEffect, useMemo, useRef, useState, useId } from 'react'
  * Eyes SVG 字标——v0.14 rev7（设计同步）。
  *
  * 七词情绪谱：平静 / 愉快 / 好奇 / 兴奋 / 困惑 / 难过 / 愤怒。
+ * 一个表情 = 一套 Expr 配置（眼睛几何 + 嘴型 mouth + 标记），统一继承 BASE 基底：
+ * 改全局只动 BASE，新增表情只加一条 face({...})，嘴型为纯数据 MouthSpec 由 <Mouth> 渲染。
+ * （愉快的新月眼替代渲染、calm/sad/happy 的 CSS 动效 class 本质是渲染策略/动画，仍按 mood 处理。）
  * 几何驱动：pr 瞳孔半径，pdy 瞳孔下移，esy 眼眶纵向缩放，blink 眨眼周期，
  *           liddy 上睑下垂，lidty 下睑上抬，lidSlant 上眼睑斜率（愤怒 angry brow），
  *           pdx 瞳孔水平偏移，sparkle 兴奋星芒，question 困惑问号。
@@ -16,6 +19,18 @@ import { useEffect, useMemo, useRef, useState, useId } from 'react'
  * 动态 clip 边界：eyeTop/eyeBot 根据 ry 实时计算，任何 esy 都不截顶/截底。
  */
 
+/**
+ * 嘴型描述符——纯数据，由 <Mouth> 统一渲染。
+ * arc 的控制点 x 恒为中线 50（直线即 cy=y 的退化 arc，故未单列 line）；
+ * wave（困惑双峰）/ teeth（愤怒咬牙）为单情绪专用形态。
+ */
+type MouthSpec =
+  | { kind: 'none' }
+  | { kind: 'arc'; x1: number; x2: number; y: number; cy: number; w: number }
+  | { kind: 'ellipse'; cx: number; cy: number; rx: number; ry: number }
+  | { kind: 'wave'; d: string; w: number }
+  | { kind: 'teeth' }
+
 interface Expr {
   pr: number
   pdy: number
@@ -23,6 +38,7 @@ interface Expr {
   blink: number
   liddy: number
   lidty: number
+  mouth: MouthSpec
   lidSlant?: number
   pdx?: number
   pdxR?: number
@@ -33,39 +49,48 @@ interface Expr {
   question?: boolean
 }
 
+// 通用基底（平静脸）：所有表情继承它，只写差异项；改全局共性只动这里。
+const BASE: Expr = {
+  pr: 3.2,
+  pdy: 0,
+  esy: 1.0,
+  blink: 6,
+  liddy: 0,
+  lidty: 0,
+  mouth: { kind: 'arc', x1: 44, x2: 56, y: 40, cy: 42, w: 2.0 },
+}
+const face = (o: Partial<Expr>): Expr => ({ ...BASE, ...o })
+
 const MOOD_EXPR: Record<string, Expr> = {
-  平静: { pr: 3.2, pdy: 0.0, esy: 1.0, blink: 6, liddy: 0, lidty: 0 },
-  愉快: { pr: 3.9, pdy: 0, esy: 1.0, blink: 4.0, liddy: 0, lidty: 0 },
-  好奇: { pr: 5.0, pdy: -3.2, esy: 1.0, blink: 3.0, liddy: 0, lidty: 0 },
-  兴奋: { pr: 6.2, pdy: -2.6, esy: 1.0, blink: 1.8, liddy: 0, lidty: 0, sparkle: true },
-  困惑: {
+  平静: face({}),
+  愉快: face({ pr: 3.9, blink: 4.0, mouth: { kind: 'arc', x1: 41, x2: 59, y: 40, cy: 45.5, w: 2.0 } }),
+  好奇: face({ pr: 6.5, pdy: -3.2, blink: 3.0, mouth: { kind: 'ellipse', cx: 50, cy: 43, rx: 4.2, ry: 3.5 } }),
+  兴奋: face({ pr: 6.2, pdy: -2.6, blink: 1.8, sparkle: true, mouth: { kind: 'arc', x1: 39, x2: 61, y: 40, cy: 47, w: 2.2 } }),
+  困惑: face({
     pr: 3.6,
     prR: 2.7,
-    pdy: 0.0,
     esy: 1.02,
     esyR: 0.6,
     blink: 5.0,
-    liddy: 0,
-    lidty: 0,
     liddyR: 2.2,
     question: true,
-  },
-  难过: { pr: 3.0, pdy: 1.8, esy: 0.85, blink: 8, liddy: 1.0, lidty: 6.0 },
-  愤怒: { pr: 2.2, pdy: 0.0, esy: 0.85, blink: 7, liddy: 5.0, lidty: 2.0, lidSlant: 8.0 },
+    mouth: { kind: 'wave', d: 'M 43,41 Q 46.5,39 50,41 Q 53.5,43 57,41', w: 2.0 },
+  }),
+  难过: face({ pr: 3.0, pdy: 1.8, esy: 0.85, blink: 8, liddy: 1.0, lidty: 6.0, mouth: { kind: 'arc', x1: 43, x2: 57, y: 38, cy: 33, w: 2.0 } }),
+  愤怒: face({ pr: 2.2, esy: 0.85, blink: 7, liddy: 5.0, lidty: 2.0, lidSlant: 8.0, mouth: { kind: 'teeth' } }),
 }
 
-const DEFAULT_EXPR: Expr = { pr: 3.2, pdy: 0, esy: 1.0, blink: 6, liddy: 0, lidty: 0 }
-const ASLEEP_EXPR: Expr = { pr: 2.0, pdy: 2.4, esy: 0.26, blink: 8, liddy: 0, lidty: 0 }
-// 思考中：瞳孔上抬、眼睛略放松——系统态占位脸，CSS .thinking 再叠加出神游移。
-const THINKING_EXPR: Expr = {
+const DEFAULT_EXPR: Expr = face({})
+const ASLEEP_EXPR: Expr = face({ pr: 2.0, pdy: 2.4, esy: 0.26, blink: 8, mouth: { kind: 'none' } })
+// 思考中：瞳孔上抬、眼睛略放松——系统态占位脸，CSS .thinking 再叠加出神游移；嘴为静默短横。
+const THINKING_EXPR: Expr = face({
   pr: 3.0,
   pdy: -1.4,
   esy: 0.95,
   blink: 5,
-  liddy: 0,
-  lidty: 0,
   lidSlant: 0,
-}
+  mouth: { kind: 'arc', x1: 46, x2: 54, y: 40, cy: 40, w: 2.0 },
+})
 const MOOD_EXPR_MIN_SIZE = 28
 
 export type EyesContext = 'normal' | 'long-silence' | 'high-intensity'
@@ -367,6 +392,44 @@ export function Eyes({
           ?
         </text>
       )}
+
+      {/* ── Mouth ── 嘴型随已解析的 expr 走（asleep 时 expr.mouth=none，此处再加 !asleep 保险） */}
+      {!asleep && <Mouth spec={expr.mouth} fill={fill} pp={pp} />}
     </svg>
   )
+}
+
+/**
+ * 嘴型渲染器——按 MouthSpec.kind 分发：arc/wave 描边，ellipse/teeth 填充。
+ * teeth 牙缝用 pp（背景色）模拟，暗色模式不出错。
+ */
+function Mouth({ spec, fill, pp }: { spec: MouthSpec; fill: string; pp: string }) {
+  switch (spec.kind) {
+    case 'none':
+      return null
+    case 'arc':
+      return (
+        <path
+          d={`M ${spec.x1},${spec.y} Q 50,${spec.cy} ${spec.x2},${spec.y}`}
+          fill="none"
+          stroke={fill}
+          strokeLinecap="round"
+          strokeWidth={spec.w}
+        />
+      )
+    case 'ellipse':
+      return <ellipse cx={spec.cx} cy={spec.cy} rx={spec.rx} ry={spec.ry} fill={fill} />
+    case 'wave':
+      return (
+        <path d={spec.d} fill="none" stroke={fill} strokeLinecap="round" strokeWidth={spec.w} />
+      )
+    case 'teeth':
+      return (
+        <g>
+          <rect x="41" y="37.5" width="18" height="6" rx="1.5" fill={fill} />
+          <rect x="42.5" y="38.5" width="15" height="2" rx="0.5" fill={pp} opacity="0.9" />
+          <rect x="42.5" y="40.7" width="15" height="1.8" rx="0.5" fill={pp} opacity="0.75" />
+        </g>
+      )
+  }
 }
