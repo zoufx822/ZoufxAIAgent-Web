@@ -13,7 +13,7 @@ export interface AnchorEntry {
 export interface AnchorContextView {
   near: AnchorSummary[]
   mid: AnchorSummary[]
-  far: { count: number }
+  far: { count: number; summary?: string }
 }
 
 export interface AnchorSummary {

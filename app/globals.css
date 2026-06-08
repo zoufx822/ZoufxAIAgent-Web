@@ -1221,12 +1221,12 @@ button {
 /* ───────────────────────────────────────
  * v0.145 三层 anchor 衰减视图
  * ─────────────────────────────────────── */
+/* ── memory anchors (v0.145) ─── 三层衰减摘要 */
 .anchor-tier {
-  padding: 10px 12px;
-  border-top: 1px dashed var(--border-lt);
+  margin-top: 10px;
 }
 .anchor-tier:first-child {
-  border-top: none;
+  margin-top: 0;
 }
 .anchor-tier-h {
   font-family: var(--mono);
@@ -1234,80 +1234,181 @@ button {
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--t3);
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   display: flex;
   align-items: center;
   gap: 6px;
+  cursor: default;
 }
-.anchor-tier-h::before {
+.anchor-tier-h.clickable {
+  cursor: pointer;
+  user-select: none;
+}
+.anchor-tier-h.clickable:hover {
+  color: var(--t2);
+}
+.anchor-tier-h .anchor-chev {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 9px;
+  height: 9px;
+  color: var(--t3);
+  transition: transform 0.25s ease;
+}
+.anchor-tier-h.open .anchor-chev {
+  transform: rotate(90deg);
+}
+.anchor-tier-h .anchor-tier-count {
+  margin-left: auto;
+  color: var(--t3);
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+}
+
+/* near：完整卡 */
+.anchor-near-card {
+  padding: 11px 12px;
+  margin-bottom: 6px;
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: background-color 0.18s, border-color 0.18s;
+}
+.anchor-near-card:hover {
+  background: var(--surf-hov);
+}
+.anchor-near-card .anchor-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--t1);
+  letter-spacing: -0.005em;
+  margin-bottom: 5px;
+  font-family: 'Space Grotesk', 'Noto Sans SC', sans-serif;
+}
+.anchor-near-card .anchor-body {
+  color: var(--t2);
+  font-size: 12px;
+  line-height: 1.65;
+  letter-spacing: -0.005em;
+}
+.anchor-near-card .anchor-meta {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  color: var(--t3);
+  letter-spacing: 0.06em;
+}
+.anchor-near-card .anchor-meta-mood {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--t2);
+  font-family: 'Space Grotesk', 'Noto Sans SC', sans-serif;
+  font-size: 10px;
+  letter-spacing: 0;
+}
+.anchor-near-card .anchor-meta-mood::before {
   content: '';
-  display: inline-block;
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  background: var(--t3);
+  background: var(--accent);
+  display: inline-block;
 }
-.anchor-card {
-  padding: 9px 10px;
-  border-radius: 8px;
-  background: var(--surf-hov);
-  border: 1px solid var(--border-lt);
-  margin-bottom: 6px;
-  cursor: pointer;
-  transition:
-    background-color 0.18s,
-    border-color 0.18s;
-}
-.anchor-card:hover {
-  background: var(--chip);
-  border-color: var(--chip-brd);
-}
-.anchor-card-title {
-  font-size: 12.5px;
-  color: var(--t1);
-  font-weight: 500;
-}
-.anchor-card-meta {
-  font-size: 10px;
-  color: var(--t3);
-  font-family: var(--mono);
-  letter-spacing: 0.04em;
-  margin-top: 2px;
-}
-.anchor-row-mid {
-  display: flex;
-  justify-content: space-between;
-  font-size: 11.5px;
-  padding: 4px 2px;
-  color: var(--t2);
-  cursor: pointer;
-}
-.anchor-row-mid:hover {
-  color: var(--t1);
-}
-.anchor-far {
-  font-size: 11px;
-  color: var(--t3);
-  font-style: italic;
-  padding: 6px 2px;
-  text-align: center;
-  border: 1px dashed var(--border-lt);
-  border-radius: 6px;
-}
-.anchor-expand-btn {
-  width: 100%;
-  font-size: 10.5px;
-  font-family: var(--mono);
-  letter-spacing: 0.12em;
-  color: var(--t3);
+
+.anchor-near-toggle {
   background: transparent;
   border: none;
-  padding: 4px 0;
   cursor: pointer;
+  width: 100%;
+  text-align: center;
+  padding: 5px 0;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  color: var(--t3);
+  letter-spacing: 0.14em;
   text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
 }
-.anchor-expand-btn:hover {
+.anchor-near-toggle:hover {
   color: var(--t1);
+}
+
+/* mid：紧凑单行 */
+.anchor-mid-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  margin-bottom: 4px;
+  font-size: 12px;
+  color: var(--t1);
+  letter-spacing: -0.005em;
+  line-height: 1.5;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  transition: background-color 0.18s;
+}
+.anchor-mid-row:hover {
+  background: var(--surf-hov);
+}
+.anchor-mid-row .anchor-mid-title {
+  flex: 1;
+  min-width: 0;
+  color: var(--t1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.anchor-mid-row .anchor-mid-time {
+  flex-shrink: 0;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  color: var(--t3);
+  letter-spacing: 0.06em;
+}
+.anchor-mid-row .anchor-mid-mood {
+  flex-shrink: 0;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* far：合并条 */
+.anchor-far-row {
+  padding: 8px 12px;
+  margin-bottom: 0;
+  font-size: 11.5px;
+  color: var(--t2);
+  font-style: italic;
+  letter-spacing: 0.005em;
+  line-height: 1.55;
+  border-radius: 8px;
+  background: transparent;
+  border: 1px dashed var(--border);
+}
+.anchor-far-row .anchor-far-count {
+  color: var(--t1);
+  font-style: normal;
+  font-weight: 500;
+  margin-right: 4px;
+}
+
+.anchor-empty {
+  font-size: 11.5px;
+  color: var(--t3);
+  font-style: italic;
+  letter-spacing: 0.005em;
+  padding: 6px 2px;
 }
 
 /* Hot Memory 双区（档案 / 印象） */
@@ -1315,7 +1416,7 @@ button {
   padding: 11px 12px;
 }
 .imp-zone + .imp-zone {
-  border-top: 1px dashed var(--border-lt);
+  border-top: 1px dashed var(--border);
 }
 .imp-zone-h {
   font-family: var(--mono);
@@ -1341,137 +1442,324 @@ button {
   align-items: baseline;
   gap: 8px;
   padding: 3px 0;
-  font-size: 12.5px;
+  font-size: 12px;
+  line-height: 1.7;
 }
 .imp-outer-row .imp-k {
   width: 46px;
   flex-shrink: 0;
   color: var(--t3);
-  font-size: 11px;
+  font-size: 11.5px;
+  letter-spacing: 0.01em;
 }
 .imp-outer-row .imp-v {
   color: var(--t1);
   flex: 1;
+  font-size: 12.5px;
+  letter-spacing: -0.005em;
 }
-.imp-inner-block {
-  padding: 5px 0;
+.imp-inner-row {
+  margin-bottom: 9px;
+}
+.imp-inner-row:last-child {
+  margin-bottom: 0;
 }
 .imp-inner-k {
   font-size: 11px;
   color: var(--t3);
   letter-spacing: 0.04em;
   margin-bottom: 2px;
+  font-family: 'Space Grotesk', 'Noto Sans SC', sans-serif;
 }
 .imp-inner-v {
   font-size: 12.5px;
   color: var(--t1);
   line-height: 1.6;
+  letter-spacing: -0.005em;
   font-style: italic;
 }
 
-/* 事件 / 承诺 */
-.event-note {
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--border-lt);
-  font-size: 12.5px;
-  line-height: 1.55;
-  color: var(--t1);
-}
-.event-note:last-child {
-  border-bottom: none;
-}
-.event-note-time {
-  font-family: var(--mono);
-  font-size: 10px;
-  color: var(--t3);
-  letter-spacing: 0.04em;
-  margin-bottom: 4px;
-}
-.commitment-row {
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--border-lt);
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  font-size: 12.5px;
-  line-height: 1.55;
-}
-.commitment-row:last-child {
-  border-bottom: none;
-}
-.commitment-who {
-  font-weight: 500;
-  color: var(--t1);
-}
-.commitment-arrow {
-  font-family: var(--mono);
-  color: var(--t3);
+.imp-hint {
   font-size: 11px;
+  color: var(--t3);
+  font-style: italic;
+  letter-spacing: 0.005em;
+  line-height: 1.55;
+  padding: 2px 0;
 }
-.commitment-body {
-  color: var(--t2);
-  flex: 1;
+.imp-counter {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  color: var(--t3);
+  letter-spacing: 0.06em;
+  margin-left: auto;
 }
 
-/* LookBack modal */
-.lookback-overlay {
+/* ── significant-event 叙事便签 ── */
+.sp-event {
+  padding: 10px 12px;
+  line-height: 1.6;
+  font-size: 12.5px;
+  color: var(--t1);
+  letter-spacing: -0.005em;
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+}
+.sp-event-mark {
+  flex-shrink: 0;
+  margin-top: 5px;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--t2);
+}
+
+/* ── commitment 方向化卡 ── */
+.sp-commit {
+  padding: 10px 12px;
+  font-size: 12.5px;
+  color: var(--t1);
+  line-height: 1.6;
+  letter-spacing: -0.005em;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.commit-arrow {
+  flex-shrink: 0;
+  font-family: var(--mono);
+  font-size: 13px;
+  width: 18px;
+  text-align: center;
+  line-height: 1.5;
+  margin-top: 0;
+  color: var(--t2);
+  font-weight: 500;
+}
+.commit-arrow.ai {
+  color: #0891b2;
+}
+.commit-arrow.user {
+  color: #d97706;
+}
+.commit-arrow.mutual {
+  color: var(--t1);
+}
+[data-theme='dark'] .commit-arrow.ai {
+  color: #22d3ee;
+}
+[data-theme='dark'] .commit-arrow.user {
+  color: #fbbf24;
+}
+.commit-body {
+  flex: 1;
+  min-width: 0;
+}
+.commit-meta {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--t3);
+  margin-bottom: 2px;
+}
+.commit-text {
+  color: var(--t1);
+}
+
+/* ── 回顾 触发按钮 ── */
+.lookback-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--t3);
+  padding: 2px 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.lookback-btn:hover {
+  color: var(--t1);
+}
+
+/* ── 通用 Section / Card / Empty ── */
+.sp-card {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 11px 12px;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: var(--t1);
+  line-height: 1.65;
+  letter-spacing: -0.005em;
+}
+.sp-empty {
+  font-size: 11px;
+  color: var(--t3);
+  padding: 8px 4px;
+  letter-spacing: 0.01em;
+}
+.sp-section-h {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 4px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--t3);
+}
+.sp-section-h .count {
+  color: var(--t2);
+  font-size: 10px;
+  font-family: var(--mono);
+}
+
+/* LookBack modal — 回顾浮层（重要经历 + 承诺） */
+.lb-backdrop {
   position: fixed;
   inset: 0;
-  background: oklch(0 0 0 / 0.35);
-  backdrop-filter: blur(4px);
-  z-index: 50;
+  z-index: 300;
+  background: oklch(0 0 0 / 0.34);
+  backdrop-filter: blur(3px);
+  animation: fadeIn 0.18s ease both;
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: fadeIn 0.2s ease both;
+  padding: 48px;
 }
-.lookback-panel {
+.lb-modal {
+  width: min(960px, 100%);
+  max-height: min(86vh, 720px);
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  width: min(900px, 92vw);
-  max-height: 80vh;
+  border-radius: 14px;
+  box-shadow: var(--shadow-lg);
   display: flex;
   flex-direction: column;
-  box-shadow: var(--shadow-lg);
-  animation: up 0.24s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  overflow: hidden;
+  animation: lbIn 0.22s ease both;
 }
-.lookback-head {
-  padding: 16px 20px;
+@keyframes lbIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.lb-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 24px 28px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.lb-head-tt {
+  font-size: 11px;
+  font-family: var(--mono);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--t3);
+  margin-bottom: 4px;
+}
+.lb-head-t {
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--t1);
+  letter-spacing: -0.02em;
+}
+.lb-close {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--t3);
+  padding: 6px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.lb-close:hover {
+  color: var(--t1);
+  background: var(--surf-hov);
+}
+.lb-body {
+  flex: 1;
+  overflow: auto;
+  padding: 24px 28px 28px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+}
+.lb-col-h {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--t2);
+  margin-bottom: 14px;
+  padding-bottom: 8px;
   border-bottom: 1px solid var(--border-lt);
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
-.lookback-title {
-  font-size: 15px;
-  font-weight: 500;
+.lb-col-h .ct {
+  font-size: 10px;
+  color: var(--t3);
+}
+.lb-event {
+  margin-bottom: 14px;
+  padding-left: 12px;
+  border-left: 1px solid var(--border);
+  font-size: 14px;
+  color: var(--t1);
+  line-height: 1.7;
   letter-spacing: -0.005em;
 }
-.lookback-body {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  overflow: hidden;
-  flex: 1;
-}
-.lookback-col {
-  overflow-y: auto;
-  padding: 6px 0;
-}
-.lookback-col + .lookback-col {
-  border-left: 1px solid var(--border-lt);
-}
-.lookback-col-h {
-  font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
+.lb-empty {
+  font-size: 12px;
   color: var(--t3);
-  padding: 8px 16px;
-  border-bottom: 1px solid var(--border-lt);
-  position: sticky;
-  top: 0;
-  background: var(--bg);
+  font-style: italic;
+  letter-spacing: 0.005em;
+  padding: 8px 0;
+}
+.lb-commit {
+  margin-bottom: 14px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.lb-commit .commit-arrow {
+  font-size: 15px;
+  width: 22px;
+  margin-top: 1px;
+}
+.lb-commit .commit-body {
+  font-size: 14px;
+  line-height: 1.7;
+  letter-spacing: -0.005em;
+}
+.lb-commit .commit-meta {
+  font-size: 9.5px;
+  margin-bottom: 3px;
+}
+
+@media (max-width: 720px) {
+  .lb-body {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
 }
 
 /* ── Home（起始页）nameplate ───────────────────────────────── */

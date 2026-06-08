@@ -28,38 +28,40 @@ const HOT_INNER: { key: string; label: string }[] = [
 export function HotMemoryPanel({ data }: { data: Record<string, string> }) {
   const outer = HOT_OUTER.filter((f) => data[f.key]?.trim())
   const inner = HOT_INNER.filter((f) => data[f.key]?.trim())
-  if (outer.length === 0 && inner.length === 0) {
-    return (
-      <div className="imp-zone" style={{ color: 'var(--t3)', fontSize: 12 }}>
-        尚未识别
-      </div>
-    )
-  }
+  const totalFilled = outer.length + inner.length
 
   return (
     <div>
-      {outer.length > 0 && (
-        <div className="imp-zone">
-          <div className="imp-zone-h">档案 · profile</div>
-          {outer.map((f) => (
+      {/* 档案区 */}
+      <div className="imp-zone">
+        <div className="imp-zone-h">档案 · profile</div>
+        {outer.length === 0 ? (
+          <div className="imp-hint">还没告诉过我。</div>
+        ) : (
+          outer.map((f) => (
             <div key={f.key} className="imp-outer-row">
               <span className="imp-k">{f.label}</span>
               <span className="imp-v">{data[f.key]}</span>
             </div>
-          ))}
-        </div>
-      )}
-      {inner.length > 0 && (
-        <div className="imp-zone">
-          <div className="imp-zone-h">印象 · impression</div>
-          {inner.map((f) => (
-            <div key={f.key} className="imp-inner-block">
+          ))
+        )}
+      </div>
+      {/* 印象区 */}
+      <div className="imp-zone">
+        <div className="imp-zone-h">印象 · impression</div>
+        {inner.length === 0 ? (
+          <div className="imp-hint">
+            {totalFilled === 0 ? '还在通过对话认识你。' : '还没观察到稳定特征。'}
+          </div>
+        ) : (
+          inner.map((f) => (
+            <div key={f.key} className="imp-inner-row">
               <div className="imp-inner-k">{f.label}</div>
               <div className="imp-inner-v">{data[f.key]}</div>
             </div>
-          ))}
-        </div>
-      )}
+          ))
+        )}
+      </div>
     </div>
   )
 }
