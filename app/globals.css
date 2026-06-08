@@ -1096,7 +1096,7 @@ button {
   font-family: 'Noto Sans SC', 'Space Grotesk', sans-serif;
   font-style: italic;
   font-size: 12px;
-  color: var(--t2);
+  color: var(--emotion-color, var(--t2));
   letter-spacing: 0.02em;
   animation: moodIn 0.26s ease both;
 }
@@ -1910,7 +1910,7 @@ button {
 .home-status-mood {
   font-style: italic;
   font-size: 12px;
-  color: var(--t2);
+  color: var(--emotion-color, var(--t2));
   letter-spacing: 0.02em;
   animation: moodIn 0.26s ease both;
 }

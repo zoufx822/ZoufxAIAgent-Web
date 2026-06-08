@@ -87,11 +87,7 @@ export function PresenceFloat({
         {moodVisible && (
           <>
             <span className="presence-sep">·</span>
-            <span
-              key={currentMood}
-              className="presence-mood"
-              style={{ color: 'var(--emotion-color)' }}
-            >
+            <span key={currentMood} className="presence-mood">
               {currentMood}
             </span>
           </>
