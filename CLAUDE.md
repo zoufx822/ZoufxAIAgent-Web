@@ -53,7 +53,7 @@ lib/                     # 核心逻辑
   store.ts               # Zustand 主 store（锚点元数据 + 消息 + UI/情绪态）
   chat-stream.ts         # SSE 流解析（streamChat）
   api.ts                 # 锚点 / 消息 / context / Hot Memory REST 客户端
-  capability.ts          # LLM 能力声明 store（GET /ai/capabilities）
+  features.ts          # LLM 功能声明 store（GET /ai/features）
   status-labels.ts       # status 中英标签 + mood 隐藏态（共享常量）
   utils.ts               # cn() 等工具函数
 

@@ -4,7 +4,7 @@ import { useCallback, useMemo, useRef } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { toast } from 'sonner'
 import { useStore } from '@/lib/store'
-import { useCapabilityStore } from '@/lib/capability'
+import { useFeaturesStore } from '@/lib/features'
 import { streamChat } from '@/lib/chat-stream'
 
 const EMPTY_MESSAGES: never[] = []
@@ -53,7 +53,7 @@ export function useChatStream() {
   )
 
   // selector 必须返回稳定引用——空 anchor 用模块级空数组兜底，避免无限循环。
-  const rawMessages = useStore((s) => s.messages[s.currentAnchorId])
+  const rawMessages = useStore((s) => s.messages[s.currentAnchorId as string])
   const messages = useMemo(() => rawMessages ?? EMPTY_MESSAGES, [rawMessages])
 
   const ctrlRef = useRef<AbortController | null>(null)
@@ -62,15 +62,15 @@ export function useChatStream() {
 
   /**
    * 第二参数 showThinking 控制前端是否展示思考块。
-   * 是否真让 LLM 思考由 capability.thinkingToggle 决定——支持时透传按钮状态给后端；
+   * 是否真让 LLM 思考由 features.thinkingToggle 决定——支持时透传按钮状态给后端；
    * 不支持时（如 deepseek-v4、降级现状的 minimax）始终传 false，LLM 行为不受按钮影响。
    */
   const send = useCallback(
     async (text: string, showThinking: boolean) => {
       if (!text.trim() || isLoading) return
 
-      const capabilities = useCapabilityStore.getState().capabilities
-      const sendThinking = capabilities?.thinkingToggle ? showThinking : false
+      const features = useFeaturesStore.getState().features
+      const sendThinking = features?.thinkingToggle ? showThinking : false
 
       let anchorId: string | null = currentAnchorId
       // prevAnchorId 只在切锚后的首条消息发送一次，发完即清空
@@ -182,7 +182,7 @@ export function useChatStream() {
             tailRef.current = ''
           }
           markRunningToolCallsFailed(anchorId)
-          const lastMsg = useStore.getState().messages[anchorId]?.at(-1)
+          const lastMsg = useStore.getState().messages[anchorId as string]?.at(-1)
           if (
             lastMsg &&
             lastMsg.role === 'assistant' &&
@@ -242,7 +242,7 @@ export function useChatStream() {
     ctrlRef.current = null
     const anchorId = currentAnchorId
     markRunningToolCallsFailed(anchorId)
-    const lastMsg = useStore.getState().messages[anchorId]?.at(-1)
+    const lastMsg = useStore.getState().messages[anchorId as string]?.at(-1)
     if (
       lastMsg &&
       lastMsg.role === 'assistant' &&

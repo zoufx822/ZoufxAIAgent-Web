@@ -22,7 +22,7 @@ const BURST_THRESHOLD = 3
 export function useContextDetector(): UserContext {
   const anchorId = useStore((s) => s.currentAnchorId)
   // 注意：selector 必须返回稳定引用，不能写 `?? []`——空 anchor 会每次新建空数组触发无限循环。
-  const messages = useStore((s) => s.messages[anchorId])
+  const messages = useStore((s) => s.messages[anchorId as string])
   const [ctx, setCtx] = useState<UserContext>('normal')
 
   const userTsRef = useRef<number[]>([])

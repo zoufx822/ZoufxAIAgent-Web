@@ -64,22 +64,23 @@ interface Store {
   switchAnchor: (id: string) => void
   /** 后端创建锚点后调用——迁移 pending 消息 + 写入新锚点 */
   claimAnchor: (id: string) => void
-  updateAnchorTitle: (id: string, title: string, force?: boolean) => void
-  touchAnchor: (id: string, lastActiveAt: number) => void
+  updateAnchorTitle: (id: string | null, title: string, force?: boolean) => void
+  touchAnchor: (id: string | null, lastActiveAt: number) => void
 
   // ── message actions ──
+  // anchorId 允许 null：新对话尚未入库时消息暂存于 "null" 桶，claimAnchor 后迁移到真实 id。
   setMessages: (anchorId: string, msgs: Message[]) => void
-  addMessage: (anchorId: string, msg: Message) => void
+  addMessage: (anchorId: string | null, msg: Message) => void
   updateLastAssistantMessage: (
-    anchorId: string,
+    anchorId: string | null,
     patch: Partial<Message> | ((last: Message) => Partial<Message>)
   ) => void
-  removeLastMessage: (anchorId: string) => void
-  toggleThinking: (anchorId: string) => void
-  appendToolCall: (anchorId: string, toolCall: ToolCall) => void
-  updateLastRunningToolCall: (anchorId: string, patch: Partial<ToolCall>) => void
-  toggleToolCallExpanded: (anchorId: string, toolCallId: string) => void
-  markRunningToolCallsFailed: (anchorId: string) => void
+  removeLastMessage: (anchorId: string | null) => void
+  toggleThinking: (anchorId: string | null) => void
+  appendToolCall: (anchorId: string | null, toolCall: ToolCall) => void
+  updateLastRunningToolCall: (anchorId: string | null, patch: Partial<ToolCall>) => void
+  toggleToolCallExpanded: (anchorId: string | null, toolCallId: string) => void
+  markRunningToolCallsFailed: (anchorId: string | null) => void
 
   setLoading: (v: boolean) => void
   setStatus: (s: Status) => void
@@ -160,10 +161,11 @@ export const useStore = create<Store>()(
       },
 
       addMessage: (anchorId, msg) => {
+        const key = anchorId as unknown as string // null → "null" 桶，claimAnchor 时迁移到真实 id
         set((state) => ({
           messages: {
             ...state.messages,
-            [anchorId]: [...(state.messages[anchorId] ?? []), msg],
+            [key]: [...(state.messages[key] ?? []), msg],
           },
         }))
       },

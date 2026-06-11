@@ -5,7 +5,7 @@ import { ThemeProvider } from 'next-themes'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Toaster } from '@/components/ui/sonner'
 import { useStore } from '@/lib/store'
-import { useCapabilityStore } from '@/lib/capability'
+import { useFeaturesStore } from '@/lib/features'
 
 export function Providers({ children }: { children: React.ReactNode }) {
   useEffect(() => {
@@ -18,7 +18,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     })()
 
     // 启动时拉一次 LLM 能力声明，网络失败走兜底不阻塞 UI
-    void useCapabilityStore.getState().fetch()
+    void useFeaturesStore.getState().fetch()
   }, [])
 
   return (
