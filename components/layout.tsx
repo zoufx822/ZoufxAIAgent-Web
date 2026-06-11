@@ -21,8 +21,7 @@ export function AppLayout() {
 
   const handleNewAnchor = () => {
     if (isLoading) return
-    const now = Date.now()
-    addAnchor({ id: crypto.randomUUID(), title: '新对话', lastActiveAt: now, createdAt: now })
+    addAnchor()
     setMemoryOpen(false)
   }
 

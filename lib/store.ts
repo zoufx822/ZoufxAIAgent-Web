@@ -38,7 +38,7 @@ interface Store {
 
   // 锚点元数据列表（后端权威，本地缓存）
   anchors: MemoryAnchor[]
-  currentAnchorId: string
+  currentAnchorId: string | null
   /** 上一个活跃锚点 id，切换时传给后端 prevAnchorId 触发压缩 */
   lastActiveAnchorId: string | null
 
@@ -60,8 +60,10 @@ interface Store {
 
   // ── anchor actions ──
   setAnchors: (anchors: MemoryAnchor[]) => void
-  addAnchor: (anchor: MemoryAnchor) => void
+  addAnchor: () => void
   switchAnchor: (id: string) => void
+  /** 后端创建锚点后调用——迁移 pending 消息 + 写入新锚点 */
+  claimAnchor: (id: string) => void
   updateAnchorTitle: (id: string, title: string, force?: boolean) => void
   touchAnchor: (id: string, lastActiveAt: number) => void
 
@@ -87,22 +89,12 @@ interface Store {
   bumpFocusInput: () => void
 }
 
-function genId() {
-  return crypto.randomUUID()
-}
-
-function makeAnchorMeta(title = '新对话'): MemoryAnchor {
-  return { id: genId(), title, lastActiveAt: Date.now(), createdAt: Date.now() }
-}
-
-const initialAnchor = makeAnchorMeta()
-
 export const useStore = create<Store>()(
   persist(
     (set, get) => ({
       userId: '',
-      anchors: [initialAnchor],
-      currentAnchorId: initialAnchor.id,
+      anchors: [],
+      currentAnchorId: null,
       lastActiveAnchorId: null,
       messages: {},
       isLoading: false,
@@ -114,19 +106,31 @@ export const useStore = create<Store>()(
 
       setAnchors: (anchors) => {
         const cur = get().currentAnchorId
-        const exists = anchors.some((a) => a.id === cur)
+        const exists = cur != null && anchors.some((a) => a.id === cur)
         set({
           anchors,
-          currentAnchorId: exists ? cur : (anchors[0]?.id ?? cur),
+          currentAnchorId: exists ? cur : (anchors[0]?.id ?? null),
         })
       },
 
-      addAnchor: (anchor) => {
-        set((state) => ({
-          anchors: [anchor, ...state.anchors],
-          currentAnchorId: anchor.id,
-          lastActiveAnchorId: state.currentAnchorId,
-        }))
+      addAnchor: () => {
+        const { currentAnchorId } = get()
+        set({ currentAnchorId: null, lastActiveAnchorId: currentAnchorId })
+      },
+
+      claimAnchor: (id) => {
+        const now = Date.now()
+        set((state) => {
+          // 将 null key 下的 pending 消息迁移到真实 anchorId
+          const newMessages = { ...state.messages }
+          const pending = state.messages[null as unknown as string]
+          if (pending) delete newMessages[null as unknown as string]
+          return {
+            currentAnchorId: id,
+            messages: pending ? { ...newMessages, [id]: pending } : newMessages,
+            anchors: [{ id, title: '新对话', lastActiveAt: now, createdAt: now }, ...state.anchors],
+          }
+        })
       },
 
       switchAnchor: (id) => {
@@ -136,6 +140,7 @@ export const useStore = create<Store>()(
       },
 
       updateAnchorTitle: (id, title, force = false) => {
+        if (id == null) return
         set((state) => ({
           anchors: state.anchors.map((a) =>
             a.id === id && (force || a.title === '新对话') ? { ...a, title: title.slice(0, 20) } : a
@@ -144,6 +149,7 @@ export const useStore = create<Store>()(
       },
 
       touchAnchor: (id, lastActiveAt) => {
+        if (id == null) return
         set((state) => ({
           anchors: state.anchors.map((a) => (a.id === id ? { ...a, lastActiveAt } : a)),
         }))
@@ -163,6 +169,7 @@ export const useStore = create<Store>()(
       },
 
       updateLastAssistantMessage: (anchorId, patch) => {
+        if (anchorId == null) return
         set((state) => {
           const msgs = [...(state.messages[anchorId] ?? [])]
           const last = msgs[msgs.length - 1]
@@ -174,6 +181,7 @@ export const useStore = create<Store>()(
       },
 
       removeLastMessage: (anchorId) => {
+        if (anchorId == null) return
         set((state) => {
           const msgs = state.messages[anchorId]
           if (!msgs?.length) return state
@@ -182,6 +190,7 @@ export const useStore = create<Store>()(
       },
 
       toggleThinking: (anchorId) => {
+        if (anchorId == null) return
         set((state) => {
           const msgs = [...(state.messages[anchorId] ?? [])]
           const last = msgs[msgs.length - 1]
@@ -192,6 +201,7 @@ export const useStore = create<Store>()(
       },
 
       appendToolCall: (anchorId, toolCall) => {
+        if (anchorId == null) return
         set((state) => {
           const msgs = [...(state.messages[anchorId] ?? [])]
           const last = msgs[msgs.length - 1]
@@ -202,6 +212,7 @@ export const useStore = create<Store>()(
       },
 
       updateLastRunningToolCall: (anchorId, patch) => {
+        if (anchorId == null) return
         set((state) => {
           const msgs = [...(state.messages[anchorId] ?? [])]
           const last = msgs[msgs.length - 1]
@@ -216,6 +227,7 @@ export const useStore = create<Store>()(
       },
 
       toggleToolCallExpanded: (anchorId, toolCallId) => {
+        if (anchorId == null) return
         set((state) => {
           const msgs = (state.messages[anchorId] ?? []).map((m) => {
             if (m.role !== 'assistant') return m
@@ -230,6 +242,7 @@ export const useStore = create<Store>()(
       },
 
       markRunningToolCallsFailed: (anchorId) => {
+        if (anchorId == null) return
         set((state) => {
           const msgs = [...(state.messages[anchorId] ?? [])]
           const last = msgs[msgs.length - 1]
@@ -261,7 +274,7 @@ export const useStore = create<Store>()(
     }),
     {
       name: 'zoufx-chat-sessions',
-      version: 4,
+      version: 5,
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         userId: state.userId,
@@ -271,7 +284,6 @@ export const useStore = create<Store>()(
       migrate: (persisted: unknown, version: number) => {
         const s = persisted as Record<string, unknown>
         if (!s) return s
-        // 补 userId
         if (!s.userId) s.userId = crypto.randomUUID()
         // v1→v2: sessions → anchors
         if (version < 3 && s.sessions) {
@@ -289,6 +301,10 @@ export const useStore = create<Store>()(
             if (!meta.lastActiveAt) meta.lastActiveAt = meta.createdAt ?? Date.now()
             return meta
           })
+        }
+        // v4→v5: currentAnchorId 允许 null（锚点创建上移到后端）
+        if (typeof s.currentAnchorId === 'string' && !Array.isArray(s.anchors)) {
+          // 兼容旧格式：如果有 currentAnchorId 但 anchors 是旧 sessions 格式，保留
         }
         return s
       },

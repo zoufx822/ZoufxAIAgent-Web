@@ -45,8 +45,8 @@ export interface MoodPayload {
 
 export interface StreamChatOptions {
   message: string
-  /** 当前对话锚点 id，对应后端 anchor_memory.id。后端据此解析 userId 并加载窗口消息。 */
-  anchorId: string
+  /** 当前对话锚点 id。null 表示新对话，后端创建后通过 anchor_created 事件返回。 */
+  anchorId: string | null
   /** 切锚前的上一个锚点 id，触发后端旧锚总结。null 表示首条/无切换。 */
   prevAnchorId?: string | null
   thinking: boolean
@@ -59,6 +59,8 @@ export interface StreamChatOptions {
   onToolResult?: (payload: ToolResultPayload) => void
   /** mood 情感词事件——后端在 content 流尾部剥离 <!--mood:KEYWORD--> 后独立发送。一轮 0~1 次。 */
   onMood?: (payload: MoodPayload) => void
+  /** 后端创建锚点后返回新 anchorId——新对话首条消息的第一个 SSE 事件。 */
+  onAnchorCreated?: (anchorId: string) => void
   onComplete?: () => void
   onError?: (err: Error) => void
 }
@@ -101,8 +103,10 @@ function dispatchEvent(
   data: string,
   opts: StreamChatOptions
 ): 'continue' | 'terminated' {
-  const { onThinking, onContent, onToolCall, onToolResult, onMood, onError } = opts
-  if (event === 'thinking') {
+  const { onThinking, onContent, onToolCall, onToolResult, onMood, onAnchorCreated, onError } = opts
+  if (event === 'anchor_created') {
+    onAnchorCreated?.(data)
+  } else if (event === 'thinking') {
     onThinking?.(data)
   } else if (event === 'tool_call') {
     try {

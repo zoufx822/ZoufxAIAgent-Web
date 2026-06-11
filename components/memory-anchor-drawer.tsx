@@ -160,8 +160,7 @@ export function MemoryAnchorDrawer({ open, onClose }: DrawerProps) {
 
   const handleNew = () => {
     if (isLoading) return
-    const now = Date.now()
-    addAnchor({ id: crypto.randomUUID(), title: '新对话', lastActiveAt: now, createdAt: now })
+    addAnchor()
     onClose()
   }
 

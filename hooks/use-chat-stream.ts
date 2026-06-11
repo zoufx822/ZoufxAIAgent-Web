@@ -27,6 +27,7 @@ export function useChatStream() {
     setLoading,
     setStatus,
     setMood,
+    claimAnchor,
     bumpHotMemoryVersion,
     bumpFocusInput,
   } = useStore(
@@ -45,6 +46,7 @@ export function useChatStream() {
       setLoading: s.setLoading,
       setStatus: s.setStatus,
       setMood: s.setMood,
+      claimAnchor: s.claimAnchor,
       bumpHotMemoryVersion: s.bumpHotMemoryVersion,
       bumpFocusInput: s.bumpFocusInput,
     }))
@@ -70,7 +72,7 @@ export function useChatStream() {
       const capabilities = useCapabilityStore.getState().capabilities
       const sendThinking = capabilities?.thinkingToggle ? showThinking : false
 
-      const anchorId = currentAnchorId
+      let anchorId: string | null = currentAnchorId
       // prevAnchorId 只在切锚后的首条消息发送一次，发完即清空
       const prevAnchorId =
         lastActiveAnchorId && lastActiveAnchorId !== anchorId ? lastActiveAnchorId : null
@@ -163,6 +165,11 @@ export function useChatStream() {
 
         onMood: (payload) => {
           setMood(payload.keyword)
+        },
+
+        onAnchorCreated: (realId) => {
+          claimAnchor(realId)
+          anchorId = realId
         },
 
         onComplete: () => {
