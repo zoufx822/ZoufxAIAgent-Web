@@ -4,7 +4,6 @@ import { useCallback, useMemo, useRef } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { toast } from 'sonner'
 import { useStore } from '@/lib/store'
-import { useFeaturesStore } from '@/lib/features'
 import { streamChat } from '@/lib/chat-stream'
 
 const EMPTY_MESSAGES: never[] = []
@@ -61,16 +60,12 @@ export function useChatStream() {
   const tailRef = useRef('')
 
   /**
-   * 第二参数 showThinking 控制前端是否展示思考块。
-   * 是否真让 LLM 思考由 features.thinkingToggle 决定——支持时透传按钮状态给后端；
-   * 不支持时（如 deepseek-v4、降级现状的 minimax）始终传 false，LLM 行为不受按钮影响。
+   * showThinking 双重职责：控制前端思考块展示 + 透传后端选择模型档位
+   * （true 走思考档、false 走快档；档位内 thinking 策略由后端 builder 期固定）。
    */
   const send = useCallback(
     async (text: string, showThinking: boolean) => {
       if (!text.trim() || isLoading) return
-
-      const features = useFeaturesStore.getState().features
-      const sendThinking = features?.thinkingToggle ? showThinking : false
 
       let anchorId: string | null = currentAnchorId
       // prevAnchorId 只在切锚后的首条消息发送一次，发完即清空
@@ -112,7 +107,7 @@ export function useChatStream() {
         message: text,
         anchorId,
         prevAnchorId,
-        thinking: sendThinking,
+        thinking: showThinking,
         userId: useStore.getState().userId,
         signal: ctrlRef.current.signal,
 

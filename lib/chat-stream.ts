@@ -49,6 +49,7 @@ export interface StreamChatOptions {
   anchorId: string | null
   /** 切锚前的上一个锚点 id，触发后端旧锚总结。null 表示首条/无切换。 */
   prevAnchorId?: string | null
+  /** 思考模式开关：true 后端走思考档模型、false 走快档模型 */
   thinking: boolean
   /** 用于后端懒创建：anchorId 尚未入库时，后端用此 userId 自动建立 anchor 行。 */
   userId: string

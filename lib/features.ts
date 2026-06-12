@@ -1,12 +1,12 @@
 /**
  * LLM 能力声明——后端 GET /ai/features 返回的契约。
- * 前端启动时拉一次缓存，profile 切换需后端重启 + 前端刷新。
+ * 当前仅含 profile 标识，前端不依据它做任何行为；端点与本 store 保留作为
+ * 能力自适应的扩展点（LC4J 尚不支持 per-call 参数覆盖，动态能力声明暂无意义）。
  */
 import { create } from 'zustand'
 
 export interface Features {
   profile: string
-  thinkingToggle: boolean
 }
 
 const API_URL = `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080'}/ai/features`
@@ -17,13 +17,9 @@ interface FeaturesStore {
   fetch: () => Promise<void>
 }
 
-/**
- * 兜底能力声明：网络失败 / 后端未就绪时使用——三项能力全 false 与降级方案一致，
- * 不至于让 UI 误以为有"控 LLM"的本领。
- */
+/** 兜底声明：网络失败 / 后端未就绪时使用 */
 const FALLBACK_FEATURES: Features = {
   profile: 'unknown',
-  thinkingToggle: false,
 }
 
 export const useFeaturesStore = create<FeaturesStore>((set) => ({
