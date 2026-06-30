@@ -2,16 +2,19 @@
 
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { ArrowUp, Plus, Sparkles, Square } from 'lucide-react'
+import { ArrowDown, ArrowUp, Plus, Sparkles, Square } from 'lucide-react'
 import { Menu } from '@base-ui/react/menu'
 import { Textarea } from '@/components/ui/textarea'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Eyes } from '@/components/eyes'
+import { EffortPicker } from '@/components/effort-picker'
 import { MessageItem } from '@/components/message-item'
 import { PresenceFloat } from '@/components/presence-float'
 import { useChatStream } from '@/hooks/use-chat-stream'
 import { useSmartScroll } from '@/hooks/use-smart-scroll'
 import { useStore } from '@/lib/store'
+import { useFeaturesStore, type ThinkEffort } from '@/lib/features'
+import type { ThinkingRequest } from '@/lib/chat-stream'
 import { STATUS_LABELS, MOOD_HIDDEN_STATUSES } from '@/lib/status-labels'
 import { useAnchorMessages } from '@/hooks/use-anchor-messages'
 import { useContextDetector } from '@/hooks/use-context-detector'
@@ -50,6 +53,9 @@ function ChatInput({
   isLoading,
   thinkingEnabled,
   setThinkingEnabled,
+  effortCap,
+  selectedEffort,
+  setSelectedEffort,
   onSend,
   onStop,
   onTyping,
@@ -60,6 +66,10 @@ function ChatInput({
   isLoading: boolean
   thinkingEnabled: boolean
   setThinkingEnabled: (fn: (v: boolean) => boolean) => void
+  /** 当前 profile 的思考深度能力声明（来自 /ai/features）；undefined=尚未加载 */
+  effortCap?: ThinkEffort
+  selectedEffort: string
+  setSelectedEffort: (v: string) => void
   onSend: () => void
   onStop: () => void
   /** 打字时调用（仅 onChange 触发，不在 focus 时触发） */
@@ -68,7 +78,15 @@ function ChatInput({
 }) {
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
+      // P0：中文输入法候选未上屏（isComposing）时回车不发送，避免误触
+      if (
+        e.key === 'Enter' &&
+        !e.shiftKey &&
+        !e.ctrlKey &&
+        !e.altKey &&
+        !e.metaKey &&
+        !e.nativeEvent.isComposing
+      ) {
         e.preventDefault()
         if (!isLoading) onSend()
       } else if (e.key === 'Escape' && isLoading) {
@@ -83,7 +101,7 @@ function ChatInput({
     const ta = textareaRef.current
     if (!ta) return
     ta.style.height = 'auto'
-    ta.style.height = `${Math.min(ta.scrollHeight, 160)}px`
+    ta.style.height = `${Math.min(ta.scrollHeight, 180)}px`
   }, [input, textareaRef])
 
   const canSend = input.trim().length > 0
@@ -125,7 +143,7 @@ function ChatInput({
         onKeyDown={handleKeyDown}
         placeholder="尽管问..."
         rows={1}
-        className="relative z-10 min-h-[58px] max-h-[160px] resize-none border-0 bg-transparent px-6 pt-5 pb-2 text-base leading-relaxed shadow-none focus-visible:ring-0 focus-visible:border-0 outline-none placeholder:text-muted-foreground/58"
+        className="relative z-10 min-h-[58px] max-h-[180px] resize-none border-0 bg-transparent px-6 pt-5 pb-2 text-base leading-relaxed shadow-none focus-visible:ring-0 focus-visible:border-0 outline-none placeholder:text-muted-foreground/58"
       />
 
       <div className="relative z-10 flex items-center gap-1.5 px-5 pb-4">
@@ -186,6 +204,15 @@ function ChatInput({
             </TooltipTrigger>
             <TooltipContent side="top">点击关闭思考</TooltipContent>
           </Tooltip>
+        )}
+
+        {thinkingEnabled && effortCap?.supported && (
+          <EffortPicker
+            options={effortCap.options}
+            value={selectedEffort}
+            onChange={setSelectedEffort}
+            disabled={isLoading}
+          />
         )}
 
         <div className="flex-1" />
@@ -268,8 +295,27 @@ export function ChatWindow() {
   const [input, setInput] = useState('')
   const [thinkingEnabled, setThinkingEnabled] = useState(false)
 
+  // 思考深度能力声明 + 当前选档。能力来自 /ai/features；选档初始化为接口默认值，
+  // profile 切换（effortCap 变更）时重置——档位/默认值全部跟随接口，前端不硬编码。
+  const effortCap = useFeaturesStore((s) => s.features?.effort)
+  const [selectedEffort, setSelectedEffort] = useState('')
+  useEffect(() => {
+    if (effortCap?.supported && effortCap.defaultValue) setSelectedEffort(effortCap.defaultValue)
+  }, [effortCap])
+
+  /** 构造发往后端的思考配置：深度仅在「支持 effort + 开启思考」时附带，否则省略。 */
+  const buildThinking = useCallback(
+    (): ThinkingRequest => ({
+      enabled: thinkingEnabled,
+      effort:
+        thinkingEnabled && effortCap?.supported && selectedEffort ? selectedEffort : undefined,
+    }),
+    [thinkingEnabled, effortCap, selectedEffort]
+  )
+
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const { scrollRef, scrollToBottom, forceScrollToBottom } = useSmartScroll()
+  const { scrollRef, scrollToBottom, forceScrollToBottom, scrollToBottomSmooth, atBottom } =
+    useSmartScroll()
 
   useEffect(() => {
     scrollToBottom()
@@ -341,8 +387,8 @@ export function ChatWindow() {
     setInput('')
     setLastInputAt(Date.now())
     forceScrollToBottom()
-    send(text, thinkingEnabled)
-  }, [input, isLoading, send, thinkingEnabled, forceScrollToBottom, captureFlyOrigin])
+    send(text, buildThinking())
+  }, [input, isLoading, send, buildThinking, forceScrollToBottom, captureFlyOrigin])
 
   const handleSuggestion = useCallback(
     (text: string) => {
@@ -350,10 +396,16 @@ export function ChatWindow() {
       captureFlyOrigin()
       setLastInputAt(Date.now())
       forceScrollToBottom()
-      send(text, thinkingEnabled)
+      send(text, buildThinking())
     },
-    [isLoading, send, thinkingEnabled, forceScrollToBottom, captureFlyOrigin]
+    [isLoading, send, buildThinking, forceScrollToBottom, captureFlyOrigin]
   )
+
+  // 停止生成后把焦点还给输入框（不改 useChatStream 内部的中止/收尾逻辑）
+  const handleStop = useCallback(() => {
+    stop()
+    textareaRef.current?.focus()
+  }, [stop])
 
   const greeting = useMemo(() => INTIMACY_GREET[intimacy] ?? timeGreet(), [intimacy])
 
@@ -431,8 +483,11 @@ export function ChatWindow() {
                 isLoading={isLoading}
                 thinkingEnabled={thinkingEnabled}
                 setThinkingEnabled={setThinkingEnabled}
+                effortCap={effortCap}
+                selectedEffort={selectedEffort}
+                setSelectedEffort={setSelectedEffort}
                 onSend={handleSend}
-                onStop={stop}
+                onStop={handleStop}
                 onTyping={handleTypingStart}
                 textareaRef={textareaRef}
               />
@@ -531,9 +586,25 @@ export function ChatWindow() {
           </div>
 
           <div
-            className="chat-input-area flex-shrink-0"
+            className="chat-input-area flex-shrink-0 relative"
             style={{ padding: '0 clamp(16px, 5vw, 56px) 24px' }}
           >
+            {!atBottom && (
+              <button
+                type="button"
+                aria-label="回到底部"
+                onClick={scrollToBottomSmooth}
+                className="absolute left-1/2 top-0 z-20 inline-flex size-8 -translate-x-1/2 -translate-y-[calc(100%+10px)] items-center justify-center rounded-full transition-all hover:opacity-90"
+                style={{
+                  backgroundColor: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  boxShadow: 'var(--shadow)',
+                  color: 'var(--t2)',
+                }}
+              >
+                <ArrowDown className="size-4" strokeWidth={2} />
+              </button>
+            )}
             <div ref={inputSlotRef} className="mx-auto" style={{ maxWidth: '720px' }}>
               <ChatInput
                 input={input}
@@ -541,8 +612,11 @@ export function ChatWindow() {
                 isLoading={isLoading}
                 thinkingEnabled={thinkingEnabled}
                 setThinkingEnabled={setThinkingEnabled}
+                effortCap={effortCap}
+                selectedEffort={selectedEffort}
+                setSelectedEffort={setSelectedEffort}
                 onSend={handleSend}
-                onStop={stop}
+                onStop={handleStop}
                 onTyping={handleTypingStart}
                 textareaRef={textareaRef}
               />

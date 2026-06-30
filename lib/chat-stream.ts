@@ -43,14 +43,23 @@ export interface MoodPayload {
   keyword: string
 }
 
+/**
+ * 思考配置：enabled=是否开启思考；effort=思考深度档（normal/high/max，仅 enabled 时有意义）。
+ * effort 省略（undefined）= 后端用默认档；enabled=false 时后端忽略 effort。
+ */
+export interface ThinkingRequest {
+  enabled: boolean
+  effort?: string
+}
+
 export interface StreamChatOptions {
   message: string
   /** 当前对话锚点 id。null 表示新对话，后端创建后通过 anchor_created 事件返回。 */
   anchorId: string | null
   /** 切锚前的上一个锚点 id，触发后端旧锚总结。null 表示首条/无切换。 */
   prevAnchorId?: string | null
-  /** 思考模式开关：true 后端走思考档模型、false 走快档模型 */
-  thinking: boolean
+  /** 思考配置对象（是否开启 + 思考深度）。后端 ChatRequest.thinking 为 {enabled, effort}。 */
+  thinking: ThinkingRequest
   /** 用于后端懒创建：anchorId 尚未入库时，后端用此 userId 自动建立 anchor 行。 */
   userId: string
   signal?: AbortSignal
@@ -147,7 +156,8 @@ export async function streamChat(opts: StreamChatOptions) {
         prompt: message,
         anchorId,
         prevAnchorId: prevAnchorId ?? null,
-        thinking,
+        // 后端 ChatRequest.thinking = { enabled, effort }；effort 为 undefined 时 JSON.stringify 自动省略
+        thinking: { enabled: thinking.enabled, effort: thinking.effort },
         userId,
       }),
       signal,

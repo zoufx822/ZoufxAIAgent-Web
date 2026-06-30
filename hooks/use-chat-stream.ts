@@ -4,7 +4,7 @@ import { useCallback, useMemo, useRef } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { toast } from 'sonner'
 import { useStore } from '@/lib/store'
-import { streamChat } from '@/lib/chat-stream'
+import { streamChat, type ThinkingRequest } from '@/lib/chat-stream'
 
 const EMPTY_MESSAGES: never[] = []
 
@@ -60,11 +60,11 @@ export function useChatStream() {
   const tailRef = useRef('')
 
   /**
-   * showThinking 双重职责：控制前端思考块展示 + 透传后端选择模型档位
-   * （true 走思考档、false 走快档；档位内 thinking 策略由后端 builder 期固定）。
+   * thinking 配置（{enabled, effort}）双重职责：控制前端思考块展示 + 透传后端选择模型档位/深度。
+   * enabled=true 走思考档、false 走快档；effort 仅在支持 effort 的 profile + enabled 时生效。
    */
   const send = useCallback(
-    async (text: string, showThinking: boolean) => {
+    async (text: string, thinking: ThinkingRequest) => {
       if (!text.trim() || isLoading) return
 
       let anchorId: string | null = currentAnchorId
@@ -107,12 +107,12 @@ export function useChatStream() {
         message: text,
         anchorId,
         prevAnchorId,
-        thinking: showThinking,
+        thinking,
         userId: useStore.getState().userId,
         signal: ctrlRef.current.signal,
 
         onThinking: (chunk) => {
-          if (!showThinking) return
+          if (!thinking.enabled) return
           setStatus('thinking')
           updateLastAssistantMessage(anchorId, (last) => ({
             thinking: last.thinking + chunk,
