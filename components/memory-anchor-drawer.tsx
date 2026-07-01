@@ -208,7 +208,7 @@ export function MemoryAnchorDrawer({ open, onClose }: DrawerProps) {
               color: 'var(--t3)',
             }}
           >
-            记忆锚点
+            对话
           </span>
           <button
             onClick={handleNew}

@@ -30,8 +30,8 @@ export function Rail({ memoryOpen, onMemoryClick, onNewAnchor }: RailProps) {
     >
       {/* Z 方块标已去除——形象由 Home Eyes + 消息头像 Eyes 承载 */}
 
-      {/* 记忆锚点 */}
-      <RailBtn active={memoryOpen} onClick={onMemoryClick} title="记忆锚点">
+      {/* 对话列表 */}
+      <RailBtn active={memoryOpen} onClick={onMemoryClick} title="对话">
         <svg
           width="16"
           height="16"

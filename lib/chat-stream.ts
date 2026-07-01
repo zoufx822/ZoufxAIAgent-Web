@@ -62,6 +62,12 @@ export interface StreamChatOptions {
   thinking: ThinkingRequest
   /** 用于后端懒创建：anchorId 尚未入库时，后端用此 userId 自动建立 anchor 行。 */
   userId: string
+  /**
+   * 重生标记：true = 重试同一轮（对错误条点「重试」触发）。后端据此回滚该 anchor 最后一轮
+   * assistant 输出并就地再生成，而非把 prompt 当作新一轮追加——避免重复 user 轮污染记忆窗口。
+   * 仅对「最后一条」消息开放（前端 UI 已门控），故后端「回滚最后一轮」无歧义。
+   */
+  regenerate?: boolean
   signal?: AbortSignal
   onThinking?: (chunk: string) => void
   onContent?: (chunk: string) => void
@@ -146,7 +152,7 @@ function dispatchEvent(
 }
 
 export async function streamChat(opts: StreamChatOptions) {
-  const { message, anchorId, prevAnchorId, thinking, userId, signal, onComplete, onError } = opts
+  const { message, anchorId, prevAnchorId, thinking, userId, regenerate, signal, onComplete, onError } = opts
 
   try {
     const res = await fetch(API_URL, {
@@ -159,6 +165,8 @@ export async function streamChat(opts: StreamChatOptions) {
         // 后端 ChatRequest.thinking = { enabled, effort }；effort 为 undefined 时 JSON.stringify 自动省略
         thinking: { enabled: thinking.enabled, effort: thinking.effort },
         userId,
+        // 仅重试时为 true；false/省略 = 普通新轮（JSON.stringify 对 undefined 自动省略）
+        regenerate: regenerate || undefined,
       }),
       signal,
     })

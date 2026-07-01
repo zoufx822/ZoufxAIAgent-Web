@@ -327,8 +327,8 @@ export function Eyes({
       {/* 愉快：新月瞳孔 + 红点腮红 */}
       {happyFace && (
         <g className="happy-face">
-          <circle className="happy-dot" cx="11" cy="37" r="2.9" fill="#f06070" />
-          <circle className="happy-dot r" cx="89" cy="37" r="2.9" fill="#f06070" />
+          <circle className="happy-dot" cx="11" cy="37" r="2.9" fill="var(--blush)" />
+          <circle className="happy-dot r" cx="89" cy="37" r="2.9" fill="var(--blush)" />
           <g className="eye eye-l" clipPath={`url(#${clipLId})`}>
             <ellipse cx="28" cy="22" rx="13" ry={ryL} fill={fill} />
             <g className="pupil happy-pupil pupil-l">

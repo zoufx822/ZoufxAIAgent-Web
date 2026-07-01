@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useRef } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { toast } from 'sonner'
-import { useStore } from '@/lib/store'
+import { useStore, type Message } from '@/lib/store'
 import { streamChat, type ThinkingRequest } from '@/lib/chat-stream'
 
 const EMPTY_MESSAGES: never[] = []
@@ -17,12 +17,14 @@ export function useChatStream() {
     isLoading,
     addMessage,
     updateLastAssistantMessage,
+    updateAssistantMessageById,
     removeLastMessage,
     updateAnchorTitle,
     touchAnchor,
     appendToolCall,
     updateLastRunningToolCall,
     markRunningToolCallsFailed,
+    resetAssistantMessageForRetry,
     setLoading,
     setStatus,
     setMood,
@@ -36,12 +38,14 @@ export function useChatStream() {
       isLoading: s.isLoading,
       addMessage: s.addMessage,
       updateLastAssistantMessage: s.updateLastAssistantMessage,
+      updateAssistantMessageById: s.updateAssistantMessageById,
       removeLastMessage: s.removeLastMessage,
       updateAnchorTitle: s.updateAnchorTitle,
       touchAnchor: s.touchAnchor,
       appendToolCall: s.appendToolCall,
       updateLastRunningToolCall: s.updateLastRunningToolCall,
       markRunningToolCallsFailed: s.markRunningToolCallsFailed,
+      resetAssistantMessageForRetry: s.resetAssistantMessageForRetry,
       setLoading: s.setLoading,
       setStatus: s.setStatus,
       setMood: s.setMood,
@@ -58,6 +62,8 @@ export function useChatStream() {
   const ctrlRef = useRef<AbortController | null>(null)
   /** tail buffer：保留末尾 50 字符不 emit，防止跨 chunk 的 <!--mood:...--> 逃脱前端过滤 */
   const tailRef = useRef('')
+  /** 当前正在流式写入的助手消息 id——重生时目标可能在中段，stop 据此精确寻址而非取末尾 */
+  const streamingMsgIdRef = useRef<string | null>(null)
 
   /**
    * thinking 配置（{enabled, effort}）双重职责：控制前端思考块展示 + 透传后端选择模型档位/深度。
@@ -87,13 +93,16 @@ export function useChatStream() {
         toolCalls: [],
         isStreaming: false,
         isError: false,
+        createdAt: Date.now(),
       })
 
       updateAnchorTitle(anchorId, text)
       touchAnchor(anchorId, Date.now())
 
+      const assistantId = crypto.randomUUID()
+      streamingMsgIdRef.current = assistantId
       addMessage(anchorId, {
-        id: crypto.randomUUID(),
+        id: assistantId,
         role: 'assistant',
         content: '',
         thinking: '',
@@ -101,6 +110,7 @@ export function useChatStream() {
         toolCalls: [],
         isStreaming: true,
         isError: false,
+        createdAt: Date.now(),
       })
 
       await streamChat({
@@ -198,6 +208,7 @@ export function useChatStream() {
           bumpHotMemoryVersion()
           setLoading(false)
           ctrlRef.current = null
+          streamingMsgIdRef.current = null
         },
 
         onError: (err) => {
@@ -208,6 +219,7 @@ export function useChatStream() {
           setStatus('error')
           setLoading(false)
           ctrlRef.current = null
+          streamingMsgIdRef.current = null
         },
       })
     },
@@ -236,29 +248,193 @@ export function useChatStream() {
     ctrlRef.current?.abort()
     ctrlRef.current = null
     const anchorId = currentAnchorId
-    markRunningToolCallsFailed(anchorId)
-    const lastMsg = useStore.getState().messages[anchorId as string]?.at(-1)
-    if (
-      lastMsg &&
-      lastMsg.role === 'assistant' &&
-      !lastMsg.content &&
-      !lastMsg.thinking &&
-      lastMsg.toolCalls.length === 0
-    ) {
-      removeLastMessage(anchorId)
-    } else {
-      updateLastAssistantMessage(anchorId, { isStreaming: false })
+    const msgId = streamingMsgIdRef.current
+    streamingMsgIdRef.current = null
+
+    const msgs = useStore.getState().messages[anchorId as string] ?? []
+    // 优先按正在流式的消息 id 寻址（重生目标可能在中段），无 id 时回退末尾
+    const idx = msgId ? msgs.findIndex((m) => m.id === msgId) : msgs.length - 1
+    const target = msgs[idx]
+    if (target && target.role === 'assistant') {
+      const isEmptyPlaceholder =
+        !target.content && !target.thinking && target.toolCalls.length === 0
+      if (isEmptyPlaceholder && idx === msgs.length - 1) {
+        // 首发的空占位——整条移除；中段消息为空也不删，否则前置 user 轮成孤儿
+        removeLastMessage(anchorId)
+      } else {
+        updateAssistantMessageById(anchorId, target.id, (m) => ({
+          toolCalls: m.toolCalls.map((tc) =>
+            tc.status === 'running' ? { ...tc, status: 'failed' as const } : tc
+          ),
+          isStreaming: false,
+        }))
+      }
     }
     setStatus('idle')
     setLoading(false)
   }, [
     currentAnchorId,
-    markRunningToolCallsFailed,
-    updateLastAssistantMessage,
+    updateAssistantMessageById,
     removeLastMessage,
     setLoading,
     setStatus,
   ])
 
-  return { messages, isLoading, send, stop }
+  const regenerate = useCallback(
+    async (assistantMsgId: string, thinking: ThinkingRequest) => {
+      if (isLoading) return
+      // let：首条消息在 anchor_created 前出错时 anchorId 为 null，重试会懒建锚点后回填
+      let anchorId = currentAnchorId
+      const msgs = useStore.getState().messages[anchorId as string] ?? []
+      const assistantIdx = msgs.findIndex((m) => m.id === assistantMsgId)
+      if (assistantIdx === -1) return
+      const userMsg = [...msgs].slice(0, assistantIdx).reverse().find((m) => m.role === 'user')
+      if (!userMsg) return
+
+      // 全程按 id 精确写目标消息——重生的消息未必是末尾，不能用 updateLast*
+      const patchMsg = (
+        patch: Partial<Message> | ((m: Message) => Partial<Message>)
+      ) => updateAssistantMessageById(anchorId, assistantMsgId, patch)
+
+      resetAssistantMessageForRetry(anchorId, assistantMsgId)
+      streamingMsgIdRef.current = assistantMsgId
+      ctrlRef.current = new AbortController()
+      tailRef.current = ''
+      setLoading(true)
+      setStatus('thinking')
+
+      await streamChat({
+        message: userMsg.content,
+        anchorId,
+        prevAnchorId: null,
+        thinking,
+        userId: useStore.getState().userId,
+        regenerate: true,
+        signal: ctrlRef.current.signal,
+
+        onThinking: (chunk) => {
+          if (!thinking.enabled) return
+          setStatus('thinking')
+          patchMsg((m) => ({
+            thinking: m.thinking + chunk,
+            thinkingExpanded: m.thinking ? m.thinkingExpanded : true,
+          }))
+        },
+
+        onContent: (chunk) => {
+          tailRef.current += chunk
+          const clean = tailRef.current.replace(/<!--\s*mood\s*:\s*[^>]*?-->/gi, '')
+          const emitLen = Math.max(0, clean.length - 50)
+          if (emitLen > 0) {
+            const emit = clean.substring(0, emitLen)
+            tailRef.current = clean.substring(emitLen)
+            setStatus('writing')
+            patchMsg((m) => ({ content: m.content + emit }))
+          }
+        },
+
+        onToolCall: (payload) => {
+          tailRef.current = ''
+          setStatus('tooling')
+          patchMsg((m) => ({
+            content: '',
+            toolCalls: [
+              ...m.toolCalls,
+              {
+                id: crypto.randomUUID(),
+                tool: payload.tool,
+                toolDisplay: payload.toolDisplay,
+                query: payload.query,
+                status: 'running' as const,
+                expanded: false,
+              },
+            ],
+          }))
+        },
+
+        onToolResult: (payload) => {
+          patchMsg((m) => {
+            const tcs = [...m.toolCalls]
+            for (let i = tcs.length - 1; i >= 0; i--) {
+              if (tcs[i].status === 'running') {
+                tcs[i] = { ...tcs[i], status: 'completed', count: payload.count, resultPreview: payload.resultPreview }
+                break
+              }
+            }
+            return { toolCalls: tcs }
+          })
+        },
+
+        onMood: (payload) => { setMood(payload.keyword) },
+
+        // 常态重生 anchor 已存在不会触发；仅当首条消息 pre-claim 出错后重试，
+        // 后端懒建锚点 → 迁移 "null" 桶（消息 id 不变）并把后续写入重定向到真实 id
+        onAnchorCreated: (realId) => {
+          if (anchorId == null) {
+            claimAnchor(realId)
+            anchorId = realId
+          }
+        },
+
+        onComplete: () => {
+          if (tailRef.current) {
+            const clean = tailRef.current.replace(/<!--\s*mood\s*:\s*[^>]*?-->/gi, '')
+            if (clean) patchMsg((m) => ({ content: m.content + clean }))
+            tailRef.current = ''
+          }
+          patchMsg((m) => ({
+            toolCalls: m.toolCalls.map((tc) =>
+              tc.status === 'running' ? { ...tc, status: 'failed' as const } : tc
+            ),
+          }))
+          // 与 send 一致：流正常结束但全空 → 视为后端静默错误，置错误态可重试
+          const msg = useStore.getState().messages[anchorId as string]?.find((m) => m.id === assistantMsgId)
+          if (msg && !msg.content && !msg.thinking && msg.toolCalls.length === 0) {
+            patchMsg({ isError: true, isStreaming: false })
+            setStatus('error')
+          } else {
+            patchMsg({ isStreaming: false })
+            setStatus('idle')
+            bumpFocusInput()
+          }
+          touchAnchor(anchorId, Date.now())
+          bumpHotMemoryVersion()
+          setLoading(false)
+          ctrlRef.current = null
+          streamingMsgIdRef.current = null
+        },
+
+        onError: (err) => {
+          tailRef.current = ''
+          patchMsg((m) => ({
+            toolCalls: m.toolCalls.map((tc) =>
+              tc.status === 'running' ? { ...tc, status: 'failed' as const } : tc
+            ),
+            isError: true,
+            isStreaming: false,
+          }))
+          toast.error(err.message || '请求出错，请稍后重试')
+          setStatus('error')
+          setLoading(false)
+          ctrlRef.current = null
+          streamingMsgIdRef.current = null
+        },
+      })
+    },
+    [
+      isLoading,
+      currentAnchorId,
+      resetAssistantMessageForRetry,
+      updateAssistantMessageById,
+      claimAnchor,
+      setLoading,
+      setStatus,
+      setMood,
+      bumpHotMemoryVersion,
+      bumpFocusInput,
+      touchAnchor,
+    ]
+  )
+
+  return { messages, isLoading, send, stop, regenerate }
 }

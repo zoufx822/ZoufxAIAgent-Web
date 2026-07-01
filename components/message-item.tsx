@@ -13,9 +13,12 @@ function fmtToolDur(ms: number) {
 interface Props {
   message: Message
   isNew?: boolean
+  /** 是否为列表最后一条——重试仅对最后一轮开放（后端只能回滚最后一轮，避免歧义） */
+  isLast?: boolean
   onToggleThinking: () => void
   onToggleToolCall?: (toolCallId: string) => void
   onScrollNeeded?: () => void
+  onRegenerate?: (msgId: string) => void
 }
 
 /**
@@ -65,7 +68,14 @@ function ThinkingBlock({
     const peek = (thinking || '').replace(/\s+/g, ' ').trim()
     return (
       <div className="think-a collapsed">
-        <div className="think-collapsed-row" onClick={toggle}>
+        <div
+          className="think-collapsed-row"
+          role="button"
+          tabIndex={0}
+          aria-expanded={false}
+          onClick={toggle}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle() } }}
+        >
           <span className="think-head-label">思考过程</span>
           <span className="think-peek">{peek.length > 54 ? peek.slice(0, 54) + '…' : peek}</span>
           <ThinkCaret open={false} />
@@ -78,7 +88,11 @@ function ThinkingBlock({
     <div className="think-a">
       <div
         className={`think-head${collapsible ? ' clickable' : ''}`}
+        role={collapsible ? 'button' : undefined}
+        tabIndex={collapsible ? 0 : undefined}
+        aria-expanded={collapsible ? true : undefined}
         onClick={collapsible ? toggle : undefined}
+        onKeyDown={collapsible ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle() } } : undefined}
       >
         {streaming && <span className="think-head-dot" />}
         <span>{streaming ? '思考中' : '思考过程'}</span>
@@ -128,15 +142,21 @@ function ToolCallCard({ toolCall, onToggle }: { toolCall: ToolCall; onToggle?: (
     setFlat(false)
   }, [status, expanded])
 
+  const [hovered, setHovered] = useState(false)
+
   const statusText = status === 'running' ? '运行中' : status === 'failed' ? '出错' : '完成'
   const dotClass = status === 'running' ? 'running' : status === 'failed' ? 'error' : 'done'
-  const open = canExpand && expanded
+  const open = canExpand && (expanded || (flat && hovered))
 
   return (
-    <div className={`tool${flat ? ' flat' : ''}`}>
+    <div className={`tool${flat ? ' flat' : ''}`} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
       <div
         className={`tool-head${open ? '' : ' closed'}`}
+        role={canExpand ? 'button' : undefined}
+        tabIndex={canExpand ? 0 : undefined}
+        aria-expanded={canExpand ? open : undefined}
         onClick={canExpand ? onToggle : undefined}
+        onKeyDown={canExpand ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle?.() } } : undefined}
         style={canExpand ? undefined : { cursor: 'default' }}
       >
         <span className={`tool-dot ${dotClass}`} />
@@ -159,7 +179,7 @@ function ToolCallCard({ toolCall, onToggle }: { toolCall: ToolCall; onToggle?: (
         )}
       </div>
 
-      {open && (
+      <div className={`tool-body-wrap${open ? ' show' : ''}`}>
         <div className="tool-body">
           {query && (
             <>
@@ -174,7 +194,40 @@ function ToolCallCard({ toolCall, onToggle }: { toolCall: ToolCall; onToggle?: (
             </>
           )}
         </div>
-      )}
+      </div>
+    </div>
+  )
+}
+
+async function copyText(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard) {
+      await navigator.clipboard.writeText(text)
+      return true
+    }
+    const ta = document.createElement('textarea')
+    ta.value = text
+    ta.style.cssText = 'position:fixed;opacity:0'
+    document.body.appendChild(ta)
+    ta.select()
+    const ok = document.execCommand('copy')
+    document.body.removeChild(ta)
+    return ok
+  } catch {
+    return false
+  }
+}
+
+function MsgActions({ text }: { text: string }) {
+  const [label, setLabel] = useState('复制')
+  const handleCopy = async () => {
+    const ok = await copyText(text)
+    setLabel(ok ? '已复制' : '复制失败')
+    setTimeout(() => setLabel('复制'), 1400)
+  }
+  return (
+    <div className="msg-actions">
+      <button className="msg-act-btn" onClick={handleCopy}>{label}</button>
     </div>
   )
 }
@@ -182,8 +235,10 @@ function ToolCallCard({ toolCall, onToggle }: { toolCall: ToolCall; onToggle?: (
 function MessageItemBase({
   message,
   isNew = false,
+  isLast = false,
   onToggleToolCall,
   onScrollNeeded,
+  onRegenerate,
 }: Props) {
   const isUser = message.role === 'user'
 
@@ -224,14 +279,15 @@ function MessageItemBase({
 
         {/* AI 消息 */}
         {!isUser && (
-          <>
+          <div className="ai-msg-wrap">
             {message.isError ? (
-              <span
-                className="mono"
-                style={{ fontSize: 12, color: 'var(--t3)', letterSpacing: '0.04em' }}
-              >
-                发送失败，请重试
-              </span>
+              <div className="msg-error">
+                <span className="me-dot" />
+                <span className="me-txt">生成失败</span>
+                {isLast && (
+                  <button className="me-retry" onClick={() => onRegenerate?.(message.id)}>重试</button>
+                )}
+              </div>
             ) : (
               <>
                 {/* 思考过程 */}
@@ -276,9 +332,14 @@ function MessageItemBase({
                     onScrollNeeded={onScrollNeeded}
                   />
                 )}
+
+                {/* 复制操作（非流式且有正文时显示）*/}
+                {!message.isStreaming && message.content && (
+                  <MsgActions text={message.content} />
+                )}
               </>
             )}
-          </>
+          </div>
         )}
       </div>
     </motion.div>

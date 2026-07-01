@@ -195,6 +195,15 @@ export function StreamMarkdown({ content, isStreaming, onScrollNeeded }: Props) 
   )
 }
 
+const LANG_DISPLAY: Record<string, string> = {
+  ts: 'TypeScript', tsx: 'TSX', js: 'JavaScript', jsx: 'JSX',
+  py: 'Python', python: 'Python', java: 'Java', go: 'Go',
+  rust: 'Rust', cpp: 'C++', c: 'C', cs: 'C#', sh: 'Shell',
+  bash: 'Bash', zsh: 'Shell', json: 'JSON', yaml: 'YAML',
+  yml: 'YAML', html: 'HTML', css: 'CSS', md: 'Markdown',
+  sql: 'SQL', xml: 'XML', kt: 'Kotlin', swift: 'Swift',
+}
+
 async function applyShiki(container: HTMLElement) {
   try {
     const blocks = container.querySelectorAll<HTMLElement>('pre > code')
@@ -202,18 +211,65 @@ async function applyShiki(container: HTMLElement) {
     // 动态 import：把 shiki（含 oniguruma 引擎 + 语言语法）移出首屏 bundle，首个代码块渲染时才加载
     const { codeToHtml } = await import('shiki')
     for (const code of Array.from(blocks)) {
-      const lang = code.className.match(/language-(\w+)/)?.[1] ?? 'text'
+      // smd 输出裸类名（如 class="ts"），先尝试 language-xxx，退而取第一个 class token
+      const langMatch = code.className.match(/language-([\w+#-]+)/)
+      const rawLang = langMatch?.[1] ?? code.className.split(' ').find(Boolean) ?? ''
+      const lang = rawLang || 'text'
+      const displayName = LANG_DISPLAY[lang.toLowerCase()] ?? (rawLang ? rawLang.toUpperCase() : '代码')
       const raw = code.textContent ?? ''
+
+      let shikiHtml: string
       try {
-        const html = await codeToHtml(raw, { lang, theme: 'github-dark' })
-        const tmp = document.createElement('div')
-        tmp.innerHTML = html
-        code.parentElement!.replaceWith(tmp.firstElementChild!)
+        shikiHtml = await codeToHtml(raw, { lang, themes: { light: 'github-light', dark: 'github-dark' } })
       } catch {
-        // 未知语言，保持原样
+        shikiHtml = await codeToHtml(raw, { lang: 'text', themes: { light: 'github-light', dark: 'github-dark' } })
       }
+
+      const tmp = document.createElement('div')
+      tmp.innerHTML = shikiHtml
+      const preEl = tmp.firstElementChild as HTMLElement | null
+      if (!preEl) continue
+
+      const toolbar = document.createElement('div')
+      toolbar.className = 'code-toolbar'
+      const langLabel = document.createElement('span')
+      langLabel.className = 'code-lang-label'
+      langLabel.textContent = displayName
+      const copyBtn = document.createElement('button')
+      copyBtn.className = 'code-copy-btn'
+      copyBtn.textContent = '复制'
+      copyBtn.addEventListener('click', () => copyCode(raw, copyBtn))
+      toolbar.appendChild(langLabel)
+      toolbar.appendChild(copyBtn)
+
+      const wrap = document.createElement('div')
+      wrap.className = 'code-block-wrap'
+      wrap.appendChild(toolbar)
+      wrap.appendChild(preEl)
+
+      code.parentElement!.replaceWith(wrap)
     }
   } catch (e) {
     console.error('Shiki error:', e)
   }
+}
+
+async function copyCode(text: string, btn: HTMLButtonElement) {
+  try {
+    if (navigator.clipboard) {
+      await navigator.clipboard.writeText(text)
+    } else {
+      const ta = document.createElement('textarea')
+      ta.value = text
+      ta.style.cssText = 'position:fixed;opacity:0'
+      document.body.appendChild(ta)
+      ta.select()
+      document.execCommand('copy')
+      document.body.removeChild(ta)
+    }
+    btn.textContent = '已复制'
+  } catch {
+    btn.textContent = '复制失败'
+  }
+  setTimeout(() => { btn.textContent = '复制' }, 1400)
 }

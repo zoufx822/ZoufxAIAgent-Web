@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useStore } from '@/lib/store'
 import { Rail } from '@/components/rail'
 import { StatePanel } from '@/components/state-panel'
@@ -16,8 +16,20 @@ import { LookBackModal } from '@/components/lookback-modal'
 export function AppLayout() {
   useEnsureAnchor()
   const [memoryOpen, setMemoryOpen] = useState(false)
+  const [rightHidden, setRightHidden] = useState(false)
+  const layoutRef = useRef<HTMLDivElement>(null)
   const isLoading = useStore((s) => s.isLoading)
   const addAnchor = useStore((s) => s.addAnchor)
+
+  useEffect(() => {
+    const el = layoutRef.current
+    if (!el) return
+    const ro = new ResizeObserver(([entry]) => {
+      setRightHidden(entry.contentRect.width < 1080)
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
 
   const handleNewAnchor = () => {
     if (isLoading) return
@@ -26,7 +38,7 @@ export function AppLayout() {
   }
 
   return (
-    <div className="flex h-full overflow-hidden" style={{ background: 'var(--bg)' }}>
+    <div ref={layoutRef} className="flex h-full overflow-hidden" style={{ background: 'var(--bg)' }}>
       <Rail
         memoryOpen={memoryOpen}
         onMemoryClick={() => setMemoryOpen((v) => !v)}
@@ -40,7 +52,7 @@ export function AppLayout() {
         <ChatWindow />
       </div>
 
-      <StatePanel />
+      {!rightHidden && <StatePanel />}
 
       <LookBackModal />
     </div>

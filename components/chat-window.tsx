@@ -223,8 +223,8 @@ function ChatInput({
             isLoading ? 'hover:opacity-80' : canSend ? 'hover:opacity-90' : 'cursor-not-allowed'
           )}
           style={{
-            width: '30px',
-            height: '30px',
+            width: '36px',
+            height: '36px',
             background: isLoading ? 'var(--t1)' : canSend ? 'var(--accent)' : 'var(--border)',
             boxShadow: canSend && !isLoading ? '0 2px 8px var(--accent-s)' : 'none',
             flexShrink: 0,
@@ -233,10 +233,10 @@ function ChatInput({
           disabled={!isLoading && !canSend}
         >
           {isLoading ? (
-            <Square className="size-3 fill-current" style={{ color: 'var(--bg)' }} />
+            <Square className="size-3.5 fill-current" style={{ color: 'var(--bg)' }} />
           ) : (
             <ArrowUp
-              className="size-3.5"
+              className="size-4"
               strokeWidth={2.5}
               style={{ color: canSend ? 'var(--bg)' : 'var(--t3)' }}
             />
@@ -269,7 +269,8 @@ export function ChatWindow() {
     }
   }, [])
 
-  const { messages, isLoading, send, stop } = useChatStream()
+  const { messages, isLoading, send, stop, regenerate } = useChatStream()
+  const lastThinkingRef = useRef<ThinkingRequest>({ enabled: false })
   const { currentAnchorId, toggleThinking, toggleToolCallExpanded } = useStore(
     useShallow((s) => ({
       currentAnchorId: s.currentAnchorId,
@@ -380,6 +381,11 @@ export function ChatWindow() {
     flyTimerRef.current = setTimeout(() => setFlying(false), 520)
   }, [isEmpty])
 
+  const handleRegenerate = useCallback(
+    (msgId: string) => regenerate(msgId, lastThinkingRef.current),
+    [regenerate]
+  )
+
   const handleSend = useCallback(() => {
     const text = input.trim()
     if (!text || isLoading) return
@@ -387,7 +393,9 @@ export function ChatWindow() {
     setInput('')
     setLastInputAt(Date.now())
     forceScrollToBottom()
-    send(text, buildThinking())
+    const thinking = buildThinking()
+    lastThinkingRef.current = thinking
+    send(text, thinking)
   }, [input, isLoading, send, buildThinking, forceScrollToBottom, captureFlyOrigin])
 
   const handleSuggestion = useCallback(
@@ -504,7 +512,8 @@ export function ChatWindow() {
                     background: 'transparent',
                     border: '1px solid var(--border)',
                     borderRadius: '100px',
-                    padding: '6px 15px',
+                    padding: '9px 16px',
+                    minHeight: '36px',
                     fontSize: '12px',
                     color: 'var(--t2)',
                     fontFamily: 'inherit',
@@ -548,18 +557,17 @@ export function ChatWindow() {
                   if (msg.role === 'user') roundIdx++
                   // 每 3 轮从第 4 轮起插呼吸分割线
                   if (msg.role === 'user' && roundIdx > 1 && (roundIdx - 1) % 3 === 0) {
+                    const timeLabel = msg.createdAt
+                      ? new Date(msg.createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+                      : ''
                     items.push(
                       <div key={`br-${i}`} className="breath-divider">
                         <svg width="40" height="1">
-                          <line
-                            x1="0"
-                            y1="0.5"
-                            x2="40"
-                            y2="0.5"
-                            stroke="var(--border)"
-                            strokeWidth="1"
-                            strokeDasharray="2 4"
-                          />
+                          <line x1="0" y1="0.5" x2="40" y2="0.5" stroke="var(--border)" strokeWidth="1" strokeDasharray="2 4" />
+                        </svg>
+                        {timeLabel && <span className="breath-time">{timeLabel}</span>}
+                        <svg width="40" height="1">
+                          <line x1="0" y1="0.5" x2="40" y2="0.5" stroke="var(--border)" strokeWidth="1" strokeDasharray="2 4" />
                         </svg>
                       </div>
                     )
@@ -572,9 +580,11 @@ export function ChatWindow() {
                       <MessageItem
                         message={msg}
                         isNew={i >= messages.length - 2}
+                        isLast={i === messages.length - 1}
                         onToggleThinking={handleToggleThinking}
                         onToggleToolCall={handleToggleToolCall}
                         onScrollNeeded={scrollToBottom}
+                        onRegenerate={handleRegenerate}
                       />
                     </div>
                   )

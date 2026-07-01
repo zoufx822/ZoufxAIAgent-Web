@@ -38,7 +38,8 @@ export function StatePanel() {
       }}
     >
       <div style={{ flex: 1, overflow: 'auto', padding: '18px 16px 16px' }}>
-        <Section title="用户印象" card right={hotFilled < 3 ? <span className="imp-counter">{hotFilled}/10</span> : undefined}>
+        <div className="sp-h">小Z的记忆</div>
+        <Section title="印象" card right={hotFilled < 3 ? <span className="imp-counter">{hotFilled}/10</span> : undefined}>
           <HotMemoryPanel data={hot} />
         </Section>
 
@@ -46,7 +47,7 @@ export function StatePanel() {
           <MemoryAnchorsPanel />
         </div>
 
-        <Section title="重要经历" right={<span className="count">{eventCount}</span>}>
+        <Section title="经历" right={<span className="count">{eventCount}</span>}>
           <EventsPanel data={events} />
         </Section>
 

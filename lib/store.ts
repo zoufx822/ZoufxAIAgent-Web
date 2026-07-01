@@ -21,6 +21,7 @@ export interface Message {
   toolCalls: ToolCall[]
   isStreaming: boolean
   isError: boolean
+  createdAt?: number
 }
 
 /** 记忆锚点元数据——不含消息，消息按需从后端加载。 */
@@ -75,12 +76,19 @@ interface Store {
     anchorId: string | null,
     patch: Partial<Message> | ((last: Message) => Partial<Message>)
   ) => void
+  /** 按 id 精确写入助手消息——重生（regenerate）专用，目标可能不是末尾消息。 */
+  updateAssistantMessageById: (
+    anchorId: string | null,
+    msgId: string,
+    patch: Partial<Message> | ((m: Message) => Partial<Message>)
+  ) => void
   removeLastMessage: (anchorId: string | null) => void
   toggleThinking: (anchorId: string | null) => void
   appendToolCall: (anchorId: string | null, toolCall: ToolCall) => void
   updateLastRunningToolCall: (anchorId: string | null, patch: Partial<ToolCall>) => void
   toggleToolCallExpanded: (anchorId: string | null, toolCallId: string) => void
   markRunningToolCallsFailed: (anchorId: string | null) => void
+  resetAssistantMessageForRetry: (anchorId: string | null, msgId: string) => void
 
   setLoading: (v: boolean) => void
   setStatus: (s: Status) => void
@@ -171,52 +179,64 @@ export const useStore = create<Store>()(
       },
 
       updateLastAssistantMessage: (anchorId, patch) => {
-        if (anchorId == null) return
+        const key = anchorId as unknown as string // null → "null" 暂存桶（与 addMessage 一致）
         set((state) => {
-          const msgs = [...(state.messages[anchorId] ?? [])]
+          const msgs = [...(state.messages[key] ?? [])]
           const last = msgs[msgs.length - 1]
           if (!last || last.role !== 'assistant') return state
           const resolved = typeof patch === 'function' ? patch(last) : patch
           msgs[msgs.length - 1] = { ...last, ...resolved }
-          return { messages: { ...state.messages, [anchorId]: msgs } }
+          return { messages: { ...state.messages, [key]: msgs } }
+        })
+      },
+
+      updateAssistantMessageById: (anchorId, msgId, patch) => {
+        const key = anchorId as unknown as string // null → "null" 暂存桶
+        set((state) => {
+          const msgs = [...(state.messages[key] ?? [])]
+          const idx = msgs.findIndex((m) => m.id === msgId)
+          if (idx === -1 || msgs[idx].role !== 'assistant') return state
+          const resolved = typeof patch === 'function' ? patch(msgs[idx]) : patch
+          msgs[idx] = { ...msgs[idx], ...resolved }
+          return { messages: { ...state.messages, [key]: msgs } }
         })
       },
 
       removeLastMessage: (anchorId) => {
-        if (anchorId == null) return
+        const key = anchorId as unknown as string // null → "null" 暂存桶
         set((state) => {
-          const msgs = state.messages[anchorId]
+          const msgs = state.messages[key]
           if (!msgs?.length) return state
-          return { messages: { ...state.messages, [anchorId]: msgs.slice(0, -1) } }
+          return { messages: { ...state.messages, [key]: msgs.slice(0, -1) } }
         })
       },
 
       toggleThinking: (anchorId) => {
-        if (anchorId == null) return
+        const key = anchorId as unknown as string // null → "null" 暂存桶
         set((state) => {
-          const msgs = [...(state.messages[anchorId] ?? [])]
+          const msgs = [...(state.messages[key] ?? [])]
           const last = msgs[msgs.length - 1]
           if (!last || last.role !== 'assistant') return state
           msgs[msgs.length - 1] = { ...last, thinkingExpanded: !last.thinkingExpanded }
-          return { messages: { ...state.messages, [anchorId]: msgs } }
+          return { messages: { ...state.messages, [key]: msgs } }
         })
       },
 
       appendToolCall: (anchorId, toolCall) => {
-        if (anchorId == null) return
+        const key = anchorId as unknown as string // null → "null" 暂存桶
         set((state) => {
-          const msgs = [...(state.messages[anchorId] ?? [])]
+          const msgs = [...(state.messages[key] ?? [])]
           const last = msgs[msgs.length - 1]
           if (!last || last.role !== 'assistant') return state
           msgs[msgs.length - 1] = { ...last, toolCalls: [...last.toolCalls, toolCall] }
-          return { messages: { ...state.messages, [anchorId]: msgs } }
+          return { messages: { ...state.messages, [key]: msgs } }
         })
       },
 
       updateLastRunningToolCall: (anchorId, patch) => {
-        if (anchorId == null) return
+        const key = anchorId as unknown as string // null → "null" 暂存桶
         set((state) => {
-          const msgs = [...(state.messages[anchorId] ?? [])]
+          const msgs = [...(state.messages[key] ?? [])]
           const last = msgs[msgs.length - 1]
           if (!last || last.role !== 'assistant') return state
           const idx = last.toolCalls.findIndex((tc) => tc.status === 'running')
@@ -224,14 +244,14 @@ export const useStore = create<Store>()(
           const next = [...last.toolCalls]
           next[idx] = { ...next[idx], ...patch }
           msgs[msgs.length - 1] = { ...last, toolCalls: next }
-          return { messages: { ...state.messages, [anchorId]: msgs } }
+          return { messages: { ...state.messages, [key]: msgs } }
         })
       },
 
       toggleToolCallExpanded: (anchorId, toolCallId) => {
-        if (anchorId == null) return
+        const key = anchorId as unknown as string // null → "null" 暂存桶
         set((state) => {
-          const msgs = (state.messages[anchorId] ?? []).map((m) => {
+          const msgs = (state.messages[key] ?? []).map((m) => {
             if (m.role !== 'assistant') return m
             const idx = m.toolCalls.findIndex((tc) => tc.id === toolCallId)
             if (idx === -1) return m
@@ -239,14 +259,14 @@ export const useStore = create<Store>()(
             next[idx] = { ...next[idx], expanded: !next[idx].expanded }
             return { ...m, toolCalls: next }
           })
-          return { messages: { ...state.messages, [anchorId]: msgs } }
+          return { messages: { ...state.messages, [key]: msgs } }
         })
       },
 
       markRunningToolCallsFailed: (anchorId) => {
-        if (anchorId == null) return
+        const key = anchorId as unknown as string // null → "null" 暂存桶
         set((state) => {
-          const msgs = [...(state.messages[anchorId] ?? [])]
+          const msgs = [...(state.messages[key] ?? [])]
           const last = msgs[msgs.length - 1]
           if (!last || last.role !== 'assistant') return state
           const hasRunning = last.toolCalls.some((tc) => tc.status === 'running')
@@ -255,7 +275,18 @@ export const useStore = create<Store>()(
             tc.status === 'running' ? { ...tc, status: 'failed' as const } : tc
           )
           msgs[msgs.length - 1] = { ...last, toolCalls: next }
-          return { messages: { ...state.messages, [anchorId]: msgs } }
+          return { messages: { ...state.messages, [key]: msgs } }
+        })
+      },
+
+      resetAssistantMessageForRetry: (anchorId, msgId) => {
+        const key = anchorId as unknown as string // null → "null" 暂存桶
+        set((state) => {
+          const msgs = [...(state.messages[key] ?? [])]
+          const idx = msgs.findIndex((m) => m.id === msgId)
+          if (idx === -1) return state
+          msgs[idx] = { ...msgs[idx], isError: false, isStreaming: true, content: '', thinking: '', toolCalls: [] }
+          return { messages: { ...state.messages, [key]: msgs } }
         })
       },
 

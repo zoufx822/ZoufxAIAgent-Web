@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useStore } from '@/lib/store'
 import { useMemoryHot } from '@/hooks/use-memory-hot'
 import { parseCommitment } from '@/lib/parse-commitment'
@@ -17,10 +17,40 @@ export function LookBackModal() {
   const { data: impression } = useMemoryHot('user-impression')
   const userName = impression?.username?.trim()
 
+  const modalRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<Element | null>(null)
+
+  // 打开时保存触发元素并聚焦 modal，关闭后焦点归还触发元素
+  useEffect(() => {
+    if (open) {
+      triggerRef.current = document.activeElement
+      requestAnimationFrame(() => modalRef.current?.focus())
+    } else {
+      ;(triggerRef.current as HTMLElement | null)?.focus()
+    }
+  }, [open])
+
+  // ESC 关闭 + Tab focus trap
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false)
+      if (e.key === 'Escape') { setOpen(false); return }
+      if (e.key !== 'Tab') return
+      const modal = modalRef.current
+      if (!modal) return
+      const focusables = Array.from(
+        modal.querySelectorAll<HTMLElement>(
+          'a[href],button:not([disabled]),input,textarea,select,[tabindex]:not([tabindex="-1"])'
+        )
+      ).filter((el) => !el.closest('[aria-hidden]'))
+      if (focusables.length === 0) { e.preventDefault(); return }
+      const first = focusables[0]
+      const last = focusables[focusables.length - 1]
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last.focus() }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first.focus() }
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -33,7 +63,15 @@ export function LookBackModal() {
 
   return (
     <div className="lb-backdrop" onClick={() => setOpen(false)}>
-      <div className="lb-modal" onClick={(e) => e.stopPropagation()}>
+      <div
+        ref={modalRef}
+        className="lb-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="回望记录"
+        tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="lb-head">
           <div>
             <div className="lb-head-tt">Look back · 回顾</div>

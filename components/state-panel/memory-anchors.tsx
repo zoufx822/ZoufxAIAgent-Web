@@ -5,7 +5,7 @@ import { useStore } from '@/lib/store'
 import { api, type AnchorContextView, type AnchorSummary } from '@/lib/api'
 
 /**
- * 记忆锚点：near/mid/far 三层衰减摘要。
+ * 锚点：near/mid/far 三层衰减摘要。
  * 自带 section header（标题 + 总计数），与 Claude Design 对齐。
  * 数据来自 GET /ai/anchors/{anchorId}/context；isLoading 收尾后 refresh。
  */
@@ -35,7 +35,7 @@ export function MemoryAnchorsPanel() {
     return (
       <div>
         <div className="sp-section-h">
-          <span>记忆锚点</span>
+          <span>锚点</span>
         </div>
         <div className="anchor-empty">—</div>
       </div>
@@ -47,7 +47,7 @@ export function MemoryAnchorsPanel() {
     return (
       <div>
         <div className="sp-section-h">
-          <span>记忆锚点</span>
+          <span>锚点</span>
         </div>
         <div className="anchor-empty">这是我们的第一次对话。</div>
       </div>
@@ -60,7 +60,7 @@ export function MemoryAnchorsPanel() {
   return (
     <div>
       <div className="sp-section-h">
-        <span>记忆锚点</span>
+        <span>锚点</span>
         <span className="count">{total}</span>
       </div>
 
