@@ -27,8 +27,7 @@ export function useAnchorMessages() {
           // 由 anchorId + 序号派生的确定性 id——同锚点重拉时 React key 稳定
           id: `${anchorId}-h${i}`,
           role: (m.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
-          // 防御性剥离——后端已过滤，此处兜底
-          content: (m.content ?? '').replace(/<!--mood:[^>]+?-->/g, ''),
+          content: m.content ?? '',
           thinking: '',
           thinkingExpanded: false,
           toolCalls: [],

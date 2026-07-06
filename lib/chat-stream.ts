@@ -73,7 +73,10 @@ export interface StreamChatOptions {
   onContent?: (chunk: string) => void
   onToolCall?: (payload: ToolCallPayload) => void
   onToolResult?: (payload: ToolResultPayload) => void
-  /** mood 情感词事件——后端在 content 流尾部剥离 <!--mood:KEYWORD--> 后独立发送。一轮 0~1 次。 */
+  /**
+   * mood 情感词事件——后端从 content 流剥离 ⟦mood:KEYWORD⟧ 标记后独立发送。
+   * 一轮 1~N 次：开头必有一个（第一反应），情绪转折处再追加；相同情绪连发前端会去重不变脸。
+   */
   onMood?: (payload: MoodPayload) => void
   /** 后端创建锚点后返回新 anchorId——新对话首条消息的第一个 SSE 事件。 */
   onAnchorCreated?: (anchorId: string) => void

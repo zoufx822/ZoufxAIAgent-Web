@@ -142,14 +142,14 @@ function ToolCallCard({ toolCall, onToggle }: { toolCall: ToolCall; onToggle?: (
     setFlat(false)
   }, [status, expanded])
 
-  const [hovered, setHovered] = useState(false)
-
   const statusText = status === 'running' ? '运行中' : status === 'failed' ? '出错' : '完成'
   const dotClass = status === 'running' ? 'running' : status === 'failed' ? 'error' : 'done'
-  const open = canExpand && (expanded || (flat && hovered))
+  // 展开与否只由 expanded（点击）决定——之前叠加了 flat&&hovered 的悬停预览，
+  // 但点击卡片必然处于 hover 态，导致悬停预览一直把 body 顶开、点击折叠看似无效。
+  const open = canExpand && expanded
 
   return (
-    <div className={`tool${flat ? ' flat' : ''}`} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
+    <div className={`tool${flat ? ' flat' : ''}`}>
       <div
         className={`tool-head${open ? '' : ' closed'}`}
         role={canExpand ? 'button' : undefined}

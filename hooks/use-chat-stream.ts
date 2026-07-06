@@ -60,8 +60,6 @@ export function useChatStream() {
   const messages = useMemo(() => rawMessages ?? EMPTY_MESSAGES, [rawMessages])
 
   const ctrlRef = useRef<AbortController | null>(null)
-  /** tail buffer：保留末尾 50 字符不 emit，防止跨 chunk 的 <!--mood:...--> 逃脱前端过滤 */
-  const tailRef = useRef('')
   /** 当前正在流式写入的助手消息 id——重生时目标可能在中段，stop 据此精确寻址而非取末尾 */
   const streamingMsgIdRef = useRef<string | null>(null)
 
@@ -80,7 +78,6 @@ export function useChatStream() {
       if (prevAnchorId) useStore.setState({ lastActiveAnchorId: null })
 
       ctrlRef.current = new AbortController()
-      tailRef.current = ''
       setLoading(true)
       setStatus('thinking')
 
@@ -132,20 +129,12 @@ export function useChatStream() {
         },
 
         onContent: (chunk) => {
-          // tail buffer 防御：保留末尾 50 字符防止跨 chunk mood 标记逃脱
-          tailRef.current += chunk
-          const clean = tailRef.current.replace(/<!--\s*mood\s*:\s*[^>]*?-->/gi, '')
-          const emitLen = Math.max(0, clean.length - 50)
-          if (emitLen > 0) {
-            const emit = clean.substring(0, emitLen)
-            tailRef.current = clean.substring(emitLen)
-            setStatus('writing')
-            updateLastAssistantMessage(anchorId, (last) => ({ content: last.content + emit }))
-          }
+          // 情绪标记后端已在 content 流里剥离，这里直接追加即可
+          setStatus('writing')
+          updateLastAssistantMessage(anchorId, (last) => ({ content: last.content + chunk }))
         },
 
         onToolCall: (payload) => {
-          tailRef.current = '' // tool_call 边界清空
           setStatus('tooling')
           // ReAct 渲染：tool_call 触发时清空之前累积的 content（LLM preamble），
           // 让 tool 后的最终回复重新累积。避免 silent tool 前后双份回复。
@@ -178,14 +167,6 @@ export function useChatStream() {
         },
 
         onComplete: () => {
-          // flush tail buffer 残留
-          if (tailRef.current) {
-            const clean = tailRef.current.replace(/<!--\s*mood\s*:\s*[^>]*?-->/gi, '')
-            if (clean) {
-              updateLastAssistantMessage(anchorId, (last) => ({ content: last.content + clean }))
-            }
-            tailRef.current = ''
-          }
           markRunningToolCallsFailed(anchorId)
           const lastMsg = useStore.getState().messages[anchorId as string]?.at(-1)
           if (
@@ -212,7 +193,6 @@ export function useChatStream() {
         },
 
         onError: (err) => {
-          tailRef.current = ''
           markRunningToolCallsFailed(anchorId)
           updateLastAssistantMessage(anchorId, { isError: true, isStreaming: false })
           toast.error(err.message || '请求出错，请稍后重试')
@@ -244,7 +224,6 @@ export function useChatStream() {
   )
 
   const stop = useCallback(() => {
-    tailRef.current = ''
     ctrlRef.current?.abort()
     ctrlRef.current = null
     const anchorId = currentAnchorId
@@ -299,7 +278,6 @@ export function useChatStream() {
       resetAssistantMessageForRetry(anchorId, assistantMsgId)
       streamingMsgIdRef.current = assistantMsgId
       ctrlRef.current = new AbortController()
-      tailRef.current = ''
       setLoading(true)
       setStatus('thinking')
 
@@ -322,19 +300,11 @@ export function useChatStream() {
         },
 
         onContent: (chunk) => {
-          tailRef.current += chunk
-          const clean = tailRef.current.replace(/<!--\s*mood\s*:\s*[^>]*?-->/gi, '')
-          const emitLen = Math.max(0, clean.length - 50)
-          if (emitLen > 0) {
-            const emit = clean.substring(0, emitLen)
-            tailRef.current = clean.substring(emitLen)
-            setStatus('writing')
-            patchMsg((m) => ({ content: m.content + emit }))
-          }
+          setStatus('writing')
+          patchMsg((m) => ({ content: m.content + chunk }))
         },
 
         onToolCall: (payload) => {
-          tailRef.current = ''
           setStatus('tooling')
           patchMsg((m) => ({
             content: '',
@@ -377,11 +347,6 @@ export function useChatStream() {
         },
 
         onComplete: () => {
-          if (tailRef.current) {
-            const clean = tailRef.current.replace(/<!--\s*mood\s*:\s*[^>]*?-->/gi, '')
-            if (clean) patchMsg((m) => ({ content: m.content + clean }))
-            tailRef.current = ''
-          }
           patchMsg((m) => ({
             toolCalls: m.toolCalls.map((tc) =>
               tc.status === 'running' ? { ...tc, status: 'failed' as const } : tc
@@ -405,7 +370,6 @@ export function useChatStream() {
         },
 
         onError: (err) => {
-          tailRef.current = ''
           patchMsg((m) => ({
             toolCalls: m.toolCalls.map((tc) =>
               tc.status === 'running' ? { ...tc, status: 'failed' as const } : tc

@@ -26,6 +26,10 @@ export function Rail({ memoryOpen, onMemoryClick, onNewAnchor }: RailProps) {
         borderRight: '1px solid var(--border)',
         padding: '14px 0',
         gap: 6,
+        // 抽屉的"点外部关闭"遮罩是 fixed inset-0 z-70，会盖住整条 rail；
+        // 抬到遮罩之上，抽屉打开时 rail 按钮（新对话/主题）仍可直接点击而非被遮罩吞掉。
+        position: 'relative',
+        zIndex: 90,
       }}
     >
       {/* Z 方块标已去除——形象由 Home Eyes + 消息头像 Eyes 承载 */}
