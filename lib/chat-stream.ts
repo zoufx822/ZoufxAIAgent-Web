@@ -56,19 +56,13 @@ export interface StreamChatOptions {
   message: string
   /** 当前对话锚点 id。null 表示新对话，后端创建后通过 anchor_created 事件返回。 */
   anchorId: string | null
-  /** 切锚前的上一个锚点 id，触发后端旧锚总结。null 表示首条/无切换。 */
-  prevAnchorId?: string | null
   /** 思考配置对象（是否开启 + 思考深度）。后端 ChatRequest.thinking 为 {enabled, effort}。 */
   thinking: ThinkingRequest
   /** 用于后端懒创建：anchorId 尚未入库时，后端用此 userId 自动建立 anchor 行。 */
   userId: string
-  /**
-   * 重生标记：true = 重试同一轮（对错误条点「重试」触发）。后端据此回滚该 anchor 最后一轮
-   * assistant 输出并就地再生成，而非把 prompt 当作新一轮追加——避免重复 user 轮污染记忆窗口。
-   * 仅对「最后一条」消息开放（前端 UI 已门控），故后端「回滚最后一轮」无歧义。
-   */
-  regenerate?: boolean
   signal?: AbortSignal
+  /** 每轮首个 SSE 事件 `turn_started`——携后端本轮 turnId（早于 anchor_created），前端存下供停止/轮询定位。 */
+  onTurn?: (turnId: string) => void
   onThinking?: (chunk: string) => void
   onContent?: (chunk: string) => void
   onToolCall?: (payload: ToolCallPayload) => void
@@ -80,6 +74,11 @@ export interface StreamChatOptions {
   onMood?: (payload: MoodPayload) => void
   /** 后端创建锚点后返回新 anchorId——新对话首条消息的第一个 SSE 事件。 */
   onAnchorCreated?: (anchorId: string) => void
+  /**
+   * 无数据活动 watchdog 超时——consumeStream 下「断连≠失败」：连接可能死了但服务端大概率仍在生成。
+   * 触发时 reader 已 cancel，交由上层标「生成中」+ 轮询 loadMessages，而非当失败。不再走 onError。
+   */
+  onIdleTimeout?: () => void
   onComplete?: () => void
   onError?: (err: Error) => void
 }
@@ -122,8 +121,10 @@ function dispatchEvent(
   data: string,
   opts: StreamChatOptions
 ): 'continue' | 'terminated' {
-  const { onThinking, onContent, onToolCall, onToolResult, onMood, onAnchorCreated, onError } = opts
-  if (event === 'anchor_created') {
+  const { onTurn, onThinking, onContent, onToolCall, onToolResult, onMood, onAnchorCreated, onError } = opts
+  if (event === 'turn_started') {
+    onTurn?.(data)
+  } else if (event === 'anchor_created') {
     onAnchorCreated?.(data)
   } else if (event === 'thinking') {
     onThinking?.(data)
@@ -155,7 +156,7 @@ function dispatchEvent(
 }
 
 export async function streamChat(opts: StreamChatOptions) {
-  const { message, anchorId, prevAnchorId, thinking, userId, regenerate, signal, onComplete, onError } = opts
+  const { message, anchorId, thinking, userId, signal, onComplete, onError, onIdleTimeout } = opts
 
   try {
     const res = await fetch(API_URL, {
@@ -164,12 +165,9 @@ export async function streamChat(opts: StreamChatOptions) {
       body: JSON.stringify({
         prompt: message,
         anchorId,
-        prevAnchorId: prevAnchorId ?? null,
         // 后端 ChatRequest.thinking = { enabled, effort }；effort 为 undefined 时 JSON.stringify 自动省略
         thinking: { enabled: thinking.enabled, effort: thinking.effort },
         userId,
-        // 仅重试时为 true；false/省略 = 普通新轮（JSON.stringify 对 undefined 自动省略）
-        regenerate: regenerate || undefined,
       }),
       signal,
     })
@@ -197,22 +195,30 @@ export async function streamChat(opts: StreamChatOptions) {
     let buffer = ''
     // 无数据活动 watchdog：每次 read 与定时器 race，IDLE_TIMEOUT 内无数据即判定挂起。
     // 阈值须 > 后端单次工具调用最坏阻塞（Tavily 重试 ~60s），否则会误杀合法工具调用。
+    // consumeStream：超时不当失败——cancel 连接后交上层轮询（生成大概率仍在服务端跑）。
     const IDLE_TIMEOUT = 90000
+    const IDLE = Symbol('idle')
 
     while (true) {
       let idleTimer: ReturnType<typeof setTimeout> | undefined
-      const idle = new Promise<never>((_, reject) => {
+      const idle = new Promise<typeof IDLE>((resolve) => {
         idleTimer = setTimeout(() => {
           reader.cancel().catch(() => {})
-          reject(new Error('流式输出超时，请稍后重试'))
+          resolve(IDLE)
         }, IDLE_TIMEOUT)
       })
 
-      let result: Awaited<ReturnType<typeof reader.read>>
+      let result: Awaited<ReturnType<typeof reader.read>> | typeof IDLE
       try {
         result = await Promise.race([reader.read(), idle])
       } finally {
         clearTimeout(idleTimer)
+      }
+
+      // 超时挂起：非失败，交上层标「生成中」+ 轮询；不触发 onComplete/onError
+      if (result === IDLE) {
+        onIdleTimeout?.()
+        return
       }
 
       const { done, value } = result

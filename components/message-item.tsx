@@ -13,12 +13,9 @@ function fmtToolDur(ms: number) {
 interface Props {
   message: Message
   isNew?: boolean
-  /** 是否为列表最后一条——重试仅对最后一轮开放（后端只能回滚最后一轮，避免歧义） */
-  isLast?: boolean
   onToggleThinking: () => void
   onToggleToolCall?: (toolCallId: string) => void
   onScrollNeeded?: () => void
-  onRegenerate?: (msgId: string) => void
 }
 
 /**
@@ -235,10 +232,8 @@ function MsgActions({ text }: { text: string }) {
 function MessageItemBase({
   message,
   isNew = false,
-  isLast = false,
   onToggleToolCall,
   onScrollNeeded,
-  onRegenerate,
 }: Props) {
   const isUser = message.role === 'user'
 
@@ -284,9 +279,6 @@ function MessageItemBase({
               <div className="msg-error">
                 <span className="me-dot" />
                 <span className="me-txt">生成失败</span>
-                {isLast && (
-                  <button className="me-retry" onClick={() => onRegenerate?.(message.id)}>重试</button>
-                )}
               </div>
             ) : (
               <>
@@ -323,6 +315,27 @@ function MessageItemBase({
                       ))}
                     </div>
                   )}
+
+                {/* 生成中占位：consumeStream 下断连≠失败，服务端仍在跑 → 轮询到落库回复再替换 */}
+                {message.isPending && !message.content && (
+                  <div className="flex items-center gap-1.5 py-2" style={{ color: 'var(--t3)' }}>
+                    {[0, 1, 2].map((i) => (
+                      <span
+                        key={i}
+                        style={{
+                          width: 5,
+                          height: 5,
+                          borderRadius: '50%',
+                          background: 'currentColor',
+                          animation: `pulse-dot 1.2s ease ${i * 0.18}s infinite`,
+                        }}
+                      />
+                    ))}
+                    <span style={{ marginLeft: 6, fontFamily: 'var(--mono)', fontSize: 11, letterSpacing: '.08em' }}>
+                      生成中
+                    </span>
+                  </div>
+                )}
 
                 {/* 消息正文 */}
                 {message.content && (

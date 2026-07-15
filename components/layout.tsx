@@ -8,6 +8,7 @@ import { useEnsureAnchor } from '@/hooks/use-ensure-anchor'
 import { MemoryAnchorDrawer } from '@/components/memory-anchor-drawer'
 import { ChatWindow } from '@/components/chat-window'
 import { LookBackModal } from '@/components/lookback-modal'
+import { TopToast } from '@/components/top-toast'
 
 /**
  * 应用主布局——三段工作台式：Rail(56) + 主区(PresenceFloat + ChatWindow) + StatePanel(280)。
@@ -55,6 +56,7 @@ export function AppLayout() {
       {!rightHidden && <StatePanel />}
 
       <LookBackModal />
+      <TopToast />
     </div>
   )
 }

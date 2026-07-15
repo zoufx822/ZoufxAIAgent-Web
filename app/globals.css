@@ -2325,3 +2325,63 @@ button {
     transform: translate(0, 0);
   }
 }
+
+/* ── 揭示引擎：新块级元素淡入 bloom（替代逐字打字机）──
+   StreamMarkdown 用 MutationObserver 给新出现的块级元素（段落/列项/标题）加 .sc-in，
+   触发一次淡入；代码块跳过（交给 shiki）。rAF 按剩余比例追赶缓冲，不闪屏。 */
+.sc-in {
+  animation: scIn 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes scIn {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sc-in {
+    animation: none;
+  }
+}
+
+/* ── 顶部胶囊 toast：失败/停止把消息放回输入框时的轻提示（fixed 顶部居中）── */
+.top-toast {
+  position: fixed;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border-radius: 100px;
+  background: var(--t1);
+  color: var(--bg);
+  font-size: 12.5px;
+  line-height: 1;
+  box-shadow: var(--shadow-lg, var(--shadow));
+  animation: toast-in 0.18s ease both;
+  pointer-events: none;
+}
+.top-toast .tt-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #dc2626;
+  flex-shrink: 0;
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -6px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}

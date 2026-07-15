@@ -1,8 +1,7 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type MutableRefObject, type RefObject } from 'react'
 import * as smd from 'streaming-markdown'
-import { cn } from '@/lib/utils'
 
 interface Props {
   content: string
@@ -10,172 +9,233 @@ interface Props {
   onScrollNeeded?: () => void
 }
 
-// 目标打字速度（字符/秒），略慢于 LLM 输出速度以保持缓冲区非空
-const CHARS_PER_SEC = 60
+const PROSE_CLASS =
+  'prose prose-sm prose-zoufx dark:prose-invert max-w-none text-[15px] leading-7 text-foreground/92'
 
-export function StreamMarkdown({ content, isStreaming, onScrollNeeded }: Props) {
-  const containerRef = useRef<HTMLDivElement>(null)
-  const parserRef = useRef<ReturnType<typeof smd.parser> | null>(null)
-  const writtenLenRef = useRef(0)
-  const [mounted, setMounted] = useState(false)
+/** 揭示引擎的可变状态——rAF 追赶游标（revealed）与 parser 写入位（written）解耦。 */
+interface EngineState {
+  parser: ReturnType<typeof smd.parser> | null
+  written: number
+  revealed: number
+  ended: boolean
+  raf: number
+  lastFeed: number
+  text: string
+  streaming: boolean
+  obs: MutationObserver | null
+}
 
-  // 历史消息（挂载时已非流式）直接从完整长度开始，跳过打字机路径
-  const [displayedLen, setDisplayedLenState] = useState(() => (isStreaming ? 0 : content.length))
-  // ref 版本用于在 rAF 回调（非 React 渲染周期）中读取当前位置，避免闭包过期
-  const displayedLenRef = useRef(isStreaming ? 0 : content.length)
-
-  const setDisplayedLen = (v: number) => {
-    displayedLenRef.current = v
-    setDisplayedLenState(v)
+/**
+ * 块级淡入揭示引擎：smd 直接操作容器 DOM（绕过 React reconcile），文本增量喂 parser；
+ * rAF 按剩余比例追赶缓冲（step = max(4, ceil(remaining*0.16)) 节流 ~32ms），不绑字符计数器——
+ * 无论 token 多快到达都不闪屏。bloom 只在新块级元素（段落/列项/标题）出现时触发一次（MutationObserver
+ * 加 .sc-in），代码块跳过交给 shiki。历史/落库回复（挂载即非流式）一次性整条揭示。
+ */
+function createEngine(
+  sRef: MutableRefObject<EngineState>,
+  elRef: RefObject<HTMLDivElement | null>,
+  onScrollRef: MutableRefObject<(() => void) | undefined>
+) {
+  const animateAdded = (nodes: Node[]) => {
+    for (const n of nodes) {
+      if (n.nodeType !== 1) continue
+      const el = n as Element
+      if (el.closest?.('pre')) continue // 代码块交给 shiki，不 bloom
+      el.classList.add('sc-in')
+    }
   }
 
-  const rafRef = useRef<number | null>(null)
-  const fullContentRef = useRef(content)
-  const isStreamingRef = useRef(isStreaming)
-  const lastTimeRef = useRef<number | null>(null)
-  const accumRef = useRef(0)
+  const ensureParser = () => {
+    const el = elRef.current
+    const s = sRef.current
+    if (!el) return false
+    if (!s.parser) {
+      el.innerHTML = ''
+      s.parser = smd.parser(smd.default_renderer(el))
+      s.written = 0
+      if (!s.obs) {
+        s.obs = new MutationObserver((muts) => {
+          const added: Node[] = []
+          for (const m of muts) m.addedNodes.forEach((n) => added.push(n))
+          if (added.length) animateAdded(added)
+        })
+        s.obs.observe(el, { childList: true, subtree: true })
+      }
+    }
+    return true
+  }
 
-  fullContentRef.current = content
-  isStreamingRef.current = isStreaming
+  const feed = (n: number) => {
+    const s = sRef.current
+    if (!ensureParser() || !s.parser) return
+    if (n > s.written) {
+      try {
+        smd.parser_write(s.parser, s.text.slice(s.written, n))
+      } catch (e) {
+        console.error('StreamMarkdown write error:', e)
+      }
+      s.written = n
+      onScrollRef.current?.()
+    }
+  }
+
+  const finish = () => {
+    const s = sRef.current
+    if (!s.parser || s.ended) return
+    if (s.text.length > s.written) {
+      try {
+        smd.parser_write(s.parser, s.text.slice(s.written))
+      } catch {
+        // parser 可能已结束
+      }
+      s.written = s.text.length
+    }
+    try {
+      smd.parser_end(s.parser)
+    } catch {
+      // parser 可能已结束
+    }
+    s.parser = null
+    s.ended = true
+    if (s.obs) {
+      s.obs.disconnect()
+      s.obs = null
+    }
+    if (elRef.current) void applyShiki(elRef.current)
+  }
+
+  const reset = () => {
+    const s = sRef.current
+    if (s.raf) {
+      cancelAnimationFrame(s.raf)
+      s.raf = 0
+    }
+    if (s.obs) {
+      s.obs.disconnect()
+      s.obs = null
+    }
+    if (elRef.current) elRef.current.innerHTML = ''
+    s.parser = null
+    s.written = 0
+    s.revealed = 0
+    s.ended = false
+    s.lastFeed = 0
+  }
+
+  const tick: FrameRequestCallback = (now) => {
+    const s = sRef.current
+    s.raf = 0
+    const target = s.text.length
+    if (now - s.lastFeed >= 32) {
+      if (s.revealed < target) {
+        const remaining = target - s.revealed
+        const step = Math.max(4, Math.ceil(remaining * 0.16))
+        s.revealed = Math.min(target, s.revealed + step)
+        feed(s.revealed)
+      }
+      s.lastFeed = now
+    }
+    if (s.revealed < target) s.raf = requestAnimationFrame(tick)
+    else if (!s.streaming) finish()
+  }
+
+  const kick = () => {
+    const s = sRef.current
+    if (s.revealed < s.text.length) {
+      if (!s.raf) s.raf = requestAnimationFrame(tick)
+    } else if (!s.streaming) {
+      finish()
+    }
+  }
+
+  /** 历史/落库回复：整条一次性揭示（各块同时淡入，不逐块追赶）。 */
+  const revealAll = () => {
+    const s = sRef.current
+    s.revealed = s.text.length
+    feed(s.text.length)
+    finish()
+  }
+
+  const onVisible = () => {
+    const s = sRef.current
+    if (!document.hidden && s.revealed < s.text.length && !s.raf) s.raf = requestAnimationFrame(tick)
+  }
+
+  const cleanup = () => {
+    const s = sRef.current
+    if (s.raf) cancelAnimationFrame(s.raf)
+    if (s.obs) {
+      s.obs.disconnect()
+      s.obs = null
+    }
+    if (s.parser) {
+      try {
+        smd.parser_end(s.parser)
+      } catch {
+        // parser 可能已结束
+      }
+      s.parser = null
+    }
+  }
+
+  return { kick, reset, revealAll, onVisible, cleanup }
+}
+
+export function StreamMarkdown({ content, isStreaming, onScrollNeeded }: Props) {
+  const elRef = useRef<HTMLDivElement>(null)
+  const sRef = useRef<EngineState>({
+    parser: null,
+    written: 0,
+    revealed: 0,
+    ended: false,
+    raf: 0,
+    lastFeed: 0,
+    text: content,
+    streaming: isStreaming,
+    obs: null,
+  })
+  const onScrollRef = useRef(onScrollNeeded)
+  const engineRef = useRef<ReturnType<typeof createEngine> | null>(null)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    onScrollRef.current = onScrollNeeded
+  }, [onScrollNeeded])
 
   useEffect(() => {
     setMounted(true)
   }, [])
 
-  // 打字机：基于时间戳均速推进，副作用全部在 rAF 回调中，不进入 setState updater
+  // 揭示推进：内容回退（被替换/清空，长度缩短）→ 重置解析器；历史/落库（挂载即非流式）整条即时揭示；流式则 rAF 追赶
   useEffect(() => {
     if (!mounted) return
-
-    if (!isStreaming) {
-      if (rafRef.current !== null) {
-        cancelAnimationFrame(rafRef.current)
-        rafRef.current = null
-      }
-      setDisplayedLen(content.length)
-      return
-    }
-
-    if (displayedLenRef.current >= content.length) return
-
-    lastTimeRef.current = null
-    accumRef.current = 0
-
-    const tick: FrameRequestCallback = (timestamp) => {
-      const full = fullContentRef.current
-      const streaming = isStreamingRef.current
-      const prev = displayedLenRef.current
-
-      // 已追上当前内容末尾，等待新内容（effect 依赖 content 会自动重启）
-      if (prev >= full.length) {
-        rafRef.current = null
-        return
-      }
-
-      const elapsed =
-        lastTimeRef.current !== null ? Math.min(timestamp - lastTimeRef.current, 100) : 16
-      lastTimeRef.current = timestamp
-      accumRef.current += (elapsed * CHARS_PER_SEC) / 1000
-      const charsToAdd = Math.floor(accumRef.current)
-
-      if (charsToAdd === 0) {
-        rafRef.current = requestAnimationFrame(tick)
-        return
-      }
-
-      accumRef.current -= charsToAdd
-      const next = Math.min(prev + charsToAdd, full.length)
-      setDisplayedLen(next)
-
-      if (next < full.length || streaming) {
-        rafRef.current = requestAnimationFrame(tick)
-      } else {
-        rafRef.current = null
-      }
-    }
-
-    rafRef.current = requestAnimationFrame(tick)
-
-    return () => {
-      if (rafRef.current !== null) {
-        cancelAnimationFrame(rafRef.current)
-        rafRef.current = null
-      }
+    if (!engineRef.current) engineRef.current = createEngine(sRef, elRef, onScrollRef)
+    const engine = engineRef.current
+    const s = sRef.current
+    if (content.length < s.written) engine.reset()
+    s.text = content
+    s.streaming = isStreaming
+    if (!isStreaming && s.written === 0 && s.revealed === 0) {
+      engine.revealAll()
+    } else {
+      engine.kick()
     }
   }, [content, isStreaming, mounted])
 
-  // 初始化 parser
+  // 标签页恢复可见续跑 rAF（隐藏期间自然暂停）+ 卸载清理
   useEffect(() => {
     if (!mounted) return
-    const el = containerRef.current
-    if (!el) return
-
-    el.innerHTML = ''
-    writtenLenRef.current = 0
-    const renderer = smd.default_renderer(el)
-    parserRef.current = smd.parser(renderer)
-
+    const engine = engineRef.current
+    const onVis = () => engine?.onVisible()
+    document.addEventListener('visibilitychange', onVis)
     return () => {
-      parserRef.current = null
+      document.removeEventListener('visibilitychange', onVis)
+      engine?.cleanup()
     }
   }, [mounted])
 
-  // 增量写入新字符到 parser
-  useEffect(() => {
-    if (!mounted) return
-    const p = parserRef.current
-    if (!p) return
-
-    const newChars = content.slice(writtenLenRef.current, displayedLen)
-    if (newChars) {
-      try {
-        smd.parser_write(p, newChars)
-      } catch (e) {
-        console.error('StreamMarkdown write error:', e)
-      }
-      writtenLenRef.current = displayedLen
-    }
-  }, [displayedLen, content, mounted])
-
-  // 流结束：关闭 parser，应用 Shiki 代码高亮
-  useEffect(() => {
-    if (!mounted || isStreaming) return
-    if (displayedLen < content.length) return
-
-    const p = parserRef.current
-    if (!p) return
-
-    try {
-      smd.parser_end(p)
-    } catch {
-      // parser 可能已结束
-    }
-
-    let cancelled = false
-    requestAnimationFrame(() => {
-      if (!cancelled && containerRef.current) {
-        applyShiki(containerRef.current)
-      }
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [isStreaming, displayedLen, content.length, mounted])
-
-  // 滚动通知
-  useEffect(() => {
-    if (displayedLen > 0) onScrollNeeded?.()
-  }, [displayedLen, onScrollNeeded])
-
   if (!mounted) {
-    return (
-      <div
-        className={cn(
-          'prose prose-sm prose-zoufx dark:prose-invert max-w-none text-[15px] leading-7 text-foreground/92'
-        )}
-      >
-        {content}
-      </div>
-    )
+    return <div className={PROSE_CLASS}>{content}</div>
   }
 
   function handleClick(e: React.MouseEvent<HTMLDivElement>) {
@@ -186,13 +246,7 @@ export function StreamMarkdown({ content, isStreaming, onScrollNeeded }: Props) 
     }
   }
 
-  return (
-    <div
-      ref={containerRef}
-      onClick={handleClick}
-      className="prose prose-sm prose-zoufx dark:prose-invert max-w-none text-[15px] leading-7 text-foreground/92"
-    />
-  )
+  return <div ref={elRef} onClick={handleClick} className={PROSE_CLASS} />
 }
 
 const LANG_DISPLAY: Record<string, string> = {

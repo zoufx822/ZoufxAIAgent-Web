@@ -21,7 +21,22 @@ export interface Message {
   toolCalls: ToolCall[]
   isStreaming: boolean
   isError: boolean
+  /** 生成中占位：consumeStream 下断连≠失败，服务端仍在跑 → 标此，前端轮询到落库回复再替换。 */
+  isPending?: boolean
   createdAt?: number
+}
+
+/** 失败/停止时把该轮原文放回输入框——key 上升沿驱动 ChatInput 回填（每次都变化）。 */
+export interface Prefill {
+  text: string
+  key: number
+}
+
+/** 当前锚点的在建轮（consumeStream 脱离连接后仍挂着）——非空则同锚禁发。 */
+export interface PendingTurn {
+  turnId: string
+  prompt: string
+  anchorId: string
 }
 
 /** 记忆锚点元数据——不含消息，消息按需从后端加载。 */
@@ -40,8 +55,6 @@ interface Store {
   // 锚点元数据列表（后端权威，本地缓存）
   anchors: MemoryAnchor[]
   currentAnchorId: string | null
-  /** 上一个活跃锚点 id，切换时传给后端 prevAnchorId 触发压缩 */
-  lastActiveAnchorId: string | null
 
   // 消息（按 anchorId 索引，非持久化）
   messages: Record<string, Message[]>
@@ -58,6 +71,12 @@ interface Store {
   hotMemoryVersion: number
   /** 回复流式真正结束时递增（上升沿驱动输入框自动 refocus）；错误/中止不递增 */
   focusInputSignal: number
+  /** 失败/停止把原文放回输入框——ChatInput 监听 key 上升沿回填。 */
+  prefill: Prefill | null
+  /** 当前在建轮（consumeStream）——非空则同锚禁发 + 显示「生成中」。 */
+  pendingTurn: PendingTurn | null
+  /** 顶部胶囊 toast（失败/停止/在建轻提示）——key 上升沿驱动，3.2s 自动消失。 */
+  topToast: Prefill | null
 
   // ── anchor actions ──
   setAnchors: (anchors: MemoryAnchor[]) => void
@@ -76,19 +95,19 @@ interface Store {
     anchorId: string | null,
     patch: Partial<Message> | ((last: Message) => Partial<Message>)
   ) => void
-  /** 按 id 精确写入助手消息——重生（regenerate）专用，目标可能不是末尾消息。 */
+  /** 按 id 精确写入助手消息——落库回复替换「生成中」占位 / watchdog 超时标占位，目标可能不是末尾消息。 */
   updateAssistantMessageById: (
     anchorId: string | null,
     msgId: string,
     patch: Partial<Message> | ((m: Message) => Partial<Message>)
   ) => void
-  removeLastMessage: (anchorId: string | null) => void
+  /** 按 id 批量移除消息——失败/停止时整体撤回本轮 user+assistant。 */
+  removeMessages: (anchorId: string | null, ids: string[]) => void
   toggleThinking: (anchorId: string | null) => void
   appendToolCall: (anchorId: string | null, toolCall: ToolCall) => void
   updateLastRunningToolCall: (anchorId: string | null, patch: Partial<ToolCall>) => void
   toggleToolCallExpanded: (anchorId: string | null, toolCallId: string) => void
   markRunningToolCallsFailed: (anchorId: string | null) => void
-  resetAssistantMessageForRetry: (anchorId: string | null, msgId: string) => void
 
   setLoading: (v: boolean) => void
   setStatus: (s: Status) => void
@@ -96,6 +115,9 @@ interface Store {
   setLookbackOpen: (v: boolean) => void
   bumpHotMemoryVersion: () => void
   bumpFocusInput: () => void
+  setPrefill: (p: Prefill | null) => void
+  setPendingTurn: (p: PendingTurn | null) => void
+  setTopToast: (t: Prefill | null) => void
 }
 
 export const useStore = create<Store>()(
@@ -104,7 +126,6 @@ export const useStore = create<Store>()(
       userId: '',
       anchors: [],
       currentAnchorId: null,
-      lastActiveAnchorId: null,
       messages: {},
       isLoading: false,
       currentStatus: 'idle',
@@ -112,6 +133,9 @@ export const useStore = create<Store>()(
       lookbackOpen: false,
       hotMemoryVersion: 0,
       focusInputSignal: 0,
+      prefill: null,
+      pendingTurn: null,
+      topToast: null,
 
       setAnchors: (anchors) => {
         const cur = get().currentAnchorId
@@ -123,8 +147,7 @@ export const useStore = create<Store>()(
       },
 
       addAnchor: () => {
-        const { currentAnchorId } = get()
-        set({ currentAnchorId: null, lastActiveAnchorId: currentAnchorId })
+        set({ currentAnchorId: null })
       },
 
       claimAnchor: (id) => {
@@ -143,9 +166,8 @@ export const useStore = create<Store>()(
       },
 
       switchAnchor: (id) => {
-        const { currentAnchorId } = get()
-        if (id === currentAnchorId) return
-        set({ lastActiveAnchorId: currentAnchorId, currentAnchorId: id })
+        if (id === get().currentAnchorId) return
+        set({ currentAnchorId: id })
       },
 
       updateAnchorTitle: (id, title, force = false) => {
@@ -202,12 +224,13 @@ export const useStore = create<Store>()(
         })
       },
 
-      removeLastMessage: (anchorId) => {
+      removeMessages: (anchorId, ids) => {
         const key = anchorId as unknown as string // null → "null" 暂存桶
+        const drop = new Set(ids)
         set((state) => {
           const msgs = state.messages[key]
           if (!msgs?.length) return state
-          return { messages: { ...state.messages, [key]: msgs.slice(0, -1) } }
+          return { messages: { ...state.messages, [key]: msgs.filter((m) => !drop.has(m.id)) } }
         })
       },
 
@@ -279,17 +302,6 @@ export const useStore = create<Store>()(
         })
       },
 
-      resetAssistantMessageForRetry: (anchorId, msgId) => {
-        const key = anchorId as unknown as string // null → "null" 暂存桶
-        set((state) => {
-          const msgs = [...(state.messages[key] ?? [])]
-          const idx = msgs.findIndex((m) => m.id === msgId)
-          if (idx === -1) return state
-          msgs[idx] = { ...msgs[idx], isError: false, isStreaming: true, content: '', thinking: '', toolCalls: [] }
-          return { messages: { ...state.messages, [key]: msgs } }
-        })
-      },
-
       setLoading: (v) => set({ isLoading: v }),
 
       setStatus: (s) => {
@@ -304,6 +316,9 @@ export const useStore = create<Store>()(
 
       bumpHotMemoryVersion: () => set((s) => ({ hotMemoryVersion: s.hotMemoryVersion + 1 })),
       bumpFocusInput: () => set((s) => ({ focusInputSignal: s.focusInputSignal + 1 })),
+      setPrefill: (p) => set({ prefill: p }),
+      setPendingTurn: (p) => set({ pendingTurn: p }),
+      setTopToast: (t) => set({ topToast: t }),
     }),
     {
       name: 'zoufx-chat-sessions',

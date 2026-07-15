@@ -58,6 +58,8 @@ function ChatInput({
   setSelectedEffort,
   onSend,
   onStop,
+  stopReady,
+  sendBlocked,
   onTyping,
   textareaRef,
 }: {
@@ -72,6 +74,10 @@ function ChatInput({
   setSelectedEffort: (v: string) => void
   onSend: () => void
   onStop: () => void
+  /** turnId 已到——停止按钮据此在收到前禁用（否则停止请求无 turnId 可发） */
+  stopReady: boolean
+  /** 同锚有在建轮 → 禁发（发送禁用 + Enter 无效 + placeholder 变化） */
+  sendBlocked: boolean
   /** 打字时调用（仅 onChange 触发，不在 focus 时触发） */
   onTyping?: (active: boolean) => void
   textareaRef: React.RefObject<HTMLTextAreaElement | null>
@@ -88,13 +94,13 @@ function ChatInput({
         !e.nativeEvent.isComposing
       ) {
         e.preventDefault()
-        if (!isLoading) onSend()
-      } else if (e.key === 'Escape' && isLoading) {
+        if (!isLoading && !sendBlocked) onSend()
+      } else if (e.key === 'Escape' && isLoading && stopReady) {
         e.preventDefault()
         onStop()
       }
     },
-    [onSend, isLoading, onStop]
+    [onSend, isLoading, onStop, stopReady, sendBlocked]
   )
 
   useEffect(() => {
@@ -104,7 +110,7 @@ function ChatInput({
     ta.style.height = `${Math.min(ta.scrollHeight, 180)}px`
   }, [input, textareaRef])
 
-  const canSend = input.trim().length > 0
+  const canSend = input.trim().length > 0 && !sendBlocked
   const [focused, setFocused] = useState(false)
 
   // 打字停顿 1.2s 后归中
@@ -141,7 +147,7 @@ function ChatInput({
         onChange={handleChange}
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
-        placeholder="尽管问..."
+        placeholder={sendBlocked ? '上一条还在生成中…' : '尽管问...'}
         rows={1}
         className="relative z-10 min-h-[58px] max-h-[180px] resize-none border-0 bg-transparent px-6 pt-5 pb-2 text-base leading-relaxed shadow-none focus-visible:ring-0 focus-visible:border-0 outline-none placeholder:text-muted-foreground/58"
       />
@@ -220,17 +226,31 @@ function ChatInput({
         <button
           className={cn(
             'inline-flex items-center justify-center rounded-full transition-all',
-            isLoading ? 'hover:opacity-80' : canSend ? 'hover:opacity-90' : 'cursor-not-allowed'
+            isLoading
+              ? stopReady
+                ? 'hover:opacity-80'
+                : 'cursor-default'
+              : canSend
+                ? 'hover:opacity-90'
+                : 'cursor-not-allowed'
           )}
           style={{
             width: '36px',
             height: '36px',
-            background: isLoading ? 'var(--t1)' : canSend ? 'var(--accent)' : 'var(--border)',
+            // turnId 未到（!stopReady）时停止按钮呈禁用灰；否则流式=停止(t1)、可发=accent
+            background: isLoading
+              ? stopReady
+                ? 'var(--t1)'
+                : 'var(--border)'
+              : canSend
+                ? 'var(--accent)'
+                : 'var(--border)',
             boxShadow: canSend && !isLoading ? '0 2px 8px var(--accent-s)' : 'none',
             flexShrink: 0,
           }}
-          onClick={isLoading ? onStop : onSend}
-          disabled={!isLoading && !canSend}
+          onClick={isLoading ? (stopReady ? onStop : undefined) : onSend}
+          disabled={isLoading ? !stopReady : !canSend}
+          title={isLoading ? (stopReady ? '停止生成' : '连接建立中…') : sendBlocked ? '上一条还在生成中' : '发送'}
         >
           {isLoading ? (
             <Square className="size-3.5 fill-current" style={{ color: 'var(--bg)' }} />
@@ -269,8 +289,7 @@ export function ChatWindow() {
     }
   }, [])
 
-  const { messages, isLoading, send, stop, regenerate } = useChatStream()
-  const lastThinkingRef = useRef<ThinkingRequest>({ enabled: false })
+  const { messages, isLoading, send, stop, turnReady } = useChatStream()
   const { currentAnchorId, toggleThinking, toggleToolCallExpanded } = useStore(
     useShallow((s) => ({
       currentAnchorId: s.currentAnchorId,
@@ -280,6 +299,10 @@ export function ChatWindow() {
   )
   const currentStatus = useStore((s) => s.currentStatus)
   const currentMood = useStore((s) => s.currentMood)
+  const prefill = useStore((s) => s.prefill)
+  const pendingTurn = useStore((s) => s.pendingTurn)
+  // 同锚有在建轮 → 禁发（consumeStream 放大了同锚并发边界）
+  const sendBlocked = !!pendingTurn && pendingTurn.anchorId === currentAnchorId
   const context = useContextDetector()
 
   // 唤醒动画：深夜（asleep 态）+ 打字中
@@ -381,11 +404,6 @@ export function ChatWindow() {
     flyTimerRef.current = setTimeout(() => setFlying(false), 520)
   }, [isEmpty])
 
-  const handleRegenerate = useCallback(
-    (msgId: string) => regenerate(msgId, lastThinkingRef.current),
-    [regenerate]
-  )
-
   const handleSend = useCallback(() => {
     const text = input.trim()
     if (!text || isLoading) return
@@ -393,10 +411,25 @@ export function ChatWindow() {
     setInput('')
     setLastInputAt(Date.now())
     forceScrollToBottom()
-    const thinking = buildThinking()
-    lastThinkingRef.current = thinking
-    send(text, thinking)
+    send(text, buildThinking())
   }, [input, isLoading, send, buildThinking, forceScrollToBottom, captureFlyOrigin])
+
+  // 失败/停止把原文放回输入框：监听 prefill.key 上升沿（每次都变化），回填 + 聚焦 + 光标置末尾。
+  // prevPrefillKeyRef 初始化为挂载时 key，只响应挂载后的变化（避免残留旧回填在重挂载时重灌）。
+  const prevPrefillKeyRef = useRef(prefill?.key ?? 0)
+  useEffect(() => {
+    if (!prefill || prefill.key === prevPrefillKeyRef.current) return
+    prevPrefillKeyRef.current = prefill.key
+    setInput(prefill.text)
+    requestAnimationFrame(() => {
+      const ta = textareaRef.current
+      if (!ta) return
+      ta.focus()
+      ta.setSelectionRange(prefill.text.length, prefill.text.length)
+      ta.style.height = 'auto'
+      ta.style.height = `${Math.min(ta.scrollHeight, 180)}px`
+    })
+  }, [prefill])
 
   const handleSuggestion = useCallback(
     (text: string) => {
@@ -496,6 +529,8 @@ export function ChatWindow() {
                 setSelectedEffort={setSelectedEffort}
                 onSend={handleSend}
                 onStop={handleStop}
+                stopReady={turnReady}
+                sendBlocked={sendBlocked}
                 onTyping={handleTypingStart}
                 textareaRef={textareaRef}
               />
@@ -580,11 +615,9 @@ export function ChatWindow() {
                       <MessageItem
                         message={msg}
                         isNew={i >= messages.length - 2}
-                        isLast={i === messages.length - 1}
                         onToggleThinking={handleToggleThinking}
                         onToggleToolCall={handleToggleToolCall}
                         onScrollNeeded={scrollToBottom}
-                        onRegenerate={handleRegenerate}
                       />
                     </div>
                   )
@@ -627,6 +660,8 @@ export function ChatWindow() {
                 setSelectedEffort={setSelectedEffort}
                 onSend={handleSend}
                 onStop={handleStop}
+                stopReady={turnReady}
+                sendBlocked={sendBlocked}
                 onTyping={handleTypingStart}
                 textareaRef={textareaRef}
               />
