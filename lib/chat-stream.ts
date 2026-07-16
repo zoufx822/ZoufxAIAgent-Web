@@ -44,7 +44,8 @@ export interface MoodPayload {
 }
 
 /**
- * 思考配置：enabled=是否开启思考；effort=思考深度档（normal/high/max，仅 enabled 时有意义）。
+ * 思考配置：enabled=是否开启思考；effort=思考深度档（取值域来自 /ai/features 的 options，
+ * 当前 deepseek-v4 为 normal/max，仅 enabled 时有意义）。
  * effort 省略（undefined）= 后端用默认档；enabled=false 时后端忽略 effort。
  */
 export interface ThinkingRequest {
