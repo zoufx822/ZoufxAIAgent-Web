@@ -2,11 +2,13 @@
 
 This is a **handoff bundle** from Claude Design (claude.ai/design).
 
+This bundle was moved into this repository as `claudedesign/`; all paths below are relative to that directory (the export originally called it `zoufx-ai/`).
+
 A user mocked up designs in HTML/CSS/JS using an AI design tool, then exported this bundle so a coding agent can implement the designs for real.
 
 ## What you should do — IMPORTANT
 
-**Read `zoufx-ai/project/Zoufx AI.html` in full.** The user had this file open when they triggered the handoff, so it's almost certainly the primary design they want built. Read it top to bottom — don't skim. Then **follow its imports**: open every file it pulls in (shared components, CSS, scripts) so you understand how the pieces fit together before you start implementing.
+**Read `project/Zoufx AI.html` in full.** The user had this file open when they triggered the handoff, so it's almost certainly the primary design they want built. Read it top to bottom — don't skim. Then **follow its imports**: open every file it pulls in (shared components, CSS, scripts) so you understand how the pieces fit together before you start implementing.
 
 **If anything is ambiguous, ask the user to confirm before you start implementing.** It's much cheaper to clarify scope up front than to build the wrong thing.
 
@@ -18,5 +20,5 @@ The design medium is **HTML/CSS/JS** — these are prototypes, not production co
 
 ## Bundle contents
 
-- `zoufx-ai/README.md` — this file
-- `zoufx-ai/project/` — the `Zoufx AI` project files (HTML prototypes, assets, components)
+- `README.md` — this file
+- `project/` — the `Zoufx AI` project files (HTML prototypes, assets, components)
