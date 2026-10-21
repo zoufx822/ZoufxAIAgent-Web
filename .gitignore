@@ -38,6 +38,7 @@ yarn-error.log*
 
 # IDE
 .idea/
+*.iml
 
 # typescript
 *.tsbuildinfo
