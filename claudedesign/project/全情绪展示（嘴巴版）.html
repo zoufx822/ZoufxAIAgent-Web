@@ -1,0 +1,358 @@
+<!-- 全情绪展示（嘴巴版）-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>小Z · 全情绪展示（嘴巴版）</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{
+  font-family:'Space Grotesk',-apple-system,sans-serif;
+  background:#fdf6ee; color:#111;
+  min-height:100vh; padding:0 24px 80px;
+  display:flex; flex-direction:column; align-items:center;
+  -webkit-font-smoothing:antialiased;
+}
+
+header{text-align:center;margin-bottom:40px;}
+.hdr-tag{font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:#c8a870;margin-bottom:10px;}
+.hdr-title{font-size:24px;font-weight:500;letter-spacing:-.02em;margin-bottom:6px;}
+.hdr-sub{font-size:12.5px;color:#888;}
+
+.grid{display:flex;flex-wrap:wrap;justify-content:center;gap:14px;max-width:940px;width:100%;}
+
+.card{
+  width:214px;flex-shrink:0;
+  background:#fff;border:1px solid #ede0cc;border-radius:16px;
+  border-top:3px solid var(--ec,#111);
+  padding:22px 16px 16px;
+  display:flex;flex-direction:column;align-items:center;gap:10px;
+  transition:box-shadow .18s,transform .18s;
+}
+.card:hover{box-shadow:0 6px 28px #00000010;transform:translateY(-2px);}
+.card-name{font-size:17px;font-weight:500;color:var(--ec,#111);letter-spacing:-.01em;}
+.eye-stage{width:100%;display:flex;align-items:center;justify-content:center;padding:14px 0 10px;}
+.eyes-svg{width:192px;height:84.5px;overflow:visible;}
+.card-desc{font-size:11px;color:#999;text-align:center;line-height:1.7;}
+.mouth-label{
+  font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.1em;
+  color:#c8a870;text-align:center;
+}
+
+/* ── Eye blink ── */
+.eye-g{transform-box:fill-box;transform-origin:center;}
+.eye-g.l{animation:blink var(--bd,6s) ease-in-out infinite;}
+.eye-g.r{animation:blink var(--bd,6s) ease-in-out .045s infinite;}
+@keyframes blink{0%,82%,88%,100%{transform:scaleY(1);}85%{transform:scaleY(.05);}}
+
+/* ── Pupil drift: 平静 ── */
+@keyframes calm-wander{
+  0%,8%{transform:translate(0,0);} 14%,26%{transform:translate(2.2px,.5px);}
+  32%,42%{transform:translate(0,0);} 48%,60%{transform:translate(-2.4px,.9px);}
+  66%,76%{transform:translate(0,0);} 82%,94%{transform:translate(2.6px,.2px);}
+  100%{transform:translate(0,0);}
+}
+.drift-calm{transform-box:fill-box;transform-origin:center;animation:calm-wander 18s ease infinite;}
+
+/* ── Pupil drift: 愉快 ── */
+@keyframes happy-bob{
+  0%,4%{transform:translate(0,0);} 12%,22%{transform:translate(1.5px,-.8px);}
+  30%,40%{transform:translate(0,-.45px);} 48%,58%{transform:translate(-1.5px,-.8px);}
+  66%,76%{transform:translate(.6px,-.25px);} 84%,100%{transform:translate(0,0);}
+}
+.drift-happy{transform-box:fill-box;transform-origin:center;animation:happy-bob 9s ease-in-out infinite;}
+.drift-happy.r{animation-delay:.12s;}
+
+/* ── Cheek dot ── */
+@keyframes dot-pulse{0%,100%{opacity:.82;}50%{opacity:1;}}
+.hdot{animation:dot-pulse 3.8s ease-in-out infinite;}
+.hdot.r{animation-delay:.28s;}
+
+/* ── Sparkle ── */
+@keyframes spk-twinkle{0%,100%{opacity:1;}48%,52%{opacity:.28;}}
+.spk{transform-box:fill-box;transform-origin:center;animation:spk-twinkle 1.6s ease-in-out infinite;}
+
+/* ── Question ── */
+@keyframes q-bob{0%,100%{transform:translateY(0);}50%{transform:translateY(-1.2px);}}
+.qmark{transform-box:fill-box;transform-origin:center;animation:q-bob 2.2s ease-in-out infinite;}
+
+/* ── Mouth breath ── */
+@keyframes mouth-breath{0%,100%{opacity:.78;}50%{opacity:1;}}
+.mouth{transform-box:fill-box;transform-origin:center;animation:mouth-breath 4.2s ease-in-out infinite;}
+
+/* ── 思考 pupil + dots ── */
+@keyframes pupil-think{
+  0%,9%  {transform:translate(2.3px,-2.6px);}
+  22%,32%{transform:translate(3.9px,-1.3px);}
+  44%,50%{transform:translate(2.7px,-2.3px);}
+  62%,74%{transform:translate(4.1px,-0.3px);}
+  86%,95%{transform:translate(3.0px,-1.8px);}
+  100%   {transform:translate(2.3px,-2.6px);}
+}
+.drift-think{transform-box:fill-box;transform-origin:center;animation:pupil-think 6.5s ease-in-out infinite;}
+.drift-think.r{animation-delay:.12s;}
+@keyframes think-dot{0%,100%{opacity:.22;transform:translateY(1px);}42%{opacity:.95;transform:translateY(-2px);}}
+.tdot{transform-box:fill-box;transform-origin:center;animation:think-dot 1.4s ease-in-out infinite;}
+.card-system{background:#f8fafd;border-top-style:dashed;}
+.card-badge{font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;background:#dbeafe;color:#1d4ed8;border-radius:4px;padding:2px 8px;align-self:flex-start;}
+
+@media(prefers-reduced-motion:reduce){
+  .eye-g.l,.eye-g.r,.drift-calm,.drift-happy,.hdot,.spk,.qmark,.mouth,.drift-think,.tdot{animation:none!important;}
+}
+
+footer{
+  margin-top:52px;font-size:11px;color:#c8a870;text-align:center;line-height:2;
+  border-top:1px dashed #ede0cc;padding-top:20px;max-width:940px;width:100%;
+}
+</style>
+</head>
+<body>
+
+
+<header>
+  <div class="hdr-tag">小Z · 嘴巴版</div>
+  <h1 class="hdr-title">全情绪展示 · 嘴巴版</h1>
+  <p class="hdr-sub">在当前眼睛词法基础上加入嘴巴元素 — 探索下一版情绪表达</p>
+</header>
+
+<div class="grid">
+
+<!-- 愉快 ─────────────────────────── -->
+<div class="card" style="--ec:#10b981">
+  <div class="card-name">愉快</div>
+  <div class="eye-stage">
+    <svg class="eyes-svg" viewBox="0 0 100 44" fill="none" shape-rendering="geometricPrecision" style="--bd:4s">
+      <defs>
+        <clipPath id="mhpL"><polygon points="14,5 42,5 42,39 14,39"/></clipPath>
+        <clipPath id="mhpR"><polygon points="58,5 86,5 86,39 58,39"/></clipPath>
+      </defs>
+      <circle class="hdot"   cx="11" cy="35" r="2.9" fill="#f06070"/>
+      <circle class="hdot r" cx="89" cy="35" r="2.9" fill="#f06070"/>
+      <!-- mouth: wide upward smile -->
+      <path class="mouth" d="M 41,40 Q 50,45.5 59,40"
+        stroke="#111" fill="none" stroke-width="2.0" stroke-linecap="round"/>
+      <g class="eye-g l" clip-path="url(#mhpL)">
+        <ellipse cx="28" cy="22" rx="13" ry="17" fill="#111"/>
+        <g class="drift-happy">
+          <circle cx="28" cy="22" r="3.9" fill="#f0f0f0"/>
+          <circle cx="28" cy="25.1" r="3.55" fill="#111"/>
+        </g>
+      </g>
+      <g class="eye-g r" clip-path="url(#mhpR)">
+        <ellipse cx="72" cy="22" rx="13" ry="17" fill="#111"/>
+        <g class="drift-happy r">
+          <circle cx="72" cy="22" r="3.9" fill="#f0f0f0"/>
+          <circle cx="72" cy="25.1" r="3.55" fill="#111"/>
+        </g>
+      </g>
+    </svg>
+  </div>
+  <div class="card-desc">新月眼 + 颊点 + 上扬笑弧</div>
+  <div class="mouth-label">嘴巴 → 宽弧上扬</div>
+</div>
+
+<!-- 平静 ─────────────────────────── -->
+<div class="card" style="--ec:#78b4a0">
+  <div class="card-name">平静</div>
+  <div class="eye-stage">
+    <svg class="eyes-svg" viewBox="0 0 100 44" fill="none" shape-rendering="geometricPrecision" style="--bd:6s">
+      <defs>
+        <clipPath id="mcmL"><polygon points="14,5 42,5 42,39 14,39"/></clipPath>
+        <clipPath id="mcmR"><polygon points="58,5 86,5 86,39 58,39"/></clipPath>
+      </defs>
+      <!-- mouth: gentle barely-curved line -->
+      <path class="mouth" d="M 44,40 Q 50,42 56,40"
+        stroke="#111" fill="none" stroke-width="2.0" stroke-linecap="round"/>
+      <g class="eye-g l" clip-path="url(#mcmL)">
+        <ellipse cx="28" cy="22" rx="13" ry="17" fill="#111"/>
+        <circle class="drift-calm" cx="28" cy="22" r="3.2" fill="#f0f0f0"/>
+      </g>
+      <g class="eye-g r" clip-path="url(#mcmR)">
+        <ellipse cx="72" cy="22" rx="13" ry="17" fill="#111"/>
+        <circle class="drift-calm" cx="72" cy="22" r="3.2" fill="#f0f0f0" style="animation-delay:.9s"/>
+      </g>
+    </svg>
+  </div>
+  <div class="card-desc">正圆眼 + 微曲中性线</div>
+  <div class="mouth-label">嘴巴 → 平缓微弧</div>
+</div>
+
+<!-- 好奇 ─────────────────────────── -->
+<div class="card" style="--ec:#06b6d4">
+  <div class="card-name">好奇</div>
+  <div class="eye-stage">
+    <svg class="eyes-svg" viewBox="0 0 100 44" fill="none" shape-rendering="geometricPrecision" style="--bd:3s">
+      <defs>
+        <clipPath id="mcuL"><polygon points="14,5 42,5 42,39 14,39"/></clipPath>
+        <clipPath id="mcuR"><polygon points="58,5 86,5 86,39 58,39"/></clipPath>
+      </defs>
+      <!-- mouth: small open "O" — expressing "ooh?" -->
+      <ellipse class="mouth" cx="50" cy="43" rx="4.2" ry="3.5" fill="#111"/>
+      <g class="eye-g l" clip-path="url(#mcuL)">
+        <ellipse cx="28" cy="22" rx="13" ry="17" fill="#111"/>
+        <circle cx="28" cy="18.8" r="6.5" fill="#f0f0f0"/>
+      </g>
+      <g class="eye-g r" clip-path="url(#mcuR)">
+        <ellipse cx="72" cy="22" rx="13" ry="17" fill="#111"/>
+        <circle cx="72" cy="18.8" r="6.5" fill="#f0f0f0"/>
+      </g>
+    </svg>
+  </div>
+  <div class="card-desc">大瞳上抬 + 小 O 型嘴</div>
+  <div class="mouth-label">嘴巴 → 实心小圆</div>
+</div>
+
+<!-- 兴奋 ─────────────────────────── -->
+<div class="card" style="--ec:#f59e0b">
+  <div class="card-name">兴奋</div>
+  <div class="eye-stage">
+    <svg class="eyes-svg" viewBox="0 0 100 44" fill="none" shape-rendering="geometricPrecision" style="--bd:1.8s">
+      <defs>
+        <clipPath id="mexL"><polygon points="14,5 42,5 42,39 14,39"/></clipPath>
+        <clipPath id="mexR"><polygon points="58,5 86,5 86,39 58,39"/></clipPath>
+      </defs>
+      <g class="spk">
+        <polygon points="12,1.5 13,4.3 15.5,5 13,5.7 12,8.5 11,5.7 8.5,5 11,4.3" fill="#111"/>
+        <polygon points="88,1.5 89,4.3 91.5,5 89,5.7 88,8.5 87,5.7 84.5,5 87,4.3" fill="#111"/>
+        <circle cx="17" cy="12.5" r="0.9" fill="#111"/>
+        <circle cx="83" cy="12.5" r="0.9" fill="#111"/>
+      </g>
+      <!-- mouth: wide arc, almost a full grin -->
+      <path class="mouth" d="M 39,40 Q 50,47 61,40"
+        stroke="#111" fill="none" stroke-width="2.2" stroke-linecap="round"/>
+      <g class="eye-g l" clip-path="url(#mexL)">
+        <ellipse cx="28" cy="22" rx="13" ry="17" fill="#111"/>
+        <circle cx="28" cy="19.4" r="6.2" fill="#f0f0f0"/>
+      </g>
+      <g class="eye-g r" clip-path="url(#mexR)">
+        <ellipse cx="72" cy="22" rx="13" ry="17" fill="#111"/>
+        <circle cx="72" cy="19.4" r="6.2" fill="#f0f0f0"/>
+      </g>
+    </svg>
+  </div>
+  <div class="card-desc">超大眼 + sparkle + 大咧嘴</div>
+  <div class="mouth-label">嘴巴 → 宽弧大笑</div>
+</div>
+
+<!-- 困惑 ─────────────────────────── -->
+<div class="card" style="--ec:#a855f7">
+  <div class="card-name">困惑</div>
+  <div class="eye-stage">
+    <svg class="eyes-svg" viewBox="0 0 100 44" fill="none" shape-rendering="geometricPrecision" style="--bd:5s">
+      <defs>
+        <clipPath id="mcnL"><polygon points="14,5 42,5 42,39 14,39"/></clipPath>
+        <clipPath id="mcnR"><polygon points="58,7.2 86,7.2 86,39 58,39"/></clipPath>
+      </defs>
+      <g class="qmark">
+        <path d="M 47,4 Q 50,1 53,4 Q 53,7 50,8.5 L 50,10.5" stroke="#111" stroke-width="1.1" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="50" cy="12.6" r="0.95" fill="#111"/>
+      </g>
+      <!-- mouth: wavy undecided line -->
+      <path class="mouth" d="M 43,41 Q 46.5,39 50,41 Q 53.5,43 57,41"
+        stroke="#111" fill="none" stroke-width="2.0" stroke-linecap="round"/>
+      <g class="eye-g l" clip-path="url(#mcnL)">
+        <ellipse cx="28" cy="22" rx="13" ry="17.3" fill="#111"/>
+        <circle cx="28" cy="22" r="3.6" fill="#f0f0f0"/>
+      </g>
+      <g class="eye-g r" clip-path="url(#mcnR)">
+        <ellipse cx="72" cy="22" rx="13" ry="10.2" fill="#111"/>
+        <circle cx="72" cy="22" r="2.7" fill="#f0f0f0"/>
+      </g>
+    </svg>
+  </div>
+  <div class="card-desc">不对称眼 + ? + 波浪线</div>
+  <div class="mouth-label">嘴巴 → 波浪不确定</div>
+</div>
+
+<!-- 难过 ─────────────────────────── -->
+<div class="card" style="--ec:#5b80c0">
+  <div class="card-name">难过</div>
+  <div class="eye-stage">
+    <svg class="eyes-svg" viewBox="0 0 100 44" fill="none" shape-rendering="geometricPrecision" style="--bd:8s">
+      <defs>
+        <clipPath id="msdL"><polygon points="14,6 42,6 42,33 14,33"/></clipPath>
+        <clipPath id="msdR"><polygon points="58,6 86,6 86,33 58,33"/></clipPath>
+      </defs>
+      <!-- mouth: downward arc (frown) -->
+      <path class="mouth" d="M 43,38 Q 50,33 57,38"
+        stroke="#111" fill="none" stroke-width="2.0" stroke-linecap="round"/>
+      <g class="eye-g l" clip-path="url(#msdL)">
+        <ellipse cx="28" cy="22" rx="13" ry="14.45" fill="#111"/>
+        <circle cx="28" cy="23.8" r="3.0" fill="#f0f0f0"/>
+      </g>
+      <g class="eye-g r" clip-path="url(#msdR)">
+        <ellipse cx="72" cy="22" rx="13" ry="14.45" fill="#111"/>
+        <circle cx="72" cy="23.8" r="3.0" fill="#f0f0f0"/>
+      </g>
+    </svg>
+  </div>
+  <div class="card-desc">沉重眼神 + 下弯嘴角</div>
+  <div class="mouth-label">嘴巴 → 下弧悲伤</div>
+</div>
+
+<!-- 愤怒 ─────────────────────────── -->
+<div class="card" style="--ec:#ef4444">
+  <div class="card-name">愤怒</div>
+  <div class="eye-stage">
+    <svg class="eyes-svg" viewBox="0 0 100 44" fill="none" shape-rendering="geometricPrecision" style="--bd:7s">
+      <defs>
+        <clipPath id="magL"><polygon points="14,10 42,18 42,37 14,37"/></clipPath>
+        <clipPath id="magR"><polygon points="58,18 86,10 86,37 58,37"/></clipPath>
+      </defs>
+      <!-- mouth: gritted clenched teeth -->
+      <rect class="mouth" x="41" y="37.5" width="18" height="6" rx="1.5" fill="#111"/>
+      <rect x="42.5" y="38.5" width="15" height="2" rx="0.5" fill="#ece6de"/>
+      <rect x="42.5" y="40.7" width="15" height="1.8" rx="0.5" fill="#ddd7cd"/>
+      <g class="eye-g l" clip-path="url(#magL)">
+        <ellipse cx="28" cy="22" rx="13" ry="14.45" fill="#111"/>
+        <circle cx="28" cy="22" r="2.2" fill="#f0f0f0"/>
+      </g>
+      <g class="eye-g r" clip-path="url(#magR)">
+        <ellipse cx="72" cy="22" rx="13" ry="14.45" fill="#111"/>
+        <circle cx="72" cy="22" r="2.2" fill="#f0f0f0"/>
+      </g>
+    </svg>
+  </div>
+  <div class="card-desc">怒眉 + 小瞳 + 紧绷唇线</div>
+  <div class="mouth-label">嘴巴 → 紧压下弧</div>
+</div>
+
+<!-- 思考（系统态） ────────────────── -->
+<div class="card card-system" style="--ec:#3b82f6">
+  <div class="card-badge">系统态</div>
+  <div class="card-name">思考中</div>
+  <div class="eye-stage" style="overflow:visible">
+    <svg class="eyes-svg" viewBox="0 0 100 44" fill="none" shape-rendering="geometricPrecision" style="--bd:5s;overflow:visible">
+      <defs>
+        <clipPath id="mtkL"><polygon points="14,5 42,5 42,39 14,39"/></clipPath>
+        <clipPath id="mtkR"><polygon points="58,5 86,5 86,39 58,39"/></clipPath>
+      </defs>
+      <circle class="tdot" cx="41" cy="-2" r="2.0" fill="#555"/>
+      <circle class="tdot" cx="50" cy="-2" r="2.0" fill="#555" style="animation-delay:.18s"/>
+      <circle class="tdot" cx="59" cy="-2" r="2.0" fill="#555" style="animation-delay:.36s"/>
+      <!-- mouth: flat neutral line (silent while thinking) -->
+      <path class="mouth" d="M 46,40 L 54,40"
+        stroke="#111" fill="none" stroke-width="2.0" stroke-linecap="round"/>
+      <g class="eye-g l" clip-path="url(#mtkL)">
+        <ellipse cx="28" cy="22" rx="13" ry="16.15" fill="#111"/>
+        <circle class="drift-think" cx="30.3" cy="20.6" r="3.0" fill="#f0f0f0"/>
+      </g>
+      <g class="eye-g r" clip-path="url(#mtkR)">
+        <ellipse cx="72" cy="22" rx="13" ry="16.15" fill="#111"/>
+        <circle class="drift-think r" cx="74.3" cy="20.6" r="3.0" fill="#f0f0f0"/>
+      </g>
+    </svg>
+  </div>
+  <div class="card-desc">瞳孔偏移右上 · 三点律动· 沉默封居嘴</div>
+  <div class="mouth-label">嘴巴 → 封居水平线</div>
+</div>
+
+</div>
+  全情绪展示 · 嘴巴版 · 小Z
+</footer>
+
+</body>
+</html>

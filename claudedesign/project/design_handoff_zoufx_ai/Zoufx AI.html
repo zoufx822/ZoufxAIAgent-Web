@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zoufx AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,200;9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+
+/* ── 苔绿 accent (fixed) ── */
+:root {
+  --accent:     oklch(0.52 0.16 100);
+  --accent-s:   oklch(0.52 0.16 100 / 0.10);
+  --accent-r:   oklch(0.52 0.16 100 / 0.22);
+}
+
+/* ── LIGHT (default) ── */
+:root {
+  --bg:         #ffffff;
+  --sidebar:    #fafafa;
+  --surface:    #ffffff;
+  --surf-hov:   #f3f4f3;
+  --border:     #ebebeb;
+  --border-lt:  #f2f2f2;
+  --t1:         #111412;
+  --t2:         #60666a;
+  --t3:         #adb3b0;
+  --chip:       #f4f5f4;
+  --chip-brd:   #e4e6e4;
+  --shadow:     0 2px 16px #0000000a;
+  --shadow-lg:  0 8px 32px #00000010;
+  --scrollbar:  #dde0dd;
+}
+
+/* ── DARK ── */
+[data-theme="dark"] {
+  --bg:         #0e0f0e;
+  --sidebar:    #111311;
+  --surface:    #181a18;
+  --surf-hov:   #1f211f;
+  --border:     #252725;
+  --border-lt:  #1e201e;
+  --t1:         #eef0ee;
+  --t2:         #7a807a;
+  --t3:         #454945;
+  --chip:       #181a18;
+  --chip-brd:   #2c2e2c;
+  --shadow:     0 2px 16px #00000050;
+  --shadow-lg:  0 8px 32px #00000060;
+  --scrollbar:  #282a28;
+  --accent:     oklch(0.66 0.17 100);
+  --accent-s:   oklch(0.66 0.17 100 / 0.12);
+  --accent-r:   oklch(0.66 0.17 100 / 0.25);
+}
+
+body {
+  font-family: 'DM Sans','Noto Sans SC',sans-serif;
+  background: var(--bg);
+  color: var(--t1);
+  height: 100vh;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  transition: background .35s ease, color .35s ease;
+}
+
+/* Global transitions for themed elements */
+*, *::before, *::after {
+  transition-property: background-color, border-color, color, box-shadow;
+  transition-duration: .28s;
+  transition-timing-function: ease;
+}
+/* But NOT layout/transform/opacity — only color stuff */
+textarea, input, button { transition: none; }
+.no-trans, .no-trans * { transition: none !important; }
+
+::-webkit-scrollbar{width:3px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--scrollbar);border-radius:2px;}
+
+@keyframes up{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+@keyframes dot{0%,80%,100%{opacity:.25;transform:scale(.7);}40%{opacity:1;transform:scale(1);}}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+
+/* Page transition */
+.page-enter { animation: up .3s ease both; }
+
+#root { height:100vh; }
+
+/* Tweaks panel */
+.tp {
+  position:fixed;bottom:20px;right:20px;width:220px;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:14px;padding:18px;z-index:500;
+  box-shadow:var(--shadow-lg);
+  animation:up .18s ease both;
+}
+.tp-title{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:14px;}
+.tp-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.tp-label{font-size:12px;color:var(--t2);}
+.tog{position:relative;width:34px;height:19px;cursor:pointer;display:inline-block;}
+.tog input{opacity:0;width:0;height:0;}
+.tog-track{position:absolute;inset:0;background:var(--border);border-radius:20px;}
+.tog input:checked+.tog-track{background:var(--accent);}
+.tog-track::before{content:'';position:absolute;width:13px;height:13px;border-radius:50%;background:#fff;top:3px;left:3px;transition:transform .2s;}
+.tog input:checked+.tog-track::before{transform:translateX(15px);}
+
+/* Rename input */
+.rename-input {
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--t1);
+  width: 100%;
+  padding: 0;
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useRef,useCallback}=React;
+
+const TWEAK_DEFAULTS=/*EDITMODE-BEGIN*/{
+  "theme": "light",
+  "compact": false
+}/*EDITMODE-END*/;
+
+const REPLIES=[
+  `好的，我来帮你梳理一下。\n\n**整体框架**\n\n1. 明确目标与范围\n2. 拆解关键步骤\n3. 识别风险与依赖\n4. 制定行动计划\n\n需要针对哪个部分深入展开？`,
+  `这是个很好的问题。\n\n从几个维度来看：\n\n**核心思路** — 先确定边界，再逐步深入\n**执行路径** — 小步快跑，持续验证\n**关键风险** — 提前识别，提前规避\n\n想从哪个方向入手？`,
+  `收到。我理解你的需求。\n\n简单来说可以分三个阶段推进：\n\n- **第一阶段**：调研与定义\n- **第二阶段**：设计与验证\n- **第三阶段**：执行与迭代\n\n每个阶段都有具体的输出物，需要我展开说吗？`,
+  `好问题。\n\n这个问题的本质其实是**如何在约束条件下做最优决策**。\n\n建议先从第一性原理出发，把复杂的问题拆解成最小的可验证单元，再逐一击破。\n\n你目前卡在哪个环节了？`,
+];
+let replyIdx=0;
+
+const MOCK=[
+  {id:1,title:"帮我梳理一个方案",    t:"3天前"},
+  {id:2,title:"输出一个长一些的 md…",t:"1天前"},
+  {id:3,title:"新对话",             t:"2天前"},
+  {id:4,title:"您好",               t:"3天前"},
+  {id:5,title:"输出 python 函数",   t:"4天前"},
+  {id:6,title:"输出一段 md 文档",   t:"5天前"},
+];
+
+/* Typing dots */
+function Dots(){
+  return <div style={{display:'flex',gap:5,padding:'8px 0',alignItems:'center'}}>
+    {[0,1,2].map(i=><div key={i} style={{width:5,height:5,borderRadius:'50%',background:'var(--accent)',animation:`dot 1.2s ease ${i*.2}s infinite`}}/>)}
+  </div>;
+}
+
+/* Message */
+function Msg({m,i}){
+  const u=m.role==='user';
+  return(
+    <div style={{display:'flex',flexDirection:u?'row-reverse':'row',gap:12,marginBottom:26,animation:`up .22s ease ${i*.03}s both`}}>
+      {!u&&<div style={{width:28,height:28,borderRadius:8,flexShrink:0,background:'var(--accent)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:800,color:'#fff',marginTop:2}}>Z</div>}
+      <div style={{
+        maxWidth:'72%',
+        background:u?'var(--accent-s)':'transparent',
+        border:u?'1px solid var(--accent-r)':'none',
+        borderRadius:u?'18px 18px 5px 18px':0,
+        padding:u?'10px 16px':'2px 0',
+        fontSize:14.5,lineHeight:1.85,
+        color:'var(--t1)',whiteSpace:'pre-line',
+        letterSpacing:'-.005em',
+      }}>
+        {m.typing?<Dots/>:m.content}
+      </div>
+    </div>
+  );
+}
+
+/* Chat item with hover delete + double-click rename */
+function ChatItem({c,active,onSelect,onDelete,onRename}){
+  const [hovered,setHovered]=useState(false);
+  const [editing,setEditing]=useState(false);
+  const [val,setVal]=useState(c.title);
+  const inputRef=useRef(null);
+
+  useEffect(()=>{ if(editing && inputRef.current){ inputRef.current.focus(); inputRef.current.select(); } },[editing]);
+
+  function commitRename(){
+    const v=val.trim();
+    onRename(v||c.title);
+    setVal(v||c.title);
+    setEditing(false);
+  }
+
+  return(
+    <div
+      onClick={()=>{ if(!editing) onSelect(); }}
+      onMouseEnter={()=>setHovered(true)}
+      onMouseLeave={()=>setHovered(false)}
+      onDoubleClick={()=>setEditing(true)}
+      style={{
+        display:'flex',alignItems:'center',gap:8,
+        padding:'8px 8px',
+        borderRadius:7,cursor:'pointer',marginBottom:1,
+        background:active?'var(--surf-hov)':'transparent',
+        borderLeft:active?'2px solid var(--accent)':'2px solid transparent',
+        position:'relative',
+      }}
+    >
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+        stroke={active?'var(--accent)':'var(--t3)'} strokeWidth="1.7" style={{flexShrink:0}}>
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+      <div style={{flex:1,minWidth:0}}>
+        {editing ? (
+          <input ref={inputRef} className="rename-input" value={val}
+            onChange={e=>setVal(e.target.value)}
+            onBlur={commitRename}
+            onKeyDown={e=>{ if(e.key==='Enter') commitRename(); if(e.key==='Escape'){setVal(c.title);setEditing(false);} }}
+            onClick={e=>e.stopPropagation()}
+          />
+        ) : (
+          <div style={{fontSize:12,color:active?'var(--t1)':'var(--t2)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{c.title}</div>
+        )}
+        {!editing && <div style={{fontSize:10,color:'var(--t3)',marginTop:1}}>{c.t}</div>}
+      </div>
+      {/* Delete button */}
+      {hovered && !editing && (
+        <button onClick={e=>{e.stopPropagation();onDelete();}} style={{
+          width:20,height:20,borderRadius:5,border:'none',
+          background:'transparent',cursor:'pointer',
+          display:'flex',alignItems:'center',justifyContent:'center',
+          color:'var(--t3)',flexShrink:0,padding:0,
+          transition:'color .12s',
+        }}
+        onMouseEnter={e=>e.currentTarget.style.color='var(--t1)'}
+        onMouseLeave={e=>e.currentTarget.style.color='var(--t3)'}
+        title="删除对话"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      )}
+    </div>
+  );
+}
+
+/* Compact chat item */
+function ChatItemCompact({c,active,onSelect}){
+  return(
+    <div onClick={onSelect}
+      style={{display:'flex',alignItems:'center',justifyContent:'center',
+        padding:'9px 5px',borderRadius:7,cursor:'pointer',marginBottom:1,
+        background:active?'var(--surf-hov)':'transparent',
+        borderLeft:active?'2px solid var(--accent)':'2px solid transparent',
+      }}
+      onMouseEnter={e=>{if(!active)e.currentTarget.style.background='var(--surf-hov)';}}
+      onMouseLeave={e=>{if(!active)e.currentTarget.style.background='transparent';}}
+    >
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+        stroke={active?'var(--accent)':'var(--t3)'} strokeWidth="1.7">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+    </div>
+  );
+}
+
+/* Sidebar */
+function Sidebar({chats,activeId,onSelect,onNew,onDelete,onRename,compact,onToggleCompact}){
+  return(
+    <div style={{
+      width:compact?52:224,
+      background:'var(--sidebar)',
+      borderRight:'1px solid var(--border)',
+      display:'flex',flexDirection:'column',
+      transition:'width .28s ease',overflow:'hidden',flexShrink:0,
+    }}>
+      {/* Logo + collapse */}
+      <div style={{height:58,display:'flex',alignItems:'center',padding:compact?'0 12px':'0 16px 0 18px',gap:9,borderBottom:'1px solid var(--border)',flexShrink:0,justifyContent:'space-between'}}>
+        <div style={{display:'flex',alignItems:'center',gap:9}}>
+          <div style={{width:28,height:28,borderRadius:8,flexShrink:0,background:'var(--accent)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:800,color:'#fff'}}>Z</div>
+          {!compact&&<span style={{fontSize:15,fontWeight:600,letterSpacing:'-.02em'}}>Zoufx</span>}
+        </div>
+        <button onClick={onToggleCompact} style={{
+          background:'transparent',border:'none',cursor:'pointer',
+          color:'var(--t3)',padding:4,borderRadius:5,
+          display:'flex',alignItems:'center',justifyContent:'center',
+          transition:'color .15s',flexShrink:0,
+        }}
+        onMouseEnter={e=>e.currentTarget.style.color='var(--t1)'}
+        onMouseLeave={e=>e.currentTarget.style.color='var(--t3)'}
+        title={compact?'展开':'收起'}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+            {compact
+              ?<><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></>
+              :<><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></>
+            }
+          </svg>
+        </button>
+      </div>
+
+      {/* New */}
+      <div style={{padding:compact?'12px 9px 6px':'12px 12px 6px'}}>
+        <button onClick={onNew} style={{
+          width:'100%',display:'flex',alignItems:'center',
+          justifyContent:compact?'center':'flex-start',
+          gap:7,padding:compact?'9px 0':'8px 12px',
+          background:'transparent',border:'1px solid var(--border)',borderRadius:9,
+          color:'var(--t2)',fontSize:12,fontFamily:'inherit',cursor:'pointer',
+        }}
+        onMouseEnter={e=>{e.currentTarget.style.borderColor='var(--accent)';e.currentTarget.style.color='var(--accent)';}}
+        onMouseLeave={e=>{e.currentTarget.style.borderColor='var(--border)';e.currentTarget.style.color='var(--t2)';}}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          {!compact&&'新对话'}
+        </button>
+      </div>
+
+      {/* List */}
+      <div style={{flex:1,overflow:'auto',padding:compact?'0 6px':'0 8px'}}>
+        {!compact&&<div style={{fontSize:10,color:'var(--t3)',padding:'10px 8px 4px',letterSpacing:'.07em',fontWeight:600,textTransform:'uppercase'}}>历史</div>}
+        {chats.map((c,i)=>(
+          compact
+            ? <ChatItemCompact key={c.id} c={c} active={activeId===c.id} onSelect={()=>onSelect(c.id)}/>
+            : <ChatItem key={c.id} c={c} active={activeId===c.id}
+                onSelect={()=>onSelect(c.id)}
+                onDelete={()=>onDelete(c.id)}
+                onRename={t=>onRename(c.id,t)}
+              />
+        ))}
+      </div>
+
+      {/* User / settings */}
+      <div style={{padding:compact?'10px 9px':'10px 14px',borderTop:'1px solid var(--border)'}}>
+        {compact ? (
+          <div style={{display:'flex',justifyContent:'center'}}>
+            <div style={{width:28,height:28,borderRadius:'50%',background:'var(--surf-hov)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:600,color:'var(--accent)',border:'1px solid var(--border)',cursor:'pointer'}}>U</div>
+          </div>
+        ) : (
+          <div style={{display:'flex',alignItems:'center',gap:9}}>
+            <div style={{width:28,height:28,borderRadius:'50%',background:'var(--surf-hov)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:600,color:'var(--accent)',border:'1px solid var(--border)',flexShrink:0,cursor:'pointer'}}>U</div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:12,fontWeight:500}}>用户</div>
+              <div style={{fontSize:10,color:'var(--t3)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>zoufx@example.com</div>
+            </div>
+            <button style={{background:'transparent',border:'none',cursor:'pointer',color:'var(--t3)',padding:4,borderRadius:5,display:'flex',alignItems:'center',flexShrink:0}}
+              onMouseEnter={e=>e.currentTarget.style.color='var(--t1)'}
+              onMouseLeave={e=>e.currentTarget.style.color='var(--t3)'}
+              title="设置"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+              </svg>
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* Input */
+function InputBox({placeholder,onSend,big}){
+  const [val,setVal]=useState('');
+  const [foc,setFoc]=useState(false);
+  const ref=useRef(null);
+  useEffect(()=>{ if(big&&ref.current) ref.current.focus(); },[big]);
+  function send(){ const v=val.trim(); if(!v) return; onSend(v); setVal(''); }
+  const active=val.trim().length>0;
+  return(
+    <div style={{
+      background:'var(--surface)',
+      border:`1.5px solid ${foc?'var(--accent)':'var(--border)'}`,
+      borderRadius:16,
+      boxShadow:foc?`0 0 0 4px var(--accent-s), var(--shadow-lg)`:'var(--shadow)',
+    }}>
+      <textarea ref={ref} value={val}
+        onChange={e=>setVal(e.target.value)}
+        onFocus={()=>setFoc(true)}
+        onBlur={()=>setFoc(false)}
+        onKeyDown={e=>{ if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();} }}
+        placeholder={placeholder}
+        rows={big?3:1}
+        style={{
+          width:'100%',background:'transparent',border:'none',outline:'none',
+          resize:'none',padding:big?'20px 22px 10px':'15px 20px 10px',
+          fontSize:15,color:'var(--t1)',fontFamily:'inherit',
+          lineHeight:1.7,maxHeight:180,overflow:'auto',
+          letterSpacing:'-.005em',
+        }}
+      />
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 14px',borderTop:'1px solid var(--border-lt)'}}>
+        <span style={{fontSize:11,color:'var(--t3)',userSelect:'none'}}>Enter 发送 · Shift+Enter 换行</span>
+        <button onClick={send} disabled={!active} style={{
+          width:32,height:32,borderRadius:'50%',
+          background:active?'var(--accent)':'var(--border)',
+          border:'none',cursor:active?'pointer':'default',
+          display:'flex',alignItems:'center',justifyContent:'center',
+          boxShadow:active?'0 2px 8px var(--accent-s)':'none',
+        }}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+            stroke={active?'#fff':'var(--t3)'} strokeWidth="2.5">
+            <line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* Home */
+function Home({onSend}){
+  const chips=["帮我梳理一个方案","把这段内容写得更好","解释一个复杂概念","深度分析"];
+  return(
+    <div className="page-enter" style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'0 48px',position:'relative'}}>
+      <div style={{width:'100%',maxWidth:640}}>
+        <div style={{textAlign:'center',marginBottom:48}}>
+          <div style={{fontSize:64,fontWeight:700,letterSpacing:'-.05em',color:'var(--accent)',lineHeight:1,marginBottom:14}}>Zoufx</div>
+          <div style={{fontSize:16,color:'var(--t2)',fontWeight:300,letterSpacing:'-.01em',lineHeight:1.5}}>你好，需要我为你做些什么？</div>
+        </div>
+        <div style={{marginBottom:16}}>
+          <InputBox placeholder="输入你的问题或任务…" onSend={onSend} big={true}/>
+        </div>
+        <div style={{display:'flex',justifyContent:'center',flexWrap:'wrap',gap:8}}>
+          {chips.map((s,i)=>(
+            <button key={i} onClick={()=>onSend(s)} style={{
+              background:'var(--chip)',border:'1px solid var(--chip-brd)',
+              borderRadius:100,padding:'7px 16px',fontSize:12,
+              color:'var(--t2)',fontFamily:'inherit',cursor:'pointer',
+            }}
+            onMouseEnter={e=>{e.currentTarget.style.borderColor='var(--accent)';e.currentTarget.style.color='var(--accent)';e.currentTarget.style.background='var(--accent-s)';}}
+            onMouseLeave={e=>{e.currentTarget.style.borderColor='var(--chip-brd)';e.currentTarget.style.color='var(--t2)';e.currentTarget.style.background='var(--chip)';}}
+            >{s}</button>
+          ))}
+        </div>
+      </div>
+      <div style={{position:'absolute',bottom:20,fontSize:11,color:'var(--t3)'}}>
+        AI 可能会出错，请核实重要信息
+      </div>
+    </div>
+  );
+}
+
+/* Chat */
+function Chat({msgs,onSend}){
+  const listRef=useRef(null);
+
+  useEffect(()=>{
+    if(!listRef.current) return;
+    const el=listRef.current;
+    // smooth scroll to bottom
+    el.scrollTo({top:el.scrollHeight, behavior:'smooth'});
+  },[msgs]);
+
+  return(
+    <div className="page-enter" style={{flex:1,display:'flex',flexDirection:'column',minWidth:0}}>
+      <div ref={listRef} style={{flex:1,overflow:'auto',padding:'36px 56px'}}>
+        <div style={{maxWidth:720,margin:'0 auto'}}>
+          {msgs.map((m,i)=><Msg key={m.id} m={m} i={i}/>)}
+        </div>
+      </div>
+      <div style={{padding:'0 56px 24px',flexShrink:0}}>
+        <div style={{maxWidth:720,margin:'0 auto'}}>
+          <InputBox placeholder="继续提问…" onSend={onSend}/>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* App */
+function App(){
+  // ── Responsive sidebar ──
+  const [autoMode,setAutoMode]=useState('full'); // 'full' | 'compact' | 'hidden'
+  const [manualOverride,setManualOverride]=useState(null); // null = follow auto
+  const rootRef=useRef(null);
+
+  useEffect(()=>{
+    const el=document.getElementById('root');
+    const obs=new ResizeObserver(entries=>{
+      const w=entries[0].contentRect.width;
+      if(w<560) setAutoMode('hidden');
+      else if(w<860) setAutoMode('compact');
+      else setAutoMode('full');
+    });
+    obs.observe(el);
+    return()=>obs.disconnect();
+  },[]);
+
+  // When auto changes, clear manual override if it matches auto
+  useEffect(()=>{ setManualOverride(null); },[autoMode]);
+
+  const sidebarMode = manualOverride ?? autoMode; // 'full' | 'compact' | 'hidden'
+  const sidebarCompact = sidebarMode==='compact';
+  const sidebarHidden  = sidebarMode==='hidden';
+  const [mobileOpen,setMobileOpen]=useState(false);
+
+  const [tweak,setTweak]=useState(()=>{
+    try{ const s=localStorage.getItem('zoufx'); return s?{...TWEAK_DEFAULTS,...JSON.parse(s)}:TWEAK_DEFAULTS; }
+    catch{ return TWEAK_DEFAULTS; }
+  });
+  const [showTp,setShowTp]=useState(false);
+  const [chats,setChats]=useState(MOCK);
+  const [activeId,setActiveId]=useState(1);
+  const [chatMsgs,setChatMsgs]=useState({});
+  const [isHome,setIsHome]=useState(true);
+  const [pageKey,setPageKey]=useState(0); // force re-mount for animation
+
+  const isLight=tweak.theme==='light';
+
+  useEffect(()=>{
+    document.documentElement.setAttribute('data-theme',tweak.theme);
+  },[tweak.theme]);
+
+  useEffect(()=>{
+    const h=e=>{
+      if(e.data?.type==='__activate_edit_mode') setShowTp(true);
+      if(e.data?.type==='__deactivate_edit_mode') setShowTp(false);
+    };
+    window.addEventListener('message',h);
+    window.parent.postMessage({type:'__edit_mode_available'},'*');
+    return()=>window.removeEventListener('message',h);
+  },[]);
+
+  function applyTw(k,v){
+    const n={...tweak,[k]:v};
+    setTweak(n);
+    localStorage.setItem('zoufx',JSON.stringify(n));
+    window.parent.postMessage({type:'__edit_mode_set_keys',edits:{[k]:v}},'*');
+  }
+
+  function toggleSidebar(){
+    if(sidebarHidden){
+      setMobileOpen(o=>!o);
+    } else if(sidebarMode==='full'){
+      setManualOverride('compact');
+    } else {
+      setManualOverride('full');
+    }
+  }
+
+  function newChat(){
+    const id=Date.now();
+    setChats(p=>[{id,title:'新对话',t:'刚刚'},...p]);
+    setActiveId(id);
+    setIsHome(true);
+    setPageKey(k=>k+1);
+  }
+
+  function selChat(id){
+    const prev=activeId;
+    setActiveId(id);
+    const m=chatMsgs[id];
+    const goHome=!m||!m.length;
+    if(prev!==id || isHome!==goHome){ setPageKey(k=>k+1); }
+    setIsHome(goHome);
+  }
+
+  function deleteChat(id){
+    setChats(p=>p.filter(c=>c.id!==id));
+    if(activeId===id){
+      const remaining=chats.filter(c=>c.id!==id);
+      if(remaining.length){ selChat(remaining[0].id); }
+      else { newChat(); }
+    }
+  }
+
+  function renameChat(id,title){
+    setChats(p=>p.map(c=>c.id===id?{...c,title}:c));
+  }
+
+  function send(text){
+    const id=activeId;
+    setChats(p=>p.map(c=>c.id===id?{...c,title:text.length>20?text.slice(0,20)+'…':text}:c));
+    const uid=Date.now(), rid=uid+1;
+    const userMsg={id:uid,role:'user',content:text};
+    const typingMsg={id:rid,role:'assistant',content:'',typing:true};
+    setChatMsgs(p=>({...p,[id]:[...(p[id]||[]),userMsg,typingMsg]}));
+    setIsHome(false);
+    setPageKey(k=>k+1);
+
+    const delay=600+Math.random()*400;
+    setTimeout(()=>{
+      const reply=REPLIES[replyIdx%REPLIES.length]; replyIdx++;
+      let s='',i=0;
+      const cs=reply.split('');
+      const iv=setInterval(()=>{
+        s+=cs[i]; i++;
+        setChatMsgs(p=>({...p,[id]:(p[id]||[]).map(m=>m.id===rid?{...m,content:s,typing:false}:m)}));
+        if(i>=cs.length) clearInterval(iv);
+      },9);
+    },delay);
+  }
+
+  const curMsgs=chatMsgs[activeId]||[];
+
+  return(
+    <div style={{display:'flex',height:'100vh',overflow:'hidden'}}>
+      {/* Mobile overlay */}
+      {sidebarHidden && mobileOpen && (
+        <div onClick={()=>setMobileOpen(false)} style={{position:'fixed',inset:0,background:'oklch(0 0 0 / 0.35)',zIndex:99,animation:'fadeIn .2s ease'}}/>
+      )}
+
+      {/* Sidebar — hidden on mobile unless open */}
+      <div style={{
+        position: sidebarHidden?'fixed':'relative',
+        left: sidebarHidden?(mobileOpen?0:-240):undefined,
+        top: sidebarHidden?0:undefined,
+        bottom: sidebarHidden?0:undefined,
+        zIndex: sidebarHidden?100:undefined,
+        transition: sidebarHidden?'left .28s ease':undefined,
+        display:'flex',flexShrink:0,
+      }}>
+        <Sidebar
+          chats={chats} activeId={activeId}
+          onSelect={(id)=>{selChat(id);setMobileOpen(false);}}
+          onNew={()=>{newChat();setMobileOpen(false);}}
+          onDelete={deleteChat} onRename={renameChat}
+          compact={sidebarCompact}
+          onToggleCompact={toggleSidebar}
+        />
+      </div>
+
+      <div style={{flex:1,display:'flex',flexDirection:'column',minWidth:0}}>
+        {/* Header */}
+        <div style={{height:58,padding:'0 24px',display:'flex',alignItems:'center',justifyContent:'space-between',borderBottom:'1px solid var(--border)',flexShrink:0}}>
+          <div style={{display:'flex',alignItems:'center',gap:10}}>
+            {/* Hamburger — only when sidebar hidden */}
+            {sidebarHidden && (
+              <button onClick={()=>setMobileOpen(o=>!o)} style={{background:'transparent',border:'none',cursor:'pointer',color:'var(--t2)',display:'flex',alignItems:'center',justifyContent:'center',width:28,height:28,borderRadius:6,padding:0}}
+                onMouseEnter={e=>e.currentTarget.style.color='var(--t1)'}
+                onMouseLeave={e=>e.currentTarget.style.color='var(--t2)'}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+                </svg>
+              </button>
+            )}
+            <span style={{fontSize:12,color:'var(--t3)',fontWeight:400,letterSpacing:'.01em',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:280}}>
+              {isHome?'':chats.find(c=>c.id===activeId)?.title||''}
+            </span>
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:6}}>
+            {/* Theme toggle */}
+            <button onClick={()=>applyTw('theme',isLight?'dark':'light')}
+              style={{display:'flex',alignItems:'center',gap:5,padding:'4px 11px',borderRadius:100,background:'transparent',border:'1px solid var(--border)',cursor:'pointer',color:'var(--t3)',fontSize:11,fontFamily:'inherit'}}
+              onMouseEnter={e=>{e.currentTarget.style.borderColor='var(--accent)';e.currentTarget.style.color='var(--accent)';}}
+              onMouseLeave={e=>{e.currentTarget.style.borderColor='var(--border)';e.currentTarget.style.color='var(--t3)';}}
+            >
+              {isLight
+                ?<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                :<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+              }
+              {isLight?'深色':'亮色'}
+            </button>
+            {/* Tweaks */}
+            <button onClick={()=>setShowTp(s=>!s)}
+              style={{background:'transparent',border:'none',color:'var(--t3)',cursor:'pointer',width:30,height:30,borderRadius:7,display:'flex',alignItems:'center',justifyContent:'center'}}
+              onMouseEnter={e=>e.currentTarget.style.color='var(--t1)'}
+              onMouseLeave={e=>e.currentTarget.style.color='var(--t3)'}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Page with transition */}
+        {isHome
+          ? <Home key={`home-${pageKey}`} onSend={send}/>
+          : <Chat key={`chat-${pageKey}`} msgs={curMsgs} onSend={send}/>
+        }
+      </div>
+
+      {showTp&&(
+        <div className="tp">
+          <div className="tp-title">Tweaks</div>
+          <div className="tp-row">
+            <span className="tp-label">主题</span>
+            <select style={{background:'var(--chip)',border:'1px solid var(--border)',color:'var(--t1)',borderRadius:7,padding:'3px 8px',fontSize:12,fontFamily:'inherit',cursor:'pointer',outline:'none'}}
+              value={tweak.theme} onChange={e=>applyTw('theme',e.target.value)}>
+              <option value="light">亮色</option>
+              <option value="dark">深色</option>
+            </select>
+          </div>
+          <div className="tp-row" style={{flexDirection:'column',alignItems:'flex-start',gap:4}}>
+            <span className="tp-label">侧边栏（自适应）</span>
+            <span style={{fontSize:11,color:'var(--t3)'}}>当前：{sidebarHidden?'已隐藏':sidebarCompact?'紧凑':'完整'} · 随窗口自动切换</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

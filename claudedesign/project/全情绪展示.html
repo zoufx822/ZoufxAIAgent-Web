@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>小Z · 全情绪展示</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{
+  font-family:'Space Grotesk',-apple-system,sans-serif;
+  background:#f2f2f2; color:#111;
+  min-height:100vh; padding:52px 24px 80px;
+  display:flex; flex-direction:column; align-items:center;
+  -webkit-font-smoothing:antialiased;
+}
+header{text-align:center;margin-bottom:44px;}
+.hdr-tag{font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:#bbb;margin-bottom:10px;}
+.hdr-title{font-size:24px;font-weight:500;letter-spacing:-.02em;margin-bottom:6px;}
+.hdr-sub{font-size:12.5px;color:#888;}
+
+.grid{display:flex;flex-wrap:wrap;justify-content:center;gap:14px;max-width:940px;width:100%;}
+
+.card{
+  width:214px;flex-shrink:0;
+  background:#fff;border:1px solid #e6e6e6;border-radius:16px;
+  border-top:3px solid var(--ec,#111);
+  padding:22px 16px 16px;
+  display:flex;flex-direction:column;align-items:center;gap:10px;
+  transition:box-shadow .18s,transform .18s;
+}
+.card:hover{box-shadow:0 6px 28px #00000010;transform:translateY(-2px);}
+.card-name{font-size:17px;font-weight:500;color:var(--ec,#111);letter-spacing:-.01em;}
+.eye-stage{width:100%;display:flex;align-items:center;justify-content:center;padding:14px 0 10px;}
+.eyes-svg{width:192px;height:84.5px;overflow:visible;}
+.card-desc{font-size:11px;color:#999;text-align:center;line-height:1.7;}
+.card-params{
+  font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.06em;
+  color:#c8c8c8;text-align:center;line-height:1.7;
+}
+
+/* ── Eye blink ── */
+.eye-g{transform-box:fill-box;transform-origin:center;}
+.eye-g.l{animation:blink var(--bd,6s) ease-in-out infinite;}
+.eye-g.r{animation:blink var(--bd,6s) ease-in-out .045s infinite;}
+@keyframes blink{0%,82%,88%,100%{transform:scaleY(1);}85%{transform:scaleY(.05);}}
+
+/* ── Pupil drift: 平静 ── */
+@keyframes calm-wander{
+  0%,8%{transform:translate(0,0);} 14%,26%{transform:translate(2.2px,.5px);}
+  32%,42%{transform:translate(0,0);} 48%,60%{transform:translate(-2.4px,.9px);}
+  66%,76%{transform:translate(0,0);} 82%,94%{transform:translate(2.6px,.2px);}
+  100%{transform:translate(0,0);}
+}
+.drift-calm{transform-box:fill-box;transform-origin:center;animation:calm-wander 18s ease infinite;}
+
+/* ── Pupil drift: 愉快 ── */
+@keyframes happy-bob{
+  0%,4%{transform:translate(0,0);} 12%,22%{transform:translate(1.5px,-.8px);}
+  30%,40%{transform:translate(0,-.45px);} 48%,58%{transform:translate(-1.5px,-.8px);}
+  66%,76%{transform:translate(.6px,-.25px);} 84%,100%{transform:translate(0,0);}
+}
+.drift-happy{transform-box:fill-box;transform-origin:center;animation:happy-bob 9s ease-in-out infinite;}
+.drift-happy.r{animation-delay:.12s;}
+
+/* ── 愉快 red dot pulse ── */
+@keyframes dot-pulse{0%,100%{opacity:.82;}50%{opacity:1;}}
+.hdot{animation:dot-pulse 3.8s ease-in-out infinite;}
+.hdot.r{animation-delay:.28s;}
+
+/* ── 兴奋 sparkle ── */
+@keyframes spk-twinkle{0%,100%{opacity:1;}48%,52%{opacity:.28;}}
+.spk{transform-box:fill-box;transform-origin:center;animation:spk-twinkle 1.6s ease-in-out infinite;}
+
+/* ── 困惑 question ── */
+@keyframes q-bob{0%,100%{transform:translateY(0);}50%{transform:translateY(-1.2px);}}
+.qmark{transform-box:fill-box;transform-origin:center;animation:q-bob 2.2s ease-in-out infinite;}
+
+/* ── 思考 pupil drift (upper-right) ── */
+@keyframes pupil-think{
+  0%,9%  {transform:translate(2.3px,-2.6px);}
+  22%,32%{transform:translate(3.9px,-1.3px);}
+  44%,50%{transform:translate(2.7px,-2.3px);}
+  62%,74%{transform:translate(4.1px,-0.3px);}
+  86%,95%{transform:translate(3.0px,-1.8px);}
+  100%   {transform:translate(2.3px,-2.6px);}
+}
+.drift-think{transform-box:fill-box;transform-origin:center;animation:pupil-think 6.5s ease-in-out infinite;}
+.drift-think.r{animation-delay:.12s;}
+/* ── 思考 dots ── */
+@keyframes think-dot{0%,100%{opacity:.22;transform:translateY(1px);}42%{opacity:.95;transform:translateY(-2px);}}
+.tdot{transform-box:fill-box;transform-origin:center;animation:think-dot 1.4s ease-in-out infinite;}
+/* ── 系统态 card ── */
+.card-system{background:#f8fafd;border-top-style:dashed;}
+.card-badge{font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;background:#dbeafe;color:#1d4ed8;border-radius:4px;padding:2px 8px;align-self:flex-start;}
+
+@media(prefers-reduced-motion:reduce){
+  .eye-g.l,.eye-g.r,.drift-calm,.drift-happy,.hdot,.spk,.qmark,.drift-think,.tdot{animation:none!important;}
+}
+
+footer{margin-top:52px;font-size:11px;color:#c8c8c8;text-align:center;line-height:2;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hdr-tag">小Z · 情绪系统 v0.15 rev2</div>
+  <h1 class="hdr-title">全情绪展示</h1>
+  <p class="hdr-sub">7 种核心情绪 · 当前实现 · 圆眼 + 瞳孔词法</p>
+</header>
+
+<div class="grid">
+
+<!-- 愉快 ─────────────────────────── -->
+<div class="card" style="--ec:#10b981">
+  <div class="card-name">愉快</div>
+  <div class="eye-stage">
+    <svg class="eyes-svg" viewBox="0 0 100 44" fill="none" shape-rendering="geometricPrecision" style="--bd:4s">
+      <defs>
+        <clipPath id="hpL"><polygon points="14,5 42,5 42,39 14,39"/></clipPath>
+        <clipPath id="hpR"><polygon points="58,5 86,5 86,39 58,39"/></clipPath>
+      </defs>
+      <circle class="hdot"   cx="11" cy="37" r="2.9" fill="#f06070"/>
+      <circle class="hdot r" cx="89" cy="37" r="2.9" fill="#f06070"/>
+      <g class="eye-g l" clip-path="url(#hpL)">
+        <ellipse cx="28" cy="22" rx="13" ry="17" fill="#111"/>
+        <g class="drift-happy">
+          <circle cx="28" cy="22" r="3.9" fill="#f0f0f0"/>
+          <circle cx="28" cy="25.1" r="3.55" fill="#111"/>
+        </g>
+      </g>
+      <g class="eye-g r" clip-path="url(#hpR)">
+        <ellipse cx="72" cy="22" rx="13" ry="17" fill="#111"/>
+        <g class="drift-happy r">
+          <circle cx="72" cy="22" r="3.9" fill="#f0f0f0"/>
+          <circle cx="72" cy="25.1" r="3.55" fill="#111"/>
+        </g>
+      </g>
+    </svg>
+  </div>
+  <div class="card-desc">新月瞳孔 · 实心颊点<br/>表情明确，识别度高</div>
+  <div class="card-params">pr 3.9 · esy 1.0 · blink 4s</div>
+</div>
+
+<!-- 平静 ─────────────────────────── -->
+<div class="card" style="--ec:#78b4a0">
+  <div class="card-name">平静</div>
+  <div class="eye-stage">
+    <svg class="eyes-svg" viewBox="0 0 100 44" fill="none" shape-rendering="geometricPrecision" style="--bd:6s">
+      <defs>
+        <clipPath id="cmL"><polygon points="14,5 42,5 42,39 14,39"/></clipPath>
+        <clipPath id="cmR"><polygon points="58,5 86,5 86,39 58,39"/></clipPath>
+      </defs>
+      <g class="eye-g l" clip-path="url(#cmL)">
+        <ellipse cx="28" cy="22" rx="13" ry="17" fill="#111"/>
+        <circle class="drift-calm" cx="28" cy="22" r="3.2" fill="#f0f0f0"/>
+      </g>
+      <g class="eye-g r" clip-path="url(#cmR)">
+        <ellipse cx="72" cy="22" rx="13" ry="17" fill="#111"/>
+        <circle class="drift-calm" cx="72" cy="22" r="3.2" fill="#f0f0f0" style="animation-delay:.9s"/>
+      </g>
+    </svg>
+  </div>
+  <div class="card-desc">正圆眼 · 居中瞳孔慢漂<br/>基线中性状态</div>
+  <div class="card-params">pr 3.2 · esy 1.0 · blink 6s</div>
+</div>
+
+<!-- 好奇 ─────────────────────────── -->
+<div class="card" style="--ec:#06b6d4">
+  <div class="card-name">好奇</div>
+  <div class="eye-stage">
+    <svg class="eyes-svg" viewBox="0 0 100 44" fill="none" shape-rendering="geometricPrecision" style="--bd:3s">
+      <defs>
+        <clipPath id="cuL"><polygon points="14,5 42,5 42,39 14,39"/></clipPath>
+        <clipPath id="cuR"><polygon points="58,5 86,5 86,39 58,39"/></clipPath>
+      </defs>
+      <g class="eye-g l" clip-path="url(#cuL)">
+        <ellipse cx="28" cy="22" rx="13" ry="17" fill="#111"/>
+        <circle cx="28" cy="18.8" r="5.0" fill="#f0f0f0"/>
+      </g>
+      <g class="eye-g r" clip-path="url(#cuR)">
+        <ellipse cx="72" cy="22" rx="13" ry="17" fill="#111"/>
+        <circle cx="72" cy="18.8" r="5.0" fill="#f0f0f0"/>
+      </g>
+    </svg>
+  </div>
+  <div class="card-desc">大瞳孔上抬 · 专注凝视<br/>思考中同态（不接情绪）</div>
+  <div class="card-params">pr 5.0 · pdy −3.2 · blink 3s</div>
+</div>
+
+<!-- 兴奋 ─────────────────────────── -->
+<div class="card" style="--ec:#f59e0b">
+  <div class="card-name">兴奋</div>
+  <div class="eye-stage">
+    <svg class="eyes-svg" viewBox="0 0 100 44" fill="none" shape-rendering="geometricPrecision" style="--bd:1.8s">
+      <defs>
+        <clipPath id="exL"><polygon points="14,5 42,5 42,39 14,39"/></clipPath>
+        <clipPath id="exR"><polygon points="58,5 86,5 86,39 58,39"/></clipPath>
+      </defs>
+      <g class="spk">
+        <polygon points="12,1.5 13,4.3 15.5,5 13,5.7 12,8.5 11,5.7 8.5,5 11,4.3" fill="#111"/>
+        <polygon points="88,1.5 89,4.3 91.5,5 89,5.7 88,8.5 87,5.7 84.5,5 87,4.3" fill="#111"/>
+        <circle cx="17" cy="12.5" r="0.9" fill="#111"/>
+        <circle cx="83" cy="12.5" r="0.9" fill="#111"/>
+      </g>
+      <g class="eye-g l" clip-path="url(#exL)">
+        <ellipse cx="28" cy="22" rx="13" ry="17" fill="#111"/>
+        <circle cx="28" cy="19.4" r="6.2" fill="#f0f0f0"/>
+      </g>
+      <g class="eye-g r" clip-path="url(#exR)">
+        <ellipse cx="72" cy="22" rx="13" ry="17" fill="#111"/>
+        <circle cx="72" cy="19.4" r="6.2" fill="#f0f0f0"/>
+      </g>
+    </svg>
+  </div>
+  <div class="card-desc">超大瞳孔 · 眼角星形符号<br/>高能量，快眨眼</div>
+  <div class="card-params">pr 6.2 · sparkle · blink 1.8s</div>
+</div>
+
+<!-- 困惑 ─────────────────────────── -->
+<div class="card" style="--ec:#a855f7">
+  <div class="card-name">困惑</div>
+  <div class="eye-stage">
+    <svg class="eyes-svg" viewBox="0 0 100 44" fill="none" shape-rendering="geometricPrecision" style="--bd:5s">
+      <defs>
+        <clipPath id="cnL"><polygon points="14,5 42,5 42,39 14,39"/></clipPath>
+        <!-- right eye: liddyR=2.2 → top clip raised 2.2px, esy=0.60 → ry≈10.2 -->
+        <clipPath id="cnR"><polygon points="58,7.2 86,7.2 86,39 58,39"/></clipPath>
+      </defs>
+      <g class="qmark">
+        <path d="M 47,4 Q 50,1 53,4 Q 53,7 50,8.5 L 50,10.5" stroke="#111" stroke-width="1.1" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="50" cy="12.6" r="0.95" fill="#111"/>
+      </g>
+      <g class="eye-g l" clip-path="url(#cnL)">
+        <ellipse cx="28" cy="22" rx="13" ry="17.3" fill="#111"/>
+        <circle cx="28" cy="22" r="3.6" fill="#f0f0f0"/>
+      </g>
+      <g class="eye-g r" clip-path="url(#cnR)">
+        <ellipse cx="72" cy="22" rx="13" ry="10.2" fill="#111"/>
+        <circle cx="72" cy="22" r="2.7" fill="#f0f0f0"/>
+      </g>
+    </svg>
+  </div>
+  <div class="card-desc">不对称眼 · ? 符号<br/>右眼眯缝 · 小瞳孔</div>
+  <div class="card-params">esyR 0.60 · liddyR 2.2 · blink 5s</div>
+</div>
+
+<!-- 难过 ─────────────────────────── -->
+<div class="card" style="--ec:#5b80c0">
+  <div class="card-name">难过</div>
+  <div class="eye-stage">
+    <svg class="eyes-svg" viewBox="0 0 100 44" fill="none" shape-rendering="geometricPrecision" style="--bd:8s">
+      <defs>
+        <!-- liddy=1 → top +1; lidty=6 → bottom clip at 39-6=33 -->
+        <clipPath id="sdL"><polygon points="14,6 42,6 42,33 14,33"/></clipPath>
+        <clipPath id="sdR"><polygon points="58,6 86,6 86,33 58,33"/></clipPath>
+      </defs>
+      <g class="eye-g l" clip-path="url(#sdL)">
+        <ellipse cx="28" cy="22" rx="13" ry="14.45" fill="#111"/>
+        <circle cx="28" cy="23.8" r="3.0" fill="#f0f0f0"/>
+      </g>
+      <g class="eye-g r" clip-path="url(#sdR)">
+        <ellipse cx="72" cy="22" rx="13" ry="14.45" fill="#111"/>
+        <circle cx="72" cy="23.8" r="3.0" fill="#f0f0f0"/>
+      </g>
+    </svg>
+  </div>
+  <div class="card-desc">下睑上抬 · 瞳孔下沉<br/>眼神沉重，慢眨眼</div>
+  <div class="card-params">esy 0.85 · lidty 6 · pdy +1.8 · blink 8s</div>
+</div>
+
+<!-- 愤怒 ─────────────────────────── -->
+<div class="card" style="--ec:#ef4444">
+  <div class="card-name">愤怒</div>
+  <div class="eye-stage">
+    <svg class="eyes-svg" viewBox="0 0 100 44" fill="none" shape-rendering="geometricPrecision" style="--bd:7s">
+      <defs>
+        <!-- lidSlant=8: inner corners of upper lid lower → furrowed brow
+             Left:  outer(14,10) inner(42,18)
+             Right: inner(58,18) outer(86,10) -->
+        <clipPath id="agL"><polygon points="14,10 42,18 42,37 14,37"/></clipPath>
+        <clipPath id="agR"><polygon points="58,18 86,10 86,37 58,37"/></clipPath>
+      </defs>
+      <g class="eye-g l" clip-path="url(#agL)">
+        <ellipse cx="28" cy="22" rx="13" ry="14.45" fill="#111"/>
+        <circle cx="28" cy="22" r="2.2" fill="#f0f0f0"/>
+      </g>
+      <g class="eye-g r" clip-path="url(#agR)">
+        <ellipse cx="72" cy="22" rx="13" ry="14.45" fill="#111"/>
+        <circle cx="72" cy="22" r="2.2" fill="#f0f0f0"/>
+      </g>
+    </svg>
+  </div>
+  <div class="card-desc">上睑斜压怒眉 · 小瞳孔<br/>lidSlant 形成内低外高</div>
+  <div class="card-params">esy 0.85 · lidSlant 8 · pr 2.2 · blink 7s</div>
+</div>
+
+<!-- 思考（系统态） ─────────────────── -->
+<div class="card card-system" style="--ec:#3b82f6">
+  <div class="card-badge">系统态</div>
+  <div class="card-name">思考中</div>
+  <div class="eye-stage" style="overflow:visible">
+    <svg class="eyes-svg" viewBox="0 0 100 44" fill="none" shape-rendering="geometricPrecision" style="--bd:5s;overflow:visible">
+      <defs>
+        <clipPath id="tkL"><polygon points="14,5 42,5 42,39 14,39"/></clipPath>
+        <clipPath id="tkR"><polygon points="58,5 86,5 86,39 58,39"/></clipPath>
+      </defs>
+      <!-- think dots: center-top, same area as question mark -->
+      <circle class="tdot" cx="41" cy="-2" r="2.0" fill="#555"/>
+      <circle class="tdot" cx="50" cy="-2" r="2.0" fill="#555" style="animation-delay:.18s"/>
+      <circle class="tdot" cx="59" cy="-2" r="2.0" fill="#555" style="animation-delay:.36s"/>
+      <g class="eye-g l" clip-path="url(#tkL)">
+        <ellipse cx="28" cy="22" rx="13" ry="16.15" fill="#111"/>
+        <circle class="drift-think" cx="30.3" cy="20.6" r="3.0" fill="#f0f0f0"/>
+      </g>
+      <g class="eye-g r" clip-path="url(#tkR)">
+        <ellipse cx="72" cy="22" rx="13" ry="16.15" fill="#111"/>
+        <circle class="drift-think r" cx="74.3" cy="20.6" r="3.0" fill="#f0f0f0"/>
+      </g>
+    </svg>
+  </div>
+  <div class="card-desc">瞳孔偏移右上 · 三点律动<br/>与情绪正交的系统状态</div>
+  <div class="card-params">esy 0.95 · pr 3.0 · pdy −1.4 · blink 5s</div>
+</div>
+
+</div>
+  当前实现 · v0.15 rev2 · 待办：为所有情绪加入嘴巴元素（见嘴巴版草案）
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,3822 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zoufx AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+.mono { font-family: 'JetBrains Mono', ui-monospace, monospace; font-feature-settings: 'calt' 0; }
+@keyframes pulse-dot { 0%,100%{opacity:.3;} 50%{opacity:1;} }
+@keyframes char-in { from { opacity:0; filter:blur(2px); } to { opacity:1; filter:blur(0); } }
+.think-char { display:inline; animation: char-in .4s ease both; }
+.tool-runbar { background-image: linear-gradient(90deg, transparent 0%, var(--t1) 50%, transparent 100%); background-size: 200% 100%; animation: tool-run 1.4s linear infinite; height:1px; }
+@keyframes tool-run { 0%{background-position:100% 0;} 100%{background-position:-100% 0;} }
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="module">
+  import('https://cdn.jsdelivr.net/npm/streaming-markdown/+esm')
+    .then(m=>{
+      window.__smd=m;
+      document.dispatchEvent(new Event('__smd_ready'));
+    })
+    .catch(()=>{});
+</script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+
+/* ── Monochrome accent ── */
+:root {
+  --accent:     oklch(0.14 0.04 260);
+  --accent-s:   oklch(0.14 0.04 260 / 0.06);
+  --accent-r:   oklch(0.14 0.04 260 / 0.14);
+}
+
+/* ── LIGHT (default) ── */
+:root {
+  --bg:         #ffffff;
+  --sidebar:    #f9f9f9;
+  --surface:    #ffffff;
+  --surf-hov:   #f4f4f4;
+  --border:     #e8e8e8;
+  --border-lt:  #f0f0f0;
+  --t1:         #0a0a0a;
+  --t2:         #737373;
+  --t3:         #c0c0c0;
+  --chip:       #f4f4f4;
+  --chip-brd:   #e4e4e4;
+  --shadow:     0 1px 4px #00000008, 0 2px 12px #00000006;
+  --shadow-lg:  0 4px 24px #00000010, 0 1px 4px #00000008;
+  --scrollbar:  #e0e0e0;
+  --blush:      #f06070;
+}
+
+/* ── DARK ── */
+[data-theme="dark"] {
+  --bg:         #0c0c0c;
+  --sidebar:    #0f0f0f;
+  --surface:    #161616;
+  --surf-hov:   #1e1e1e;
+  --border:     #282828;
+  --border-lt:  #1f1f1f;
+  --t1:         #ededed;
+  --t2:         #737373;
+  --t3:         #3d3d3d;
+  --chip:       #1a1a1a;
+  --chip-brd:   #2a2a2a;
+  --shadow:     0 1px 4px #00000040, 0 2px 12px #00000030;
+  --shadow-lg:  0 4px 24px #00000060, 0 1px 4px #00000040;
+  --scrollbar:  #2a2a2a;
+  --blush:      oklch(0.62 0.12 18);
+  --accent:     oklch(0.92 0.01 260);
+  --accent-s:   oklch(0.92 0.01 260 / 0.08);
+  --accent-r:   oklch(0.92 0.01 260 / 0.16);
+}
+
+body {
+  font-family: 'Space Grotesk','Noto Sans SC',sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: var(--bg);
+  color: var(--t1);
+  height: 100vh;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  transition: background .35s ease, color .35s ease;
+}
+
+/* Global transitions for themed elements */
+*, *::before, *::after {
+  transition-property: background-color, border-color, color, box-shadow;
+  transition-duration: .22s;
+  transition-timing-function: ease;
+}
+textarea, input, button { transition: none; }
+.no-trans, .no-trans * { transition: none !important; }
+
+::-webkit-scrollbar{width:9px;height:9px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--scrollbar);border-radius:6px;border:2px solid transparent;background-clip:padding-box;}
+::-webkit-scrollbar-thumb:hover{background:var(--t3);background-clip:padding-box;}
+
+@keyframes up{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+@keyframes dot{0%,80%,100%{opacity:.2;transform:scale(.65);}40%{opacity:1;transform:scale(1);}}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+@keyframes thinkPulse{0%,100%{opacity:.35;}50%{opacity:1;}}
+@keyframes toolPulse{0%,100%{transform:scale(1);opacity:.55;}50%{transform:scale(1.5);opacity:1;}}
+
+/* Thinking A — mono + left line */
+.think-a{position:relative;font-family:var(--mono);font-size:12.5px;line-height:1.85;color:var(--t2);padding:6px 0 6px 14px;margin:4px 0 14px;border-left:1px solid var(--border);letter-spacing:0;white-space:pre-wrap;}
+.think-head{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+.think-head-dot{width:5px;height:5px;border-radius:50%;background:var(--t2);animation:thinkPulse 1.6s ease-in-out infinite;}
+
+/* Thinking C — char-fade italic */
+.think-c{font-size:13.5px;line-height:1.9;color:var(--t2);margin:4px 0 14px;padding:6px 0 6px 14px;border-left:1px solid var(--border);white-space:pre-wrap;font-style:italic;letter-spacing:.005em;}
+.think-c .c{opacity:0;animation:fadeIn .55s ease forwards;}
+
+/* Tool call panel — 精密仪器 */
+.tool{font-family:var(--mono);border:1px solid var(--border);background:var(--surface);border-radius:6px;margin:8px 0 18px;overflow:hidden;font-size:12px;}
+.tool-head{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--sidebar);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;}
+.tool-head.closed{border-bottom:none;}
+.tool-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;background:var(--t1);}
+.tool-dot.running{animation:toolPulse 1.2s ease-in-out infinite;}
+.tool-dot.done{background:var(--t2);}
+.tool-dot.error{background:#dc2626;}
+.tool-name{font-weight:500;color:var(--t1);letter-spacing:.01em;font-size:11.5px;}
+.tool-meta{margin-left:auto;color:var(--t3);font-size:10.5px;letter-spacing:.06em;display:flex;align-items:center;gap:8px;}
+.tool-meta .sep{width:1px;height:9px;background:var(--border);}
+.tool-caret{color:var(--t3);transition:transform .2s;display:flex;}
+.tool-caret.open{transform:rotate(90deg);}
+.tool-body{padding:10px 12px;font-size:11.5px;color:var(--t2);line-height:1.7;overflow:auto;}
+.tool-body .lbl{display:block;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--t3);margin:0 0 5px;}
+.tool-body .lbl + .v{margin:0 0 10px;color:var(--t1);font-size:11.5px;white-space:pre-wrap;}
+.tool-body .lbl:not(:first-child){margin-top:4px;}
+
+/* P3 · 工具块呈现节奏 ─────────────────────────────────────────────
+   ① 出现时 max-height "长出" + 淡入（一次性，挂载即播）
+   ② running 时计时跳动由 JS 驱动（数字本身），dot 已有脉冲
+   ③ 完成 0.4s 后未展开 → 收扁（.flat）：head 变薄、整体压暗；hover 还原 */
+.tool{animation:tool-grow .42s cubic-bezier(.22,1,.36,1);}
+@keyframes tool-grow{
+  0%  {opacity:0;max-height:0;transform:translateY(-3px);}
+  100%{opacity:1;max-height:260px;transform:translateY(0);}
+}
+.tool-head{transition:padding .32s cubic-bezier(.22,1,.36,1),opacity .32s ease,background-color .22s ease,border-color .22s ease;}
+.tool.flat{opacity:.78;}
+.tool.flat .tool-head{padding-top:5px;padding-bottom:5px;}
+.tool.flat .tool-meta{opacity:.5;}
+.tool.flat:hover{opacity:1;}
+.tool.flat:hover .tool-head{padding-top:8px;padding-bottom:8px;}
+.tool.flat:hover .tool-meta{opacity:1;}
+/* P1·9 · body 始终在 DOM，用 max-height 过渡展开，hover 不再顶动下方正文 */
+.tool-body-wrap{max-height:0;overflow:hidden;opacity:0;transition:max-height .3s cubic-bezier(.22,1,.36,1),opacity .22s ease;}
+.tool-body-wrap.show{max-height:480px;opacity:1;}
+.tool-meta{transition:opacity .28s ease;}
+/* running 计时数字：等宽避免抖动时整体宽度跳动 */
+.tool-meta .dur{font-variant-numeric:tabular-nums;font-feature-settings:'tnum' 1;min-width:42px;text-align:right;display:inline-block;}
+@media (prefers-reduced-motion: reduce){
+  .tool{animation:none;}
+}
+
+/* P3 · 思考块流式结束 1.5s 后折叠成单行可展开 */
+.think-c.collapsed,.think-a.collapsed{padding-top:4px;padding-bottom:4px;margin-bottom:10px;}
+.think-collapsed-row{display:flex;align-items:center;gap:10px;cursor:pointer;animation:fadeIn .3s ease both;}
+.think-collapsed-row .think-head-label{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);flex-shrink:0;}
+.think-peek{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--t3);font-style:italic;font-size:11.5px;letter-spacing:.005em;}
+.think-caret-i{display:flex;color:var(--t3);flex-shrink:0;transition:transform .2s,color .2s;}
+.think-collapsed-row:hover .think-caret-i{color:var(--t2);}
+.think-collapsed-row:hover .think-peek{color:var(--t2);}
+.think-head.clickable{cursor:pointer;}
+.think-head .think-caret-i{margin-left:auto;}
+
+/* ── Markdown content (streaming-markdown → smd → DOM) ─────────────────
+   对齐生产链路：smd 直接操作 DOM，prose 样式用 CSS 变量实现，
+   shiki 流结束后按需替换 pre>code 节点。 */
+.md-content { line-height:1.85; color:var(--t1); letter-spacing:-.01em; }
+.md-content > *:first-child { margin-top:0; }
+.md-content > *:last-child  { margin-bottom:0; }
+.md-content p  { margin:0 0 .72em; }
+.md-content h1 { font-size:1.22em; font-weight:600; line-height:1.3; margin:1.4em 0 .5em; letter-spacing:-.02em; }
+.md-content h2 { font-size:1.08em; font-weight:600; line-height:1.35; margin:1.1em 0 .4em; letter-spacing:-.015em; }
+.md-content h3 { font-size:1em;    font-weight:600; line-height:1.45; margin:.9em 0 .3em; }
+.md-content strong { font-weight:600; }
+.md-content em     { font-style:italic; }
+.md-content ul { list-style:disc;    padding-left:1.4em; margin:.4em 0 .72em; }
+.md-content ol { list-style:decimal; padding-left:1.4em; margin:.4em 0 .72em; }
+.md-content li { margin-bottom:.22em; }
+.md-content li > ul, .md-content li > ol { margin:.15em 0; }
+.md-content code { font-family:var(--mono); font-size:.865em; background:var(--chip); border:1px solid var(--border); border-radius:4px; padding:.1em .38em; color:var(--t1); letter-spacing:0; }
+.md-content pre { background:#fff; border:1px solid var(--border); border-radius:8px; padding:13px 16px; margin:.72em 0; overflow-x:auto; font-family:var(--mono); font-size:12.5px; line-height:1.65; }
+.md-content pre code { background:none; border:none; padding:0; color:#24292e; font-size:inherit; border-radius:0; }
+[data-theme="dark"] .md-content pre { background:#24292e; border-color:#2a2a2a; }
+[data-theme="dark"] .md-content pre code { color:#e6edf3; }
+.md-content blockquote { border-left:2px solid var(--border); margin:.72em 0; padding:3px 0 3px 14px; color:var(--t2); font-style:italic; }
+.md-content blockquote p { margin-bottom:0; }
+.md-content hr  { border:none; border-top:1px solid var(--border); margin:1.1em 0; }
+.md-content a   { color:inherit; text-decoration:underline; text-decoration-thickness:1px; text-underline-offset:2px; opacity:.7; }
+.md-content a:hover { opacity:1; }
+.md-content table { border-collapse:collapse; width:100%; margin:.72em 0; font-size:13px; }
+.md-content th, .md-content td { border:1px solid var(--border); padding:6px 10px; text-align:left; }
+.md-content th { background:color-mix(in oklab, var(--t1), transparent 91%); font-weight:600; color:var(--t1); font-size:11.5px; }
+/* shiki 替换后的节点：保留圆角 + 字体，颜色完全由 shiki inline style 接管 */
+.md-content .shiki { margin:0 !important; border:none !important; border-radius:0 !important; overflow-x:auto; font-size:12.5px !important; line-height:1.65 !important; }
+.md-content .shiki code { font-family:var(--mono) !important; color:inherit !important; background:none !important; }
+[data-theme="dark"] .md-content code { background:#1e1e1e; border-color:#2a2a2a; }
+/* P1·6 · 代码块容器 + 工具栏（语言标签 + 复制） */
+.md-content .code-block{ margin:.72em 0; border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+.md-content .code-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; padding:5px 10px 5px 12px; background:var(--sidebar); border-bottom:1px solid var(--border); }
+.md-content .code-lang{ font-family:var(--mono); font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--t3); }
+.md-content .code-copy{ font-family:var(--mono); font-size:10.5px; letter-spacing:.04em; color:var(--t3); background:transparent; border:none; cursor:pointer; padding:2px 7px; border-radius:5px; transition:color .15s,background .15s; }
+.md-content .code-copy:hover{ color:var(--t1); background:color-mix(in oklab,var(--border),transparent 35%); }
+.md-content .code-copy.copied{ color:var(--accent); }
+/* P1·6 · shiki 双主题：暗色下切到 github-dark 内联变量，跟随主题切换 */
+[data-theme="dark"] .md-content .shiki,
+[data-theme="dark"] .md-content .shiki span{ color:var(--shiki-dark)!important; background-color:var(--shiki-dark-bg)!important; }
+
+/* ── StreamingContent 揭示引擎：新块级元素淡入 bloom（替代逐字打字机） ──
+   只在新段落/列表项/标题出现时触发一次，不逐字符包裹，避免频繁重排卡顿。
+   代码块跳过（交给 shiki）。 */
+.md-content .sc-in{ animation: scIn .34s cubic-bezier(.22,1,.36,1) both; }
+@keyframes scIn{ from{ opacity:0; transform:translateY(3px); } to{ opacity:1; transform:none; } }
+@media (prefers-reduced-motion: reduce){ .md-content .sc-in{ animation:none; } }
+
+.page-enter { animation: up .25s ease both; }
+
+/* FLIP 转场：起始页→聊天页时，根容器不做整体上飘（避免叠加在眼睛 FLIP 上），
+   改为内容分层淡入；眼睛 / 输入框的位移由 JS runFlip 接管。 */
+.chat-flying .chat-scroll-area{animation:chatContentIn .44s ease .16s both;}
+.chat-flying .chat-input-area{animation:chatContentIn .40s ease .06s both;}
+@keyframes chatContentIn{from{opacity:0;}to{opacity:1;}}
+@media (prefers-reduced-motion: reduce){
+  .chat-flying .chat-scroll-area,.chat-flying .chat-input-area{animation:none;}
+}
+
+#root { height:100vh; }
+
+/* Tweaks panel */
+.tp {
+  position:fixed;bottom:20px;right:20px;width:240px;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:12px;padding:18px;z-index:500;
+  box-shadow:var(--shadow-lg);
+  animation:up .18s ease both;
+}
+.tp-title{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--t2);margin-bottom:14px;}
+.tp-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.tp-label{font-size:12px;color:var(--t2);}
+.tog{position:relative;width:34px;height:19px;cursor:pointer;display:inline-block;}
+.tog input{opacity:0;width:0;height:0;}
+.tog-track{position:absolute;inset:0;background:var(--border);border-radius:20px;}
+.tog input:checked+.tog-track{background:var(--accent);}
+.tog-track::before{content:'';position:absolute;width:13px;height:13px;border-radius:50%;background:#fff;top:3px;left:3px;transition:transform .2s;}
+.tog input:checked+.tog-track::before{transform:translateX(15px);}
+
+.rename-input {
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--t1);
+  width: 100%;
+  padding: 0;
+}
+
+/* ===== Workstation layout ===== */
+.rail{width:56px;background:var(--sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:14px 0;flex-shrink:0;gap:4px;}
+.rail-logo{width:32px;height:32px;border-radius:8px;background:var(--t1);color:var(--bg);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:600;font-size:13px;margin-bottom:12px;letter-spacing:-.02em;}
+.rail-btn{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--t2);cursor:pointer;background:transparent;border:none;position:relative;}
+.rail-btn:hover{background:var(--surf-hov);color:var(--t1);}
+.rail-btn.active{color:var(--t1);background:var(--surf-hov);}
+.rail-btn.active::before{content:'';position:absolute;left:-8px;top:8px;bottom:8px;width:2px;background:var(--t1);border-radius:0 2px 2px 0;}
+.rail-spacer{flex:1;}
+
+/* Heartbeat top strip — mood-only */
+.hb{display:flex;align-items:center;padding:0 28px;height:48px;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--bg);white-space:nowrap;min-width:0;}
+.hb-mood{display:inline-flex;align-items:baseline;gap:12px;}
+.hb-dot{width:7px;height:7px;border-radius:50%;background:var(--mood,#22c55e);box-shadow:0 0 0 0 var(--mood-glow,#22c55e60);animation:hbPulse var(--mood-dur,2.4s) ease-in-out infinite;flex-shrink:0;align-self:center;}
+.hb-label{font-family:'Space Grotesk','Noto Sans SC',sans-serif;font-size:13.5px;font-weight:500;color:var(--mood,var(--t1));letter-spacing:-.005em;}
+.hb-en{font-family:var(--mono);font-size:10px;font-weight:500;letter-spacing:.18em;color:var(--mood,var(--t3));opacity:.55;text-transform:uppercase;}
+
+/* mood label — secondary, after status */
+.hb-mood-sep{color:var(--t3);opacity:.5;margin:0 8px;font-family:var(--mono);font-size:11px;align-self:center;}
+.hb-mood-label{
+  font-family:'Noto Sans SC','Space Grotesk',sans-serif;
+  font-style:italic;font-size:11.5px;
+  letter-spacing:.02em;
+  color:var(--emotion-color, var(--t3));
+  align-self:baseline;
+  animation:moodIn .22s ease both;
+  transition:color .35s ease,opacity .35s ease;
+}
+@keyframes moodIn{
+  0%{opacity:0;transform:translateY(1px);letter-spacing:.1em;}
+  100%{opacity:1;transform:translateY(0);letter-spacing:.02em;}
+}
+@keyframes hbPulse{0%,100%{box-shadow:0 0 0 0 var(--mood-glow,#22c55e60);}50%{box-shadow:0 0 0 6px transparent;}}
+
+/* ── Persona / mood color tokens ── */
+.hb[data-mood="idle"]     {--mood:#22c55e;--mood-glow:#22c55e60;--mood-dur:2.4s;}
+.hb[data-mood="thinking"] {--mood:#3b82f6;--mood-glow:#3b82f680;--mood-dur:1.1s;}
+.hb[data-mood="tooling"]  {--mood:#d97706;--mood-glow:#d9770680;--mood-dur:.9s;}
+.hb[data-mood="writing"]  {--mood:#3b82f6;--mood-glow:#3b82f680;--mood-dur:1.3s;}
+.hb[data-mood="error"]    {--mood:#dc2626;--mood-glow:#dc262680;--mood-dur:.7s;}
+.hb[data-mood="asleep"]   {--mood:#7c3aed;--mood-glow:#7c3aed60;--mood-dur:3.2s;}
+.hb[data-mood="drifting"] {--mood:#94a3b8;--mood-glow:#94a3b860;--mood-dur:4.2s;}
+[data-theme="dark"] .hb[data-mood="idle"]     {--mood:#4ade80;}
+[data-theme="dark"] .hb[data-mood="thinking"] {--mood:#60a5fa;}
+[data-theme="dark"] .hb[data-mood="tooling"]  {--mood:#fbbf24;}
+[data-theme="dark"] .hb[data-mood="writing"]  {--mood:#60a5fa;}
+[data-theme="dark"] .hb[data-mood="error"]    {--mood:#f87171;}
+[data-theme="dark"] .hb[data-mood="asleep"]   {--mood:#a78bfa;}
+
+/* Z logo: idle breath + rare blink (legacy, still used in some places) */
+@keyframes z-breath { 0%,100%{transform:scale(1);} 50%{transform:scale(.965);} }
+@keyframes z-blink  { 0%,92%,100%{transform:scaleY(1);} 95%{transform:scaleY(.08);} 97%{transform:scaleY(1);} }
+.z-mark{display:inline-block;transform-origin:center;animation:z-breath 4.2s ease-in-out infinite;}
+.z-mark.blink{animation:z-blink 6s ease-in-out infinite;animation-delay:var(--blink-delay,3s);}
+.z-mark.busy{animation:none;transform:scale(1);}
+
+/* ── Eyes glyph (new 小Z mark) ── */
+.eyes-z{display:inline-block;color:var(--t1);vertical-align:middle;}
+.eyes-z .eye{transform-box:fill-box;transform-origin:center;animation:eye-blink var(--blink-dur,6s) ease-in-out infinite;}
+.eyes-z .eye.eye-r{animation-delay:.04s;}
+/* Task3 · 几何过渡用 ease-out 收尾曲线（fast-start / soft-settle）：被下一次 mood 打断时
+   立即朝新目标走、再缓缓落定，连发也不跳动。比原 ease-in-out 更耐中断。 */
+.eyes-z .pupil{transform-box:fill-box;transform-origin:center;transition:cx .36s cubic-bezier(.22,1,.36,1),cy .36s cubic-bezier(.22,1,.36,1),r .36s cubic-bezier(.22,1,.36,1);}
+.eyes-z ellipse{transition:ry .36s cubic-bezier(.22,1,.36,1);}
+/* 思考中（系统状态驱动，与 LLM 情绪正交）：瞳孔上抬后，只在「右上 ↔ 右」象限内缓慢游移
+   + 短暂停顿，像在出神斟酌、目光投向右上方思索；不回中、不向左。略放松的眨眼。 */
+.eyes-z.thinking .eye{animation:eye-blink 4.6s ease-in-out infinite;}
+.eyes-z.thinking .eye.eye-r{animation-delay:.06s;}
+.eyes-z.thinking .pupil{animation:pupil-think 6.5s ease-in-out infinite;}
+.eyes-z.thinking .pupil.pupil-r{animation-delay:.12s;}
+@keyframes pupil-think{
+  0%,9%     {transform:translate(2.3px,-2.6px);}  /* 右上 */
+  22%,32%   {transform:translate(3.9px,-1.3px);}  /* 右偏上 */
+  44%,50%   {transform:translate(2.7px,-2.3px);}  /* 回右上 */
+  62%,74%   {transform:translate(4.1px,-0.3px);}  /* 偏右 */
+  86%,95%   {transform:translate(3.0px,-1.8px);}  /* 右上 */
+  100%      {transform:translate(2.3px,-2.6px);}
+}
+/* 思考中 · 三点律动 → 移入 SVG 内中上方（与困惑 ? 号同区域） */
+.think-dots{display:none;}
+.z-think-dots circle{
+  transform-box:fill-box;transform-origin:center;
+  animation:think-dot 1.4s ease-in-out infinite;
+  opacity:.28;
+}
+.z-think-dots circle:nth-child(2){animation-delay:.18s;}
+.z-think-dots circle:nth-child(3){animation-delay:.36s;}
+@keyframes think-dot{
+  0%,100%{opacity:.22;transform:translateY(1px);}
+  42%{opacity:.95;transform:translateY(-2px);}
+}
+/* Task4 · "第一反应"专属节拍：快速眨一下 → 瞳孔先收后放、定格进入该情绪表情。克制，不弹跳。
+   用 !important 在节拍 0.74s 内接管 busy/mood 的瞳孔律动，结束后自动还原。 */
+.eyes-z.first-react .eye{animation:first-react-blink .74s ease both !important;}
+.eyes-z.first-react .eye.eye-r{animation:first-react-blink .74s ease .03s both !important;}
+.eyes-z.first-react .pupil{animation:first-react-pupil .74s cubic-bezier(.22,1,.36,1) both !important;}
+@keyframes first-react-blink{
+  0%{transform:scaleY(1);} 12%{transform:scaleY(.07);} 27%{transform:scaleY(1);} 100%{transform:scaleY(1);}
+}
+@keyframes first-react-pupil{
+  0%{transform:scale(1);} 20%{transform:scale(.58);} 56%{transform:scale(1.1);} 100%{transform:scale(1);}
+}
+/* P4 · drifting 眼神飘移：慢而随机地目光滑向一侧，维持 ~2s 再回中 */
+.eyes-z.drifting .pupil{animation:pupil-drift 18s ease-in-out infinite;}
+@keyframes pupil-drift{
+  0%,20%,100%{transform:translate(0,0);}
+  28%,44%{transform:translate(4.5px,-0.5px);}
+  54%,66%{transform:translate(0,0);}
+  74%,90%{transform:translate(-3.8px,0.5px);}
+}
+/* 难过 mood：瞳孔轻微左右游移 */
+.eyes-z.sad .pupil{animation:sad-sway 10s ease-in-out infinite;}
+@keyframes sad-sway{
+  0%,4%      {transform:translate(0,0);}
+  9%,49%     {transform:translate(-1.6px,0);}
+  54%,58%    {transform:translate(0,0);}
+  63%,96%    {transform:translate(1.6px,0);}
+  100%       {transform:translate(0,0);}
+}
+/* 愉快（v0.15 rev2 · A方案正式版）：新月瞳孔漂移 + 实心红点腮红律动 */
+.eyes-z.happy .happy-pupil{animation:happy-bob 9s ease-in-out infinite;}
+.eyes-z.happy .pupil-r{animation-delay:.12s;}
+@keyframes happy-dot-pulse{0%,100%{opacity:.82;}50%{opacity:1;}}
+.eyes-z.happy .happy-dot{animation:happy-dot-pulse 3.8s ease-in-out infinite;}
+.eyes-z.happy .happy-dot.r{animation-delay:.28s;}
+@keyframes happy-bob{
+  0%,4%      {transform:translate(0,0);}
+  12%,22%    {transform:translate(1.8px,-0.9px);}
+  30%,40%    {transform:translate(0,-0.5px);}
+  48%,58%    {transform:translate(-1.8px,-0.9px);}
+  66%,76%    {transform:translate(0.6px,-0.3px);}
+  84%,100%   {transform:translate(0,0);}
+}
+/* 平静 mood：两眼同步缓慢游移（共轭注视），幅度随机感 */
+.eyes-z.calm .pupil{animation:calm-wander 18s ease infinite;}
+@keyframes calm-wander{
+  0%,3%      {transform:translate(0,0);}
+  6%,16%     {transform:translate(2.4px,0.5px);}
+  19%,29%    {transform:translate(3.6px,-0.7px);}
+  32%,40%    {transform:translate(0,0);}
+  43%,53%    {transform:translate(-2.8px,1.1px);}
+  56%,64%    {transform:translate(-1.0px,-1.3px);}
+  67%,75%    {transform:translate(0,0);}
+  78%,88%    {transform:translate(3.2px,0.4px);}
+  91%,100%   {transform:translate(0,0);}
+}
+/* P6 · 呢吸线 + 消息间距控制 */
+.breath-divider{height:24px;display:flex;align-items:center;justify-content:center;gap:10px;}
+.breath-time{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;color:var(--t3);white-space:nowrap;}
+/* P1·8 · 消息 hover 操作（复制 / 重新生成） */
+.msg-actions{display:flex;gap:4px;margin-top:8px;opacity:0;transform:translateY(-2px);transition:opacity .16s ease,transform .16s ease;}
+.chat-msg-wrap:hover .msg-actions,.chat-msg-wrap:focus-within .msg-actions{opacity:1;transform:none;}
+.msg-act-btn{display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 9px;border:1px solid transparent;border-radius:7px;background:transparent;color:var(--t3);font-family:inherit;font-size:11.5px;cursor:pointer;transition:color .15s,background .15s;}
+.msg-act-btn:hover{color:var(--t1);background:var(--surf-hov);}
+.msg-act-btn.done{color:var(--accent);}
+/* v0.2.3 · 错误条（失败轮不再落库，正常不会出现；仅兜底样式） */
+.msg-error{display:flex;align-items:center;gap:10px;margin:6px 0 2px;padding:10px 12px;border:1px solid color-mix(in oklab,#dc2626,transparent 68%);background:color-mix(in oklab,#dc2626,transparent 92%);border-radius:8px;font-size:12.5px;}
+.msg-error .me-dot{width:7px;height:7px;border-radius:50%;background:#dc2626;flex-shrink:0;}
+.msg-error .me-txt{flex:1;color:var(--t2);line-height:1.5;}
+.chat-msg-wrap{/* margin-top 由 JS inline style 指定 */}
+/* v0.2.3 · 顶部轻提示（发送失败 → 消息回填输入框） */
+.top-toast{position:fixed;top:18px;left:50%;transform:translateX(-50%);z-index:900;display:flex;align-items:center;gap:8px;padding:9px 16px;border-radius:100px;background:var(--t1);color:var(--bg);font-size:12.5px;line-height:1;box-shadow:var(--shadow-lg);animation:toast-in .18s ease both;pointer-events:none;}
+.top-toast .tt-dot{width:6px;height:6px;border-radius:50%;background:#dc2626;flex-shrink:0;}
+@keyframes toast-in{from{opacity:0;transform:translate(-50%,-6px);}to{opacity:1;transform:translate(-50%,0);}}
+/* asleep（深夜/打盹）：眼睛收成细缝 + 慢速睫毛抖动，不扫视 */
+.eyes-z.asleep .eye{animation:eye-flutter 12s ease-in-out infinite;}
+.eyes-z.asleep .eye.eye-r{animation-delay:.08s;}
+.eyes-z.asleep .pupil{animation:none;}
+@keyframes eye-flutter{
+  0%,80%,100%{transform:scaleY(1);}
+  86%{transform:scaleY(.55);}
+  90%{transform:scaleY(1);}
+}
+@keyframes eye-blink{
+  0%,40%,46%,92%,100%{transform:scaleY(1);}
+  43%{transform:scaleY(.05);}
+  95%{transform:scaleY(.05);}
+  97%{transform:scaleY(1);}
+}
+@keyframes pupil-glance{
+  0%,28%,72%,100%{transform:translate(0,0);}
+  34%,44%{transform:translate(2.2px,-1px);}
+  56%,66%{transform:translate(-2.2px,.5px);}
+}
+
+/* P1 · error 摇头：进入 error 系统态时，整双眼睛水平轻抖一次（身体语言："不对/出错"），
+   抖完即平静。一次性 .error-shake 类驱动，对 mood/思考 漂移无副作用（作用在 SVG 根，
+   情绪漂移作用在 pupil 子层，两者不冲突）。 */
+.eyes-z.error-shake{animation:eye-headshake .6s cubic-bezier(.36,.07,.19,.97) both;}
+@keyframes eye-headshake{
+  0%  {transform:translateX(0) rotate(0);}
+  13% {transform:translateX(-3.2px) rotate(-1.7deg);}
+  31% {transform:translateX(2.7px)  rotate(1.3deg);}
+  50% {transform:translateX(-2.1px) rotate(-1deg);}
+  69% {transform:translateX(1.3px)  rotate(.6deg);}
+  86% {transform:translateX(-.5px)  rotate(-.2deg);}
+  100%{transform:translateX(0) rotate(0);}
+}
+@media (prefers-reduced-motion: reduce){
+  .eyes-z.error-shake{animation:none;}
+}
+
+/* sparkle (兴奋) — 外上角闪光符号的轻微闪烁 */
+.eyes-z .z-sparkle{animation:sparkle-twinkle 1.4s ease-in-out infinite;transform-origin:center;}
+@keyframes sparkle-twinkle{
+  0%,100%{opacity:1;}
+  45%,55%{opacity:.35;}
+}
+/* question (困惑) — 眉心 ? 符号的浮动 */
+.eyes-z .z-question{animation:question-bob 2s ease-in-out infinite;transform-origin:center;transform-box:fill-box;}
+@keyframes question-bob{
+  0%,100%{transform:translateY(0);opacity:.9;}
+  50%{transform:translateY(-1.2px);opacity:1;}
+}
+
+/* Heartbeat whisper — appears next to state when idle long */
+.hb-whisper{
+  font-family:'Space Grotesk','Noto Sans SC',sans-serif;
+  font-style:italic;font-size:11.5px;color:var(--t3);
+  letter-spacing:.01em;margin-left:8px;
+  animation:whisperIn 1.2s ease both;
+}
+@keyframes whisperIn{
+  0%{opacity:0;transform:translateY(-2px);}
+  18%{opacity:.85;transform:translateY(0);}
+  82%{opacity:.85;}
+  100%{opacity:0;transform:translateY(2px);}
+}
+
+/* Night badge */
+.hb-night{
+  font-family:var(--mono);font-size:10px;letter-spacing:.14em;
+  color:#7c3aed;opacity:.75;
+  text-transform:uppercase;
+}
+[data-theme="dark"] .hb-night{color:#a78bfa;}
+.hb-divider{width:1px;height:14px;background:var(--border);}
+.hb-cell{display:flex;align-items:center;gap:6px;}
+.hb-cell-k{color:var(--t3);font-size:10px;text-transform:uppercase;letter-spacing:.12em;}
+.hb-cell-v{color:var(--t1);}
+.hb-spacer{flex:1;}
+.hb-state{color:var(--t2);font-style:italic;font-family:'Space Grotesk','Noto Sans SC',sans-serif;font-size:12px;letter-spacing:0;}
+
+/* Right state panel */
+.sp{width:280px;border-left:1px solid var(--border);background:var(--sidebar);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden;}
+.sp-h{display:flex;align-items:center;justify-content:space-between;padding:14px 18px 10px;}
+.sp-h-t{font-family:'Space Grotesk','Noto Sans SC',sans-serif;font-size:14px;font-weight:500;letter-spacing:-.005em;color:var(--t1);}
+.sp-body{flex:1;overflow:auto;padding:0 16px 16px;}
+.sp-section{margin-bottom:22px;}
+.sp-section-h{display:flex;align-items:center;justify-content:space-between;padding:8px 4px;font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);}
+.sp-section-h .count{color:var(--t2);font-size:10px;}
+.sp-card{border:1px solid var(--border);background:var(--surface);border-radius:8px;padding:11px 12px;margin-bottom:6px;font-size:12px;color:var(--t1);line-height:1.65;letter-spacing:-.005em;}
+.sp-card .lbl{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:4px;display:block;}
+.sp-empty{font-size:11px;color:var(--t3);padding:8px 4px;letter-spacing:.01em;}
+
+/* ── Presence（v0.15 · 无 banner 悬浮大眼睛） ───────────────────────────
+   - .presence-float：对话流顶部，无 banner，大眼睛悬浮，mood 变化双环脉冲
+   - .presence-card ：右栏顶部，常驻（已弃用） */
+
+/* B · floating presence — 无 banner，大眼睛居中悬浮 */
+.presence-float{
+  position:sticky;top:0;z-index:5;
+  display:flex;flex-direction:column;align-items:center;
+  gap:10px;
+  padding:10px 24px 18px;
+  background:var(--bg);
+  transition:background-color .3s;
+  pointer-events:none;
+}
+/* P1·5 · 顶部淡出：用 mask 让滚动区内容在顶端柔和淡出，
+   不画任何不透明层，眼睛光晕（在上层）不受影响 */
+.chat-scroll-area{
+  -webkit-mask-image:linear-gradient(to bottom, transparent 0, #000 34px);
+  mask-image:linear-gradient(to bottom, transparent 0, #000 34px);
+}
+.presence-float .presence-eyes-wrap{
+  display:flex;align-items:center;justify-content:center;
+  position:relative;
+}
+/* mood 变化：扩散环形脉冲。Task3 · 每束光晕冻结自己的情绪色(--glow-c)、单次绽放、播完即卸；
+   多束可同时在场 → 上一束未散完时，新一束优雅叠加接管，不闪烁。 */
+.mood-glow{
+  position:absolute;
+  width:380px;height:200px;
+  left:50%;top:50%;
+  border-radius:50%;
+  background:radial-gradient(ellipse at center, var(--glow-c, var(--emotion-color,#94a3b8)) 0%, color-mix(in oklch, var(--glow-c, var(--emotion-color,#94a3b8)), transparent 55%) 32%, transparent 70%);
+  filter:blur(16px);
+  pointer-events:none;
+  opacity:0;
+  z-index:-1;
+  animation:mood-glow-bloom 2.2s cubic-bezier(.22,1,.36,1) 1 forwards;
+}
+@keyframes mood-glow-bloom{
+  0%  {opacity:0;   transform:translate(-50%,-50%) scale(.6);}
+  26% {opacity:.6;  transform:translate(-50%,-50%) scale(.95);}
+  55% {opacity:.42; transform:translate(-50%,-50%) scale(1.06);}
+  100%{opacity:0;   transform:translate(-50%,-50%) scale(1.28);}
+}
+/* 常驻呼吸光晕：情绪保持期间垫在最底层，很淡、缓慢明灭，给单一情绪"反复绽放"的余韵。
+   用实时 var(--emotion-color)（已 @property 化）→ 换情绪时颜色随之融变；burst 绽放叠在其上。 */
+.mood-ambient{
+  position:absolute;
+  width:340px;height:180px;
+  left:50%;top:50%;
+  border-radius:50%;
+  transform:translate(-50%,-50%);
+  background:radial-gradient(ellipse at center, var(--emotion-color,#94a3b8) 0%, color-mix(in oklch, var(--emotion-color,#94a3b8), transparent 48%) 36%, transparent 70%);
+  filter:blur(18px);
+  pointer-events:none;
+  z-index:-2;
+  opacity:0;
+  transition:opacity .6s ease;
+}
+.mood-ambient.on{animation:mood-ambient-breath 4.4s ease-in-out infinite;}
+@keyframes mood-ambient-breath{
+  0%,100%{opacity:.20; transform:translate(-50%,-50%) scale(.95);}
+  50%    {opacity:.36; transform:translate(-50%,-50%) scale(1.05);}
+}
+.home-eyes .mood-ambient{width:440px;height:225px;}
+/* home 页眼睛更大，光晕更宽 */
+.home-eyes .mood-glow{width:500px;height:250px;}
+.presence-float .presence-label{
+  display:inline-flex;align-items:baseline;gap:8px;
+  font-size:12px;letter-spacing:-.005em;
+  pointer-events:auto;
+  transition:opacity .3s;
+}
+.presence-float .presence-dot{
+  width:7px;height:7px;border-radius:50%;
+  background:var(--mood-color);
+  box-shadow:0 0 0 0 color-mix(in oklab, var(--mood-color), transparent 55%);
+  animation:hbPulse 2.4s ease-in-out infinite;
+  align-self:center;
+  flex-shrink:0;
+}
+.presence-float[data-mood="asleep"] .presence-dot{animation-duration:3.2s;}
+.presence-float .presence-status{display:inline-flex;align-items:baseline;gap:8px;}
+.presence-float .presence-status .status-zh{
+  font-family:'Space Grotesk','Noto Sans SC',sans-serif;
+  font-size:13px;font-weight:500;
+  color:var(--mood-color);
+  letter-spacing:-.005em;
+}
+.presence-float .presence-status .status-en{
+  font-family:var(--mono);font-size:10px;font-weight:500;
+  letter-spacing:.18em;text-transform:uppercase;
+  color:var(--mood-color);opacity:.55;
+}
+.presence-float .presence-sep{
+  color:var(--t3);opacity:.5;
+  font-family:var(--mono);font-size:11px;
+}
+.presence-float .presence-mood{
+  font-family:'Noto Sans SC','Space Grotesk',sans-serif;
+  font-style:italic;font-size:12px;
+  color:var(--emotion-color, var(--t2));
+  letter-spacing:.02em;
+  animation:moodIn .26s ease both;
+}
+
+/* C · 右栏 Presence Card（v0.14 rev6 已弃用，保留 CSS 备用，但 React 端不再渲染） */
+.presence-card{
+  position:relative;
+  margin:0 0 18px;
+  padding:22px 16px 18px;
+  background:var(--surface);
+  border:1px solid var(--border-lt);
+  border-radius:12px;
+  display:none; /* 弃用 */
+}
+.sp-impression{display:flex;flex-direction:column;gap:4px;padding:11px 12px;}
+.imp-row{display:flex;align-items:baseline;font-size:12px;line-height:1.55;}
+.imp-k{width:44px;flex-shrink:0;color:var(--t3);font-size:11.5px;letter-spacing:.01em;}
+.imp-v{color:var(--t1);font-size:12.5px;letter-spacing:-.005em;}
+.imp-empty{color:var(--t3);font-size:11.5px;letter-spacing:.01em;}
+
+/* v0.14 — Hot Memory 两区（档案 / 印象） */
+.sp-impression-v14{padding:0;}
+.imp-zone{padding:11px 12px;}
+.imp-zone + .imp-zone{border-top:1px dashed var(--border);}
+.imp-zone-h{
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--t3);margin-bottom:8px;
+  display:flex;align-items:center;gap:6px;
+}
+.imp-zone-h::before{
+  content:'';display:inline-block;width:4px;height:4px;border-radius:50%;
+  background:var(--t3);
+}
+.imp-outer-row{display:flex;align-items:baseline;font-size:12px;line-height:1.7;}
+.imp-outer-row .imp-k{width:46px;}
+.imp-outer-row .imp-v{color:var(--t1);font-size:12.5px;letter-spacing:-.005em;}
+.imp-inner-row{margin-bottom:9px;}
+.imp-inner-row:last-child{margin-bottom:0;}
+.imp-inner-k{
+  font-size:11px;color:var(--t3);letter-spacing:.04em;
+  margin-bottom:2px;font-family:'Space Grotesk','Noto Sans SC',sans-serif;
+}
+.imp-inner-v{
+  font-size:12.5px;color:var(--t1);line-height:1.6;
+  letter-spacing:-.005em;font-style:italic;
+}
+.imp-counter{
+  font-family:var(--mono);font-size:9.5px;color:var(--t3);
+  letter-spacing:.06em;margin-left:auto;
+}
+.imp-hint{
+  font-size:11px;color:var(--t3);font-style:italic;
+  letter-spacing:.005em;line-height:1.55;padding:2px 0;
+}
+
+/* significant-event 叙事便签 */
+/* ── memory anchors (记忆锚点) ─── 三层衰减摘要 */
+.anchor-tier{margin-top:10px;}
+.anchor-tier:first-child{margin-top:0;}
+.anchor-tier-h{
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--t3);
+  margin-bottom:6px;display:flex;align-items:center;gap:6px;
+  cursor:default;
+}
+.anchor-tier-h.clickable{cursor:pointer;user-select:none;}
+.anchor-tier-h.clickable:hover{color:var(--t2);}
+.anchor-tier-h .anchor-chev{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:9px;height:9px;color:var(--t3);
+  transition:transform .25s ease;
+}
+.anchor-tier-h.open .anchor-chev{transform:rotate(90deg);}
+.anchor-tier-h .anchor-tier-count{
+  margin-left:auto;color:var(--t3);
+  font-size:9.5px;letter-spacing:.06em;
+}
+/* near：完整卡 */
+.anchor-near-card{
+  padding:11px 12px;margin-bottom:6px;
+  font-size:12.5px;color:var(--t1);line-height:1.65;
+  letter-spacing:-.005em;
+}
+.anchor-near-card .anchor-title{
+  font-size:13px;font-weight:500;color:var(--t1);
+  letter-spacing:-.005em;margin-bottom:5px;
+  font-family:'Space Grotesk','Noto Sans SC',sans-serif;
+}
+.anchor-near-card .anchor-body{
+  color:var(--t2);font-size:12px;line-height:1.65;
+  letter-spacing:-.005em;
+}
+.anchor-near-card .anchor-meta{
+  margin-top:8px;display:flex;align-items:center;gap:6px;
+  font-family:var(--mono);font-size:9.5px;color:var(--t3);
+  letter-spacing:.06em;
+}
+.anchor-near-card .anchor-meta-mood{
+  display:inline-flex;align-items:center;gap:3px;
+  color:var(--t2);font-family:'Space Grotesk','Noto Sans SC',sans-serif;
+  font-size:10px;letter-spacing:0;
+}
+.anchor-near-card .anchor-meta-mood::before{
+  content:'';width:4px;height:4px;border-radius:50%;
+  background:var(--accent);display:inline-block;
+}
+.anchor-near-toggle{
+  background:transparent;border:none;cursor:pointer;
+  width:100%;text-align:center;padding:5px 0;
+  font-family:var(--mono);font-size:9.5px;color:var(--t3);
+  letter-spacing:.14em;text-transform:uppercase;
+  display:flex;align-items:center;justify-content:center;gap:4px;
+}
+.anchor-near-toggle:hover{color:var(--t1);}
+/* mid：紧凑单行 */
+.anchor-mid-row{
+  display:flex;align-items:center;gap:8px;
+  padding:7px 12px;margin-bottom:4px;
+  font-size:12px;color:var(--t1);
+  letter-spacing:-.005em;line-height:1.5;
+  border-radius:8px;
+  border:1px solid var(--border);background:var(--surface);
+}
+.anchor-mid-row .anchor-mid-title{
+  flex:1;min-width:0;color:var(--t1);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.anchor-mid-row .anchor-mid-time{
+  flex-shrink:0;font-family:var(--mono);font-size:9.5px;
+  color:var(--t3);letter-spacing:.06em;
+}
+.anchor-mid-row .anchor-mid-mood{
+  flex-shrink:0;width:5px;height:5px;border-radius:50%;
+  background:var(--accent);
+}
+/* far：合并条 */
+.anchor-far-row{
+  padding:8px 12px;margin-bottom:0;
+  font-size:11.5px;color:var(--t2);
+  font-style:italic;letter-spacing:.005em;line-height:1.55;
+  border-radius:8px;background:transparent;
+  border:1px dashed var(--border);
+}
+.anchor-far-row .anchor-far-count{
+  color:var(--t1);font-style:normal;font-weight:500;
+  margin-right:4px;
+}
+.anchor-empty{
+  font-size:11.5px;color:var(--t3);font-style:italic;
+  letter-spacing:.005em;padding:6px 2px;
+}
+
+.sp-event{
+  padding:10px 12px;line-height:1.6;font-size:12.5px;color:var(--t1);
+  letter-spacing:-.005em;display:flex;gap:9px;align-items:flex-start;
+}
+.sp-event-mark{
+  flex-shrink:0;margin-top:5px;width:3px;height:3px;border-radius:50%;
+  background:var(--t2);
+}
+
+/* commitment 方向化卡 */
+.sp-commit{
+  padding:10px 12px;font-size:12.5px;color:var(--t1);line-height:1.6;
+  letter-spacing:-.005em;display:flex;gap:10px;align-items:flex-start;
+}
+.commit-arrow{
+  flex-shrink:0;font-family:var(--mono);font-size:13px;
+  width:18px;text-align:center;line-height:1.5;margin-top:0;
+  color:var(--t2);font-weight:500;
+}
+.commit-arrow.ai     {color:#0891b2;}
+.commit-arrow.user   {color:#d97706;}
+.commit-arrow.mutual {color:var(--t1);}
+[data-theme="dark"] .commit-arrow.ai    {color:#22d3ee;}
+[data-theme="dark"] .commit-arrow.user  {color:#fbbf24;}
+.commit-body{flex:1;min-width:0;}
+.commit-meta{
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--t3);margin-bottom:2px;
+}
+.commit-text{color:var(--t1);}
+
+/* "回顾" 触发按钮 */
+.lookback-btn{
+  background:transparent;border:none;cursor:pointer;
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--t3);padding:2px 4px;
+  display:inline-flex;align-items:center;gap:4px;
+}
+.lookback-btn:hover{color:var(--t1);}
+
+/* Lookback modal */
+.lb-backdrop{
+  position:fixed;inset:0;z-index:300;
+  background:oklch(0 0 0 / 0.34);
+  backdrop-filter:blur(3px);
+  animation:fadeIn .18s ease both;
+  display:flex;align-items:center;justify-content:center;padding:48px;
+}
+.lb-modal{
+  width:min(960px, 100%);max-height:min(86vh, 720px);
+  background:var(--bg);border:1px solid var(--border);
+  border-radius:14px;box-shadow:var(--shadow-lg);
+  display:flex;flex-direction:column;overflow:hidden;
+  animation:lbIn .22s ease both;
+}
+@keyframes lbIn{from{opacity:0;transform:translateY(8px) scale(.98);}to{opacity:1;transform:none;}}
+.lb-head{
+  display:flex;align-items:flex-end;justify-content:space-between;
+  padding:24px 28px 16px;border-bottom:1px solid var(--border);
+}
+.lb-head-tt{
+  font-size:11px;font-family:var(--mono);letter-spacing:.18em;
+  text-transform:uppercase;color:var(--t3);margin-bottom:4px;
+}
+.lb-head-t{font-size:22px;font-weight:500;color:var(--t1);letter-spacing:-.02em;}
+.lb-close{
+  background:transparent;border:none;cursor:pointer;color:var(--t3);
+  padding:6px;border-radius:7px;display:flex;align-items:center;justify-content:center;
+}
+.lb-close:hover{color:var(--t1);background:var(--surf-hov);}
+.lb-body{
+  flex:1;overflow:auto;padding:24px 28px 28px;
+  display:grid;grid-template-columns:1fr 1fr;gap:32px;
+}
+.lb-col-h{
+  font-family:var(--mono);font-size:10px;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--t2);margin-bottom:14px;
+  padding-bottom:8px;border-bottom:1px solid var(--border-lt);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.lb-col-h .ct{font-size:10px;color:var(--t3);}
+.lb-event{
+  margin-bottom:14px;padding-left:12px;
+  border-left:1px solid var(--border);
+  font-size:14px;color:var(--t1);line-height:1.7;
+  letter-spacing:-.005em;
+}
+.lb-empty{
+  font-size:12px;color:var(--t3);font-style:italic;letter-spacing:.005em;
+  padding:8px 0;
+}
+.lb-commit{
+  margin-bottom:14px;display:flex;gap:12px;align-items:flex-start;
+}
+.lb-commit .commit-arrow{font-size:15px;width:22px;margin-top:1px;}
+.lb-commit .commit-body{font-size:14px;line-height:1.7;letter-spacing:-.005em;}
+.lb-commit .commit-meta{font-size:9.5px;margin-bottom:3px;}
+
+@media (max-width: 720px){
+  .lb-body{grid-template-columns:1fr;gap:28px;}
+}
+
+/* 当前状态 — mirrors heartbeat top strip (sans dot) */
+.sp-status{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 8px;padding:11px 12px;}
+.status-zh{font-family:'Space Grotesk','Noto Sans SC',sans-serif;font-size:13.5px;font-weight:500;color:var(--t1);letter-spacing:-.005em;}
+.status-en{font-family:var(--mono);font-size:10px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--t3);opacity:.75;}
+.status-sep{color:var(--t3);opacity:.5;font-family:var(--mono);font-size:11px;}
+.status-mood{font-family:'Noto Sans SC','Space Grotesk',sans-serif;font-style:italic;font-size:11.5px;color:var(--emotion-color, var(--t2));letter-spacing:.02em;transition:color .35s ease,opacity .35s ease;}
+.status-reply{flex-basis:100%;font-size:12px;color:var(--t2);line-height:1.55;letter-spacing:-.005em;margin-top:2px;overflow:hidden;text-overflow:ellipsis;}
+
+/* Talking-to target card */
+.sp-target{padding:14px 14px;}
+.sp-target-avatar{
+  width:34px;height:34px;border-radius:50%;
+  background:var(--surf-hov);border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:14px;font-weight:600;
+  color:var(--t1);flex-shrink:0;letter-spacing:-.02em;
+}
+
+/* Sidebar drawer (会话锦点 conversation anchor) */
+.drawer{position:fixed;top:0;bottom:0;left:56px;width:260px;background:var(--bg);border-right:1px solid var(--border);z-index:80;display:flex;flex-direction:column;animation:drawerIn .22s ease both;}
+@keyframes drawerIn{from{opacity:0;transform:translateX(-8px);}to{opacity:1;transform:translateX(0);}}
+.drawer-bg{position:fixed;inset:0;z-index:70;background:transparent;}
+
+/* ── Home · 起始页 nameplate（眼睛即小Z的脸；小Z 为其署名） ── */
+.home-nameplate{
+  display:flex;flex-direction:column;align-items:center;
+  margin-bottom:40px;
+  --mood-color: var(--t1);
+}
+/* 共享 mood-color token —— 起始页 nameplate 与聊天页 presence 复用 */
+/* 状态色：idle 绿，tooling 琥珀（时长较长独立），thinking/writing 统一蓝，其余特殊态 */
+[data-mood="idle"]    {--mood-color:#22c55e;}
+[data-mood="thinking"]{--mood-color:#3b82f6;}
+[data-mood="tooling"] {--mood-color:#d97706;}
+[data-mood="writing"] {--mood-color:#3b82f6;}
+[data-mood="error"]   {--mood-color:#dc2626;}
+[data-mood="asleep"]  {--mood-color:#7c3aed;}
+[data-mood="drifting"]{--mood-color:#94a3b8;}
+[data-theme="dark"] [data-mood="idle"]    {--mood-color:#4ade80;}
+[data-theme="dark"] [data-mood="thinking"]{--mood-color:#60a5fa;}
+[data-theme="dark"] [data-mood="tooling"] {--mood-color:#fbbf24;}
+[data-theme="dark"] [data-mood="writing"] {--mood-color:#60a5fa;}
+[data-theme="dark"] [data-mood="error"]   {--mood-color:#f87171;}
+[data-theme="dark"] [data-mood="asleep"]  {--mood-color:#a78bfa;}
+[data-theme="dark"] [data-mood="drifting"]{--mood-color:#94a3b8;}
+/* 情绪色：7 种独立色，聚光灯与情绪标签共用 */
+[data-emotion="愉快"]{--emotion-color:#10b981;}
+[data-emotion="平静"]{--emotion-color:#78b4a0;}
+[data-emotion="好奇"]{--emotion-color:#06b6d4;}
+[data-emotion="兴奋"]{--emotion-color:#f59e0b;}
+[data-emotion="困惑"]{--emotion-color:#a855f7;}
+[data-emotion="难过"]{--emotion-color:#5b80c0;}
+[data-emotion="愤怒"]{--emotion-color:#ef4444;}
+[data-theme="dark"] [data-emotion="愉快"]{--emotion-color:#34d399;}
+[data-theme="dark"] [data-emotion="平静"]{--emotion-color:#8ecabc;}
+[data-theme="dark"] [data-emotion="好奇"]{--emotion-color:#22d3ee;}
+[data-theme="dark"] [data-emotion="兴奋"]{--emotion-color:#fbbf24;}
+[data-theme="dark"] [data-emotion="困惑"]{--emotion-color:#c084fc;}
+[data-theme="dark"] [data-emotion="难过"]{--emotion-color:#7d9fde;}
+[data-theme="dark"] [data-emotion="愤怒"]{--emotion-color:#f87171;}
+
+/* Task2 · 情绪色平滑过渡 —— 把 --emotion-color 注册成可动画的 <color> 自定义属性，
+   换情绪时颜色"融"过去而非"跳"。亮/暗两套 token 都走同一过渡。 */
+@property --emotion-color{ syntax:'<color>'; inherits:true; initial-value:#94a3b8; }
+/* 在持有 data-emotion 的容器上过渡变量本身；其后代（光晕底色、眼睛描边等）随继承值逐帧融变。
+   同时保留各自的背景/文字过渡，避免覆盖主题切换的淡入。 */
+.presence-float,.home-nameplate,.hb{
+  transition:--emotion-color .4s ease, background-color .3s ease, color .22s ease;
+}
+/* 直接用 color:var(--emotion-color) 的情绪标签：补 0.4s 颜色过渡（覆盖全局 .22s） */
+.presence-mood,.home-status-mood,.status-mood,.hb-mood-label{
+  transition:color .4s ease, opacity .35s ease !important;
+}
+
+.home-eyes{
+  /* eyes 与署名间留极小缝隙——形成"上脸下名"的整体感 */
+  margin-bottom:10px;
+  position:relative;
+  width:fit-content;
+  animation:home-float 5.4s ease-in-out infinite;
+}
+@keyframes home-float{
+  0%,100%{transform:translateY(0);}
+  50%{transform:translateY(-3px);}
+}
+/* 打盹时呼吸更慢、幅度更小 */
+@keyframes home-float-asleep{
+  0%,100%{transform:translateY(0);}
+  50%{transform:translateY(-1.5px);}
+}
+.home-nameplate[data-mood="asleep"] .home-eyes{
+  animation:home-float-asleep 8s ease-in-out infinite;
+}
+
+/* 署名条：两侧细线 + 中间小Z 字样，三件一体读作 "—— 小Z ——" */
+.home-sig{
+  display:flex;align-items:center;justify-content:center;
+  gap:12px;width:100%;max-width:200px;
+}
+.home-sig-rule{
+  flex:1;height:1px;background:linear-gradient(90deg, transparent, var(--border) 30%, var(--border) 70%, transparent);
+  transform-origin:center;
+  animation:sig-rule-expand .55s ease-out both;
+}
+.home-sig-name{
+  font-family:'Space Grotesk','Noto Sans SC',sans-serif;
+  font-weight:500;font-size:15px;
+  letter-spacing:.18em;
+  color:var(--t1);
+  white-space:nowrap; /* P2·11 · 防止"小Z"折成两行 */
+  /* 让"小Z"读起来像图章/署名而不是标题 */
+  text-indent:.18em; /* tracking 修正 */
+  animation:sig-name-in .45s ease .15s both;
+}
+/* P1 · 署名条入场：hairline 从中心向两侧展开 + 小Z 收紧态淡入 */
+@keyframes sig-rule-expand{ from{transform:scaleX(0);} to{transform:scaleX(1);} }
+@keyframes sig-name-in{ from{opacity:0;letter-spacing:.4em;} to{opacity:1;letter-spacing:.18em;} }
+
+/* 状态条：dot · 状态 · EN · 情绪 — 与 .hb 同一视觉语言 */
+.home-status{
+  display:inline-flex;align-items:baseline;gap:8px;
+  margin-top:18px;
+  font-size:12px;
+  animation:up .5s ease .18s both;
+}
+.home-status-dot{
+  width:7px;height:7px;border-radius:50%;
+  background:var(--mood-color);
+  box-shadow:0 0 0 0 color-mix(in oklab, var(--mood-color), transparent 55%);
+  animation:hbPulse 2.4s ease-in-out infinite;
+  align-self:center;
+  flex-shrink:0;
+}
+.home-nameplate[data-mood="asleep"] .home-status-dot{animation-duration:3.2s;}
+.home-status-zh{
+  font-family:'Space Grotesk','Noto Sans SC',sans-serif;
+  font-size:13px;font-weight:500;
+  color:var(--mood-color);
+  letter-spacing:-.005em;
+}
+.home-status-en{
+  font-family:var(--mono);
+  font-size:10px;font-weight:500;
+  letter-spacing:.18em;
+  color:var(--mood-color);
+  opacity:.55;
+  text-transform:uppercase;
+}
+.home-status-sep{
+  color:var(--t3);opacity:.5;
+  font-family:var(--mono);font-size:11px;
+}
+.home-status-mood{
+  font-family:'Noto Sans SC','Space Grotesk',sans-serif;
+  font-style:italic;font-size:12px;
+  color:var(--emotion-color, var(--t2));
+  letter-spacing:.02em;
+  animation:moodIn .26s ease both;
+}
+
+/* greeting line — 从原来的"标题级"降为"对话级" */
+.home-line{
+  margin-top:18px;
+  font-family:'Space Grotesk','Noto Sans SC',sans-serif;
+  font-size:16px;color:var(--t1);
+  letter-spacing:-.005em;line-height:1.55;
+  text-align:center;max-width:480px;
+  text-wrap:balance;
+  animation:up .5s ease .26s both;
+}
+
+/* ── prefers-reduced-motion：关掉所有律动 / 绽放 / 节拍，只保留颜色（情绪色仍平滑融变） ── */
+@media (prefers-reduced-motion: reduce){
+  .eyes-z .eye,.eyes-z .eye.eye-r,.eyes-z .pupil,
+  .eyes-z.thinking .eye,.eyes-z.thinking .pupil,.think-dots i,.z-think-dots circle,
+  .eyes-z.first-react .eye,.eyes-z.first-react .eye.eye-r,.eyes-z.first-react .pupil,
+  .eyes-z.calm .pupil,.eyes-z.happy .happy-pupil,.eyes-z.happy .happy-dot,.eyes-z.sad .pupil,.eyes-z.drifting .pupil,.eyes-z.asleep .eye,
+  .z-sparkle,.z-question,
+  .home-eyes,.home-status-dot,.presence-dot,.hb-dot,.mood-ambient.on{
+    animation:none !important;
+  }
+  .mood-glow{animation:none !important;opacity:0 !important;}
+  .mood-ambient.on{opacity:.24 !important;}   /* 静态淡色光晕：只留颜色，不留律动 */
+}</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useRef,useCallback,useLayoutEffect}=React;
+
+/* ── FLIP 转场助手：把 el 从 fromRect（旧位置/尺寸）"放回"，再补间回 0 ──
+   起始页→聊天页时，眼睛 / 输入框看起来是同一元素在连续移动，而非先消失再出现。
+   scale=true 时按宽度比缩放（眼睛 80→60）；scale=false 仅平移（输入框，避免圆角变形）。
+   reduced-motion 下直接跳过，元素在终点原位出现。 */
+function runFlip(el, fromRect, {scale=true, dur=0.46}={}){
+  if(!el || !fromRect) return;
+  if(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const to = el.getBoundingClientRect();
+  if(!to.width || !to.height) return;
+  const fcx=fromRect.left+fromRect.width/2, fcy=fromRect.top+fromRect.height/2;
+  const tcx=to.left+to.width/2,             tcy=to.top+to.height/2;
+  const dx=fcx-tcx, dy=fcy-tcy;
+  const s = scale ? (fromRect.width/to.width) : 1;
+  if(Math.abs(dx)<0.5 && Math.abs(dy)<0.5 && Math.abs(s-1)<0.01) return;
+  el.style.transformOrigin='center center';
+  el.style.transition='none';
+  el.style.transform=`translate(${dx}px,${dy}px) scale(${s})`;
+  void el.offsetWidth; // 强制回流，让初始 transform 立即生效
+  requestAnimationFrame(()=>{
+    el.style.transition=`transform ${dur}s cubic-bezier(.4,0,.2,1)`;
+    el.style.transform='translate(0,0) scale(1)';
+    const cleanup=()=>{
+      el.style.transition=''; el.style.transform=''; el.style.transformOrigin=''; el.style.willChange='';
+      el.removeEventListener('transitionend',cleanup);
+    };
+    el.addEventListener('transitionend',cleanup);
+  });
+}
+
+const TWEAK_DEFAULTS=/*EDITMODE-BEGIN*/{
+  "theme": "light",
+  "compact": false,
+  "thinkStyle": "C"
+}/*EDITMODE-END*/;
+
+const REPLIES=[
+  /* 0 · 长文详解：多标题 + 多代码块 + 列表 + 表格，专门用来观察揭示效果 */
+  `好，我把这套流式渲染的思路完整讲一遍，分几个部分。\n\n## 一、问题的本质\n\n打字机的核心假设是「揭示速度 = 生成速度」。但生产环境里 token 到达往往比任何合理的逐字节奏都快，一旦二者脱钩，要么显得拖沓，要么在流结束瞬间被迫整段刷出——也就是「打一点，突然全出来」的那种闪屏感。\n\n> 所以真正要解决的不是「怎么让打字机更快」，而是「让揭示节奏彻底独立于到达节奏」。\n\n## 二、渲染引擎怎么设计\n\n核心是一个按比例追赶的循环：\n\n\`\`\`ts\nfunction tick(revealed: number, target: number): number {\n  if (revealed >= target) return revealed\n  const remaining = target - revealed\n  // 每帧揭示“剩余量”的固定比例，保证收敛且不卡顿\n  const step = Math.max(4, Math.ceil(remaining * 0.16))\n  return Math.min(target, revealed + step)\n}\n\`\`\`\n\n几个关键属性：\n\n- **速度无关**：无论文本一次性到达还是逐块到达，揭示曲线都一样平滑\n- **总时长恒定**：不管消息多长，铺开时间都收敛在同一个量级\n- **节流写入**：把实际 DOM 写入频率控制在一个较低的固定档位，而不是每帧都写，减少重排\n\n## 三、和排版系统的配合\n\n\`\`\`python\n# 伪代码：块级元素首次插入时触发一次淡入，\n# 段内文字增长不单独包裹动画，避免逐词重排抖动\ndef on_insert(node):\n    if node.is_block and not node.inside_code_block:\n        node.add_class("bloom-in")\n\`\`\`\n\n对比一下两种做法：\n\n| 方式 | 揭示节奏 | 视觉表现 |\n|---|---|---|\n| 逐字打字机 | 绑死固定字符/毫秒 | 跟不上会闪屏 |\n| 比例追赶 + 块级淡入 | 与到达速度解耦 | 始终平滑，不闪不顿 |\n\n## 四、边界情况\n\n1. **标签页切到后台** — rAF 会自动暂停，不需要额外分支强制刷新\n2. **重新生成** — 检测到文本从头开始变短，直接重置解析器状态\n3. **极短回复** — 比例算法带一个最小步长兜底，短文本也能立刻显示完整\n\n这套思路的好处是不用关心后端具体多快，渲染层自己就能把任意速度磨平成一致的观感。你想让我展开哪一块的实现细节？`,
+
+  /* 1 · 技术回答：TypeScript hook + 列表 + inline code */
+  `明白，来看个具体实现。\n\n## 核心思路\n\n把流式解析抽成独立 hook，组件只管渲染：\n\n\`\`\`ts\nfunction useStreamParser(el: HTMLDivElement) {\n  const ref = useRef<Parser | null>(null)\n\n  function write(chunk: string) {\n    if (!ref.current) {\n      ref.current = smd.parser(smd.default_renderer(el))\n    }\n    smd.parser_write(ref.current, chunk)\n  }\n\n  function end() {\n    if (ref.current) smd.parser_end(ref.current)\n    ref.current = null\n  }\n\n  return { write, end }\n}\n\`\`\`\n\n几个关键点：\n\n- **直接操作 DOM** — 绕过 React reconcile，流式期间不触发 diff\n- **增量写入** — 每次只传 \`text.slice(written)\` 的新增部分\n- \`parser_end()\` 在流结束后调用，之后再跑代码高亮\n\n要我展开哪个部分？`,
+
+  /* 2 · 分析回答：引用块 + H2 + 有序列表 + bold */
+  `这是个好问题，值得认真聊。\n\n> 大多数「执行难」背后是「决策模糊」——不是不会做，是不知道做哪个。\n\n所以第一步不是找方法，是**把问题说清楚**。\n\n## 三个定位问题\n\n1. **边界在哪** — 范围是什么，哪些不在这次解决\n2. **衡量标准** — 做完了怎么算「对」\n3. **最小单元** — 拆到什么粒度可以单独验证\n\n把这三个回答清楚，后面的执行顺很多。\n\n你现在卡在哪一步？`,
+
+  /* 3 · 方案对比：两个 JS code block + HR + bold */
+  `帮你对比一下两个方案。\n\n## 方案 A · 流式渲染\n\n\`\`\`js\n// 每次收到新字符，增量更新 DOM\nsmd.parser_write(parser, newChunk)\n\`\`\`\n\n**优点**：首字即显，感知延迟最低\n**缺点**：需要管理 parser 生命周期\n\n---\n\n## 方案 B · 批量渲染\n\n\`\`\`js\n// 攒齐全文后统一解析\ncontainer.innerHTML = marked.parse(fullText)\n\`\`\`\n\n**优点**：实现简单\n**缺点**：流式期间白屏，体验断裂\n\n---\n\n你这个场景推荐 **方案 A**——流式感知是核心体验，值得这点复杂度。`,
+
+  /* 4 · 轻量建议：bold + 无序列表，无代码块 */
+  `嗯，我理解你在说什么。\n\n本质上是个**优先级问题**，不是资源问题。\n\n你列的这几项，大概可以这样排：\n\n- 先做会阻塞别人的事\n- 再做有时间窗口的事\n- 最后做只影响自己的事\n\n其实你心里大概已经有答案了——哪件事让你最焦虑，就先从那里开始。\n\n想聊哪一项？`,
+
+  /* 5 · Python 异步：单个 code block + inline code */
+  `这个用 Python 写起来很干净。\n\n\`\`\`python\nasync def stream_response(prompt: str):\n    """流式生成，边收边 yield"""\n    async for chunk in llm.astream(prompt):\n        yield chunk.content\n\n# 消费端\nasync def main():\n    async for token in stream_response("帮我分析一下"):\n        print(token, end="", flush=True)\n\`\`\`\n\n关键是 \`AsyncGenerator\` + \`yield\`——不用等全部生成完，边生成边消费。\n\n如果你用同步框架，可以用 \`threading.Thread\` 包一层。需要我写个同步版本吗？`,
+];
+let replyIdx=0;
+
+/* ── Tool method → Chinese display name (frontend fallback table) ──
+   SSE payload 已新增 toolDisplay 字段，优先使用之，缺失时 fallback 到 tool 方法名查表。*/
+const TOOL_DISPLAY={
+  search_web:          '网络检索',
+  search_cold_memory:  '记忆检索',
+  update_hot_memory:   '用户印象更新',
+};
+function resolveToolName(o){
+  return o.toolDisplay || TOOL_DISPLAY[o.tool] || o.tool || o.name;
+}
+
+/* ── 用户印象 hot memory 白名单字段（v0.14：外表 5 + 内在 5 = 10） ── */
+const HOT_MEMORY_OUTER=[
+  {key:'display_name', label:'称呼'},
+  {key:'role',         label:'职业'},
+  {key:'language',     label:'语言'},
+  {key:'timezone',     label:'时区'},
+  {key:'interests',    label:'兴趣'},
+];
+const HOT_MEMORY_INNER=[
+  {key:'personality',         label:'性格'},
+  {key:'communication_style', label:'沟通风格'},
+  {key:'habits',              label:'习惯'},
+  {key:'values',              label:'在意'},
+  {key:'hobbies',             label:'爱好'},
+];
+const HOT_MEMORY_ALL = [...HOT_MEMORY_OUTER, ...HOT_MEMORY_INNER];
+const HOT_TOTAL = HOT_MEMORY_ALL.length; // 10
+
+/* ── Intimacy 三档（与后端 fill_ratio 同步） ── */
+function intimacyMode(hot){
+  if(!hot) return 'stranger';
+  const filled = HOT_MEMORY_ALL.filter(f=>hot[f.key] && String(hot[f.key]).trim()).length;
+  const r = filled / HOT_TOTAL;
+  if(r < 0.3) return 'stranger';
+  if(r < 0.7) return 'half-known';
+  return 'fully-known';
+}
+function filledCount(hot){
+  if(!hot) return 0;
+  return HOT_MEMORY_ALL.filter(f=>hot[f.key] && String(hot[f.key]).trim()).length;
+}
+
+/* ── significant-event / commitment mock（v0.14 数据格式：Map<uuid, description>） ── */
+const MOCK_EVENTS = {
+  'evt-a':'去年父亲因病去世，对方说自己一直没真正缓过来。',
+  'evt-b':'正在备考研究生，目标是计算机方向。',
+  'evt-c':'大学期间写过一个开源工具，被一家小公司用在了内部。',
+};
+const MOCK_COMMITMENTS = {
+  'c-a':'我（AI）答应星：本周帮其梳理 React 学习路径，最迟周日给出大纲。',
+  'c-b':'星答应我：本周内 review 完 PR 并把意见发过来。',
+  'c-c':'我们约定：从下周开始一起读 SICP，每周一章。',
+};
+
+/* ── memory anchors mock（记忆锦点 v0.145 数据格式：分层摘要） ──
+   每条对话锚点经 LLM 跨锚点压缩，按"近 / 中 / 远"三层衰减。
+   near: ~200 字（完整摘要）  mid: ~50 字（标题+一行）  far: 共 N 个对话的概要 */
+const MOCK_MEMORY_ANCHORS = {
+  near:[
+    {id:'a1', title:'React 学习路径', body:'你在学 hooks，问了 useState 和 useEffect 的本质区别。我们最后停在「副作用如何避免链式触发」上，你说要先试一试再回来继续。', timeLabel:'昨天', mood:'好奇'},
+    {id:'a2', title:'周末爬山', body:'你计划这周末去妙峰山，问了装备清单。我提醒了膝盖支撑和补水节奏，你最后说会带登山杖。', timeLabel:'2 天前', mood:null},
+    {id:'a3', title:'PR review 节奏', body:'你说 review 一直拖着，问怎么把每天的 review 时间限定在固定窗口里。我们讨论了番茄钟 + 一次性 review 的折中方案。', timeLabel:'3 天前', mood:'平静'},
+  ],
+  mid:[
+    {id:'b1', title:'TypeScript 泛型',  timeLabel:'上周',   mood:'困惑'},
+    {id:'b2', title:'胶片摄影器材',      timeLabel:'上周',   mood:null},
+    {id:'b3', title:'独立游戏立项',      timeLabel:'两周前', mood:'兴奋'},
+  ],
+  far:{ count:7, summary:'更早的 7 个对话，多围绕工作节奏与日常碎片' },
+};
+
+/* ── commitment value 前缀解析 → 承诺方向 ── */
+function parseCommitment(text){
+  if(!text) return {dir:'mutual', body:text};
+  // 我（AI）答应XXX：...
+  let m = text.match(/^我（AI）答应([^：:]+)[：:]\s*(.+)$/);
+  if(m) return {dir:'ai',     who:m[1].trim(), body:m[2].trim()};
+  m = text.match(/^我\(AI\)答应([^：:]+)[：:]\s*(.+)$/);
+  if(m) return {dir:'ai',     who:m[1].trim(), body:m[2].trim()};
+  // XXX答应我：...
+  m = text.match(/^([^：:]{1,12})答应我[：:]\s*(.+)$/);
+  if(m) return {dir:'user',   who:m[1].trim(), body:m[2].trim()};
+  // 我们约定：...
+  m = text.match(/^我们(约定|说好)[：:]\s*(.+)$/);
+  if(m) return {dir:'mutual', body:m[2].trim()};
+  return {dir:'mutual', body:text};
+}
+
+const MOCK=[
+  {id:1,title:"产品定位讨论",        t:"3天前"},
+  {id:2,title:"周末计划",            t:"1天前"},
+  {id:3,title:"某个未命名的片段", t:"2天前"},
+  {id:4,title:"凌晨三点的闲聊",      t:"3天前"},
+  {id:5,title:"一个 python 实现",   t:"4天前"},
+  {id:6,title:"读书笔记",            t:"5天前"},
+];
+
+/* P3 · 流式结束 1.5s 后把思考块折叠成单行；用户可点开/再收起。
+   折叠不依赖任何外部状态，纯组件内自治。 */
+function useAutoCollapse(streaming, delay=1500){
+  const [collapsed,setCollapsed]=useState(false);
+  const [userOpen,setUserOpen]=useState(false);
+  const prevStream=useRef(streaming);
+  useEffect(()=>{
+    let t;
+    if(prevStream.current && !streaming){
+      t=setTimeout(()=>setCollapsed(true), delay);
+    }
+    prevStream.current=streaming;
+    return ()=>{ if(t) clearTimeout(t); };
+  },[streaming,delay]);
+  const open = !collapsed || userOpen;
+  return {open, collapsible:!streaming, toggle:()=>setUserOpen(o=>!o)};
+}
+/* P1·7 · 思考折叠预览：取首句，比"X 字"扫读价值更高 */
+function thinkPeek(text){
+  const t=(text||'').trim();
+  if(!t) return '';
+  const m=t.match(/^[\s\S]*?[。！？.!?\n]/);
+  let s=(m?m[0]:t).replace(/\s+/g,' ').replace(/[。！？.!?]\s*$/,'').trim();
+  if(s.length>46) s=s.slice(0,46)+'…';
+  return s;
+}
+function ThinkCaret({open}){
+  return(
+    <span className="think-caret-i" style={{transform:open?'rotate(90deg)':'none'}}>
+      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><polyline points="9 18 15 12 9 6"/></svg>
+    </span>
+  );
+}
+
+/* Thinking A — mono + left line */
+function ThinkingA({text,streaming}){
+  const {open,collapsible,toggle}=useAutoCollapse(streaming);
+  if(collapsible && !open){
+    const charCount=(text||'').length;
+    return(
+      <div className="think-a collapsed">
+        <div className="think-collapsed-row" role="button" tabIndex={0} aria-expanded={false} onClick={toggle} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}}}>
+          <span className="think-head-label">思考过程 · 已结</span>
+          <span className="think-peek">{thinkPeek(text)||`${charCount} 字`}</span>
+          <ThinkCaret open={false}/>
+        </div>
+      </div>
+    );
+  }
+  return(
+    <div className="think-a">
+      <div className={`think-head${collapsible?' clickable':''}`} onClick={collapsible?toggle:undefined} {...(collapsible?{role:'button',tabIndex:0,'aria-expanded':true,onKeyDown:e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}}}:{})}>
+        {streaming&&<span className="think-head-dot"/>}
+        <span>{streaming?'思考中':'思考过程'}</span>
+        {collapsible&&<ThinkCaret open={true}/>}
+      </div>
+      {text}
+    </div>
+  );
+}
+
+/* Thinking C — char-fade italic */
+function ThinkingC({text,streaming,startIdx=0}){
+  const {open,collapsible,toggle}=useAutoCollapse(streaming);
+  if(collapsible && !open){
+    const charCount=(text||'').length;
+    return(
+      <div className="think-c collapsed">
+        <div className="think-collapsed-row" role="button" tabIndex={0} aria-expanded={false} onClick={toggle} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}}}>
+          <span className="think-head-label">思绪 · 已结</span>
+          <span className="think-peek">{thinkPeek(text)||`${charCount} 字`}</span>
+          <ThinkCaret open={false}/>
+        </div>
+      </div>
+    );
+  }
+  return(
+    <div className="think-c">
+      <div className={`think-head${collapsible?' clickable':''}`} style={{fontStyle:'normal'}} onClick={collapsible?toggle:undefined} {...(collapsible?{role:'button',tabIndex:0,'aria-expanded':true,onKeyDown:e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}}}:{})}>
+        {streaming&&<span className="think-head-dot"/>}
+        <span>{streaming?'思绪':'思绪 · 已结'}</span>
+        {collapsible&&<ThinkCaret open={true}/>}
+      </div>
+      {[...text].map((ch,i)=>(
+        <span key={i} className="c" style={{animationDelay:`${Math.max(0,(i-startIdx))*0.012}s`}}>{ch}</span>
+      ))}
+    </div>
+  );
+}
+
+/* Tool call panel */
+function fmtToolDur(ms){
+  return ms<1000 ? Math.round(ms)+'ms' : (ms/1000).toFixed(2)+'s';
+}
+function ToolCall({name,status,duration,params,result,defaultOpen}){
+  const [open,setOpen]=useState(defaultOpen??false);
+  const statusText=status==='running'?'运行中':status==='error'?'出错':'完成';
+
+  // ② running 计时跳动：running 期间每帧累加 elapsed，落定后显示最终 duration
+  const [elapsed,setElapsed]=useState(0);
+  useEffect(()=>{
+    if(status!=='running') return;
+    const t0=performance.now();
+    setElapsed(0);
+    const iv=setInterval(()=>setElapsed(performance.now()-t0), 70);
+    return ()=>clearInterval(iv);
+  },[status]);
+  const durText = status==='running' ? fmtToolDur(elapsed) : duration;
+
+  // ③ 完成 0.4s 后、若未展开 → 收扁（hover 由 CSS 还原）
+  const [flat,setFlat]=useState(false);
+  useEffect(()=>{
+    if((status==='done'||status==='error') && !open){
+      const t=setTimeout(()=>setFlat(true), 400);
+      return ()=>clearTimeout(t);
+    }
+    setFlat(false);
+  },[status,open]);
+
+  const [hovered, setHovered] = useState(false);
+  // P1·9 · body 始终渲染（max-height 过渡），避免 hover 瞬间挂载顶动布局
+  const expanded = open || (flat && hovered);
+
+  return(
+    <div className={`tool${flat?' flat':''}`}
+      onMouseEnter={()=>setHovered(true)}
+      onMouseLeave={()=>setHovered(false)}
+    >
+      <div className={`tool-head ${expanded?'':'closed'}`}
+        role="button" tabIndex={0} aria-expanded={expanded}
+        onClick={()=>setOpen(o=>!o)}
+        onKeyDown={e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); setOpen(o=>!o); } }}>
+        <span className={`tool-dot ${status}`}/>
+        <span className="tool-name">{name}</span>
+        <span className="tool-meta">
+          <span>{statusText}</span>
+          <span className="sep"/>
+          <span className="dur">{durText}</span>
+        </span>
+        <span className={`tool-caret ${expanded?'open':''}`}>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </span>
+      </div>
+      {(params||result)&&(
+        <div className={`tool-body-wrap${expanded?' show':''}`}>
+          <div className="tool-body">
+            {params&&<><span className="lbl">parameters</span><div className="v">{params}</div></>}
+            {result&&<><span className="lbl">result</span><div className="v">{result}</div></>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* Typing dots */
+function Dots(){
+  return <div style={{display:'flex',gap:5,padding:'8px 0',alignItems:'center'}}>
+    {[0,1,2].map(i=><div key={i} style={{width:5,height:5,borderRadius:'50%',background:'var(--accent)',animation:`dot 1.2s ease ${i*.2}s infinite`}}/>)}
+  </div>;
+}
+
+/* ── applyShiki：流结束后扫描 pre>code，用 shiki github-dark 替换 ── */
+let _shikiPromise = null;
+function _loadShiki(){
+  if(_shikiPromise) return _shikiPromise;
+  _shikiPromise = new Promise(resolve=>{
+    const s=document.createElement('script');
+    s.type='module';
+    s.textContent=`
+      import { codeToHtml } from 'https://esm.sh/shiki@1.24.0';
+      window.__shikiCodeToHtml = codeToHtml;
+      document.dispatchEvent(new Event('__shiki_ready'));
+    `;
+    document.head.appendChild(s);
+    document.addEventListener('__shiki_ready',()=>resolve(window.__shikiCodeToHtml),{once:true});
+  });
+  return _shikiPromise;
+}
+/* 语言别名 → 规范显示名（标签精准） */
+const LANG_LABELS={
+  js:'JavaScript',jsx:'JSX',javascript:'JavaScript',mjs:'JavaScript',cjs:'JavaScript',
+  ts:'TypeScript',tsx:'TSX',typescript:'TypeScript',
+  py:'Python',python:'Python',rb:'Ruby',ruby:'Ruby',go:'Go',golang:'Go',
+  rs:'Rust',rust:'Rust',java:'Java',kt:'Kotlin',kotlin:'Kotlin',swift:'Swift',
+  c:'C','c++':'C++',cpp:'C++',cxx:'C++',cc:'C++',cs:'C#',csharp:'C#',
+  php:'PHP',sh:'Shell',bash:'Bash',zsh:'Shell',shell:'Shell',ps1:'PowerShell',powershell:'PowerShell',
+  html:'HTML',xml:'XML',css:'CSS',scss:'SCSS',sass:'Sass',less:'Less',
+  json:'JSON',jsonc:'JSON',yaml:'YAML',yml:'YAML',toml:'TOML',ini:'INI',
+  md:'Markdown',markdown:'Markdown',mdx:'MDX',sql:'SQL',graphql:'GraphQL',gql:'GraphQL',
+  diff:'Diff',dockerfile:'Dockerfile',docker:'Dockerfile',makefile:'Makefile',
+  vue:'Vue',svelte:'Svelte',astro:'Astro',proto:'Protobuf',
+  text:'代码',txt:'代码',plaintext:'代码',plain:'代码'
+};
+function langLabel(lang){
+  const k=(lang||'').toLowerCase();
+  if(LANG_LABELS[k]) return LANG_LABELS[k];
+  if(!k||k==='text') return '代码';
+  return k.charAt(0).toUpperCase()+k.slice(1);
+}
+/* 复制：优先 clipboard API，被拒/不可用时回退 execCommand */
+async function copyText(text){
+  try{
+    if(navigator.clipboard&&window.isSecureContext){
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  }catch{}
+  try{
+    const ta=document.createElement('textarea');
+    ta.value=text;
+    ta.setAttribute('readonly','');
+    ta.style.cssText='position:fixed;top:0;left:0;opacity:0;pointer-events:none;';
+    document.body.appendChild(ta);
+    ta.select(); ta.setSelectionRange(0,text.length);
+    const ok=document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  }catch{ return false; }
+}
+async function applyShiki(container){
+  const pres=[...container.querySelectorAll('pre')];
+  if(!pres.length) return;
+  try{
+    const codeToHtml=await _loadShiki();
+    for(const pre of pres){
+      if(pre.closest('.code-block')) continue;
+      const code=pre.querySelector('code');
+      if(!code) continue;
+      const raw=code.textContent||'';
+      const cls=(code.className||'').trim();
+      const m=cls.match(/language-([\w+#-]+)/);
+      let lang='text';
+      if(m) lang=m[1];
+      else if(cls){ const tok=cls.split(/\s+/)[0]; if(/^[\w+#-]+$/.test(tok)) lang=tok; }
+      let inner;
+      try{
+        const html=await codeToHtml(raw,{lang,themes:{light:'github-light',dark:'github-dark'},defaultColor:'light'});
+        const tmp=document.createElement('div');
+        tmp.innerHTML=html;
+        inner=tmp.firstElementChild;
+      }catch{ continue; /* unknown lang — keep plain */ }
+      if(!inner) continue;
+      /* 包裹为带工具栏的 code-block */
+      const block=document.createElement('div');
+      block.className='code-block';
+      const head=document.createElement('div');
+      head.className='code-head';
+      const tag=document.createElement('span');
+      tag.className='code-lang';
+      tag.textContent=langLabel(lang);
+      const btn=document.createElement('button');
+      btn.className='code-copy';
+      btn.type='button';
+      btn.textContent='复制';
+      btn.addEventListener('click',async ()=>{
+        const ok=await copyText(raw);
+        btn.textContent=ok?'已复制':'复制失败';
+        btn.classList.toggle('copied',ok);
+        setTimeout(()=>{ btn.textContent='复制'; btn.classList.remove('copied'); },1400);
+      });
+      head.appendChild(tag); head.appendChild(btn);
+      block.appendChild(head); block.appendChild(inner);
+      pre.replaceWith(block);
+    }
+  }catch(e){ console.warn('[shiki]',e); }
+}
+
+/* ── StreamingContent：对齐生产 stream-markdown.tsx 链路 ──
+   smd 直接操作容器 DOM（绕过 React reconcile），
+   text 增量喂给 parser，streaming→false 时 parser_end + applyShiki。
+   揭示不再绑定字符计数器：rAF 按比例追赶缓冲，无论文本多快到达都不会闪屏；
+   bloom 只在新块级元素（段落/列项/标题）出现时触发一次，不包每个文本片段，
+   避免频繁重排+并发动画导致的卡顿。 */
+function StreamingContent({text, streaming}){
+  const elRef  = React.useRef(null);
+  const sRef   = React.useRef({parser:null, written:0, revealed:0, ended:false, raf:0, lastFeed:0, text:'', streaming:true, obs:null});
+
+  /* 新块级元素淡入 bloom（仅元素节点，不包文本节点）：跳过代码块（交给 shiki） */
+  function animateAdded(nodes){
+    for(const n of nodes){
+      if(n.nodeType!==1) continue;
+      if(n.closest && n.closest('pre')) continue;
+      n.classList.add('sc-in');
+    }
+  }
+
+  function ensureParser(){
+    const el=elRef.current, smd=window.__smd, s=sRef.current;
+    if(!el||!smd) return false;
+    if(!s.parser){
+      el.innerHTML='';
+      s.parser=smd.parser(smd.default_renderer(el));
+      s.written=0;
+      if(!s.obs){
+        s.obs=new MutationObserver(muts=>{
+          const added=[];
+          for(const m of muts) for(const n of m.addedNodes) added.push(n);
+          if(added.length) animateAdded(added);
+        });
+        s.obs.observe(el,{childList:true,subtree:true});
+      }
+    }
+    return true;
+  }
+
+  /* 把缓冲揭示到 n 个字符 */
+  function feed(n){
+    const s=sRef.current, smd=window.__smd;
+    if(!ensureParser()) return;
+    if(n>s.written){
+      smd.parser_write(s.parser, s.text.slice(s.written, n));
+      s.written=n;
+    }
+  }
+
+  function finish(){
+    const s=sRef.current, smd=window.__smd;
+    if(s.parser && !s.ended){
+      if(s.text.length>s.written){ smd.parser_write(s.parser, s.text.slice(s.written)); s.written=s.text.length; }
+      smd.parser_end(s.parser);
+      s.parser=null; s.ended=true;
+      if(s.obs){ s.obs.disconnect(); s.obs=null; }
+      applyShiki(elRef.current);
+    }
+  }
+
+  function resetState(){
+    const s=sRef.current;
+    if(s.raf){ cancelAnimationFrame(s.raf); s.raf=0; }
+    if(s.obs){ s.obs.disconnect(); s.obs=null; }
+    if(elRef.current) elRef.current.innerHTML='';
+    s.parser=null; s.written=0; s.revealed=0; s.ended=false; s.lastFeed=0;
+  }
+
+  /* rAF 揭示循环：按“剩余量的比例”推进——追赶任意到达速度，且永不闪屏。
+     把实际写 DOM 的频率节流到 ~30fps（每 ~32ms 一次），减少重排与动画并发，避免卡顿；
+     可见时才跑，标签页隐藏时 rAF 自然暂停，无需额外分支强制刷全。 */
+  function tick(now){
+    const s=sRef.current; s.raf=0;
+    const target=s.text.length;
+    if(now - s.lastFeed >= 32){
+      if(s.revealed<target){
+        const remaining=target-s.revealed;
+        const step=Math.max(4, Math.ceil(remaining*0.16));
+        s.revealed=Math.min(target, s.revealed+step);
+        feed(s.revealed);
+      }
+      s.lastFeed=now;
+    }
+    if(s.revealed<target) s.raf=requestAnimationFrame(tick);
+    else if(!s.streaming) finish();
+  }
+
+  /* 启动/推进揭示：只用 rAF，不做任何“立即全量写入”的强制分支（那会闪屏） */
+  function kick(){
+    const s=sRef.current;
+    if(s.revealed<s.text.length){ if(!s.raf) s.raf=requestAnimationFrame(tick); }
+    else if(!s.streaming){ finish(); }
+  }
+
+  React.useEffect(()=>{
+    const s=sRef.current;
+    /* 文本回退（重新生成 → 内容清空重来）：重置解析器与揭示状态 */
+    if(text.length < s.written) resetState();
+    s.text=text; s.streaming=streaming;
+
+    if(!window.__smd){
+      /* smd 尚未加载：纯文本兜底，ready 后启动揭示 */
+      const el=elRef.current;
+      if(el && !s.parser) el.textContent=text;
+      const onReady=()=>{ kick(); };
+      document.addEventListener('__smd_ready', onReady, {once:true});
+      return ()=>document.removeEventListener('__smd_ready', onReady);
+    }
+    kick();
+  },[text, streaming]);
+
+  /* 组件卸载时清理 + 标签页恢复可见时续跑 rAF（隐藏期间 rAF 自然暂停，无需强制刷全） */
+  React.useEffect(()=>{
+    const onVis=()=>{ const s=sRef.current; if(!document.hidden && s.revealed<s.text.length && !s.raf) s.raf=requestAnimationFrame(tick); };
+    document.addEventListener('visibilitychange', onVis);
+    return ()=>{
+      document.removeEventListener('visibilitychange', onVis);
+      const s=sRef.current;
+      if(s.raf) cancelAnimationFrame(s.raf);
+      if(s.obs){ s.obs.disconnect(); s.obs=null; }
+      if(s.parser){ try{ window.__smd?.parser_end(s.parser); }catch{} s.parser=null; }
+    };
+  },[]);
+
+  /* 链接拦截：统一新窗口打开 */
+  function handleClick(e){
+    const a=e.target.closest('a');
+    if(a){ e.preventDefault(); window.open(a.href,'_blank','noopener'); }
+  }
+
+  return <div ref={elRef} className={"md-content"+(streaming?" sc-streaming":"")} onClick={handleClick}
+    style={{fontSize:14.5,padding:'2px 0'}} />;
+}
+
+/* Message */
+function MsgActions({text}){
+  const [copied,setCopied]=useState(false);
+  async function copy(){
+    const ok=await copyText(text||'');
+    setCopied(ok); setTimeout(()=>setCopied(false),1400);
+  }
+  return(
+    <div className="msg-actions">
+      <button className={`msg-act-btn${copied?' done':''}`} onClick={copy} title="复制回复">
+        {copied
+          ? <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><polyline points="20 6 9 17 4 12"/></svg>已复制</>
+          : <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>复制</>}
+      </button>
+    </div>
+  );
+}
+function Msg({m,i}){
+  const u=m.role==='user';
+  // Special-case: an assistant message with structured parts
+  if(!u && m.parts){
+    const errPart=m.parts.find(p=>p.type==='error');
+    const contentPart=m.parts.find(p=>p.type==='content');
+    const streamingNow=m.parts.some(p=>p.streaming);
+    const showActions=!streamingNow && !errPart && contentPart && contentPart.text;
+    return(
+      <div style={{display:'flex',gap:12,marginBottom:26,animation:`up .22s ease ${i*.03}s both`}}>
+        <div style={{flex:1,minWidth:0,maxWidth:'100%'}}>
+          {m.parts.map((p,j)=>{
+            if(p.type==='thinking-a') return <ThinkingA key={j} text={p.text} streaming={p.streaming}/>;
+            if(p.type==='thinking-c') return <ThinkingC key={j} text={p.text} streaming={p.streaming} startIdx={p.startIdx||0}/>;
+            if(p.type==='tool') return <ToolCall key={j} {...p} name={resolveToolName(p)}/>;
+            if(p.type==='content') return <StreamingContent key={j} text={p.text} streaming={p.streaming??false} />;
+            {/* v0.2.4 · 生成中占位：consumeStream 下流断了≠失败，服务端继续生成 → 前端标"生成中"并轮询 */}
+            if(p.type==='pending') return (
+              <div key={j} style={{display:'flex',alignItems:'center',gap:5,padding:'8px 2px',color:'var(--t3)',animation:'up .18s ease both'}}>
+                <style>{'@keyframes gpPulse{0%,80%,100%{opacity:.2}40%{opacity:1}}'}</style>
+                {[0,1,2].map(k=><span key={k} style={{width:5,height:5,borderRadius:'50%',background:'currentColor',animation:`gpPulse 1.2s ${k*0.18}s infinite`}}></span>)}
+                <span style={{marginLeft:6,fontFamily:'var(--mono)',fontSize:11,letterSpacing:'.08em'}}>生成中</span>
+              </div>
+            );
+            if(p.type==='error') return (
+              <div key={j} className="msg-error">
+                <span className="me-dot"/>
+                <span className="me-txt">{p.text||'生成回复时出错了，网络好像断了一下。'}</span>
+              </div>
+            );
+            return null;
+          })}
+          {showActions && <MsgActions text={contentPart.text}/>}
+        </div>
+      </div>
+    );
+  }
+  return(
+    <div style={{display:'flex',flexDirection:u?'row-reverse':'row',gap:12,marginBottom:26,animation:`up .22s ease ${i*.03}s both`}}>
+      <div style={{
+        maxWidth:u?'72%':'100%',
+        background:u?'var(--surf-hov)':'transparent',
+        border:u?'1px solid var(--border)':'none',
+        borderRadius:u?'12px 12px 4px 12px':0,
+        padding:u?'10px 16px':'2px 0',
+        fontSize:14.5,lineHeight:1.85,
+        color:'var(--t1)',whiteSpace:'pre-line',
+        letterSpacing:'-.01em',
+      }}>
+        {m.typing?<Dots/>:m.content}
+      </div>
+    </div>
+  );
+}
+
+/* Chat item with hover delete + double-click rename */
+function ChatItem({c,active,onSelect,onDelete,onRename}){
+  const [hovered,setHovered]=useState(false);
+  const [editing,setEditing]=useState(false);
+  const [val,setVal]=useState(c.title);
+  const inputRef=useRef(null);
+
+  useEffect(()=>{ if(editing && inputRef.current){ inputRef.current.focus(); inputRef.current.select(); } },[editing]);
+
+  function commitRename(){
+    const v=val.trim();
+    onRename(v||c.title);
+    setVal(v||c.title);
+    setEditing(false);
+  }
+
+  return(
+    <div
+      onClick={()=>{ if(!editing) onSelect(); }}
+      onMouseEnter={()=>setHovered(true)}
+      onMouseLeave={()=>setHovered(false)}
+      onDoubleClick={()=>setEditing(true)}
+      style={{
+        display:'flex',alignItems:'center',gap:8,
+        padding:'8px 8px',
+        borderRadius:7,cursor:'pointer',marginBottom:1,
+        background:active?'var(--surf-hov)':'transparent',
+        borderLeft:active?'2px solid var(--accent)':'2px solid transparent',
+        position:'relative',
+      }}
+    >
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+        stroke={active?'var(--accent)':'var(--t3)'} strokeWidth="1.7" style={{flexShrink:0}}>
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+      <div style={{flex:1,minWidth:0}}>
+        {editing ? (
+          <input ref={inputRef} className="rename-input" value={val}
+            onChange={e=>setVal(e.target.value)}
+            onBlur={commitRename}
+            onKeyDown={e=>{ if(e.key==='Enter') commitRename(); if(e.key==='Escape'){setVal(c.title);setEditing(false);} }}
+            onClick={e=>e.stopPropagation()}
+          />
+        ) : (
+          <div style={{fontSize:12,color:active?'var(--t1)':'var(--t2)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{c.title}</div>
+        )}
+        {!editing && <div style={{fontSize:10,color:'var(--t3)',marginTop:1}}>{c.t}</div>}
+      </div>
+      {/* Delete button */}
+      {hovered && !editing && (
+        <button onClick={e=>{e.stopPropagation();onDelete();}} style={{
+          width:20,height:20,borderRadius:5,border:'none',
+          background:'transparent',cursor:'pointer',
+          display:'flex',alignItems:'center',justifyContent:'center',
+          color:'var(--t3)',flexShrink:0,padding:0,
+          transition:'color .12s',
+        }}
+        onMouseEnter={e=>e.currentTarget.style.color='var(--t1)'}
+        onMouseLeave={e=>e.currentTarget.style.color='var(--t3)'}
+        title="删除对话"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      )}
+    </div>
+  );
+}
+
+/* Compact chat item */
+function ChatItemCompact({c,active,onSelect}){
+  return(
+    <div onClick={onSelect}
+      style={{display:'flex',alignItems:'center',justifyContent:'center',
+        padding:'9px 5px',borderRadius:7,cursor:'pointer',marginBottom:1,
+        background:active?'var(--surf-hov)':'transparent',
+        borderLeft:active?'2px solid var(--accent)':'2px solid transparent',
+      }}
+      onMouseEnter={e=>{if(!active)e.currentTarget.style.background='var(--surf-hov)';}}
+      onMouseLeave={e=>{if(!active)e.currentTarget.style.background='transparent';}}
+    >
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+        stroke={active?'var(--accent)':'var(--t3)'} strokeWidth="1.7">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+    </div>
+  );
+}
+
+/* Rail (left) */
+function Rail({onConvAnchorClick,convAnchorOpen,onNewChat}){
+  return(
+    <div className="rail">
+      <button className={`rail-btn ${convAnchorOpen?'active':''}`} onClick={onConvAnchorClick} title="对话">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M12 2v6m0 0a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm0 0v0M8 22h8m-4-2v2"/></svg>
+      </button>
+      <button className="rail-btn" onClick={onNewChat} title="新对话">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+      <div className="rail-spacer"/>
+    </div>
+  );
+}
+
+/* ── Mood / emotion vocabulary ── */
+const MOOD_MAP = {
+  '等待输入':  {mood:'idle',     zh:'等待交互', en:'IDLE'},
+  '正在思考…': {mood:'thinking', zh:'思考中',   en:'THINKING'},
+  '调用工具…': {mood:'tooling',  zh:'使用工具', en:'TOOLING'},
+  '正在回复…': {mood:'writing',  zh:'回复中',   en:'WRITING'},
+  '出错了':    {mood:'error',    zh:'出错了',   en:'ERROR'},
+};
+// 情绪最小播放时长：情绪事件一到立即播放并锁定这么久；
+// 锁内情绪优先于思考中，锁过期后再重新判定系统状态。
+const MOOD_MIN_MS = 1500;
+const ASLEEP = {mood:'asleep', zh:'打盹中', en:'ASLEEP'};
+const DRIFTING = {mood:'drifting', zh:'走神中', en:'DRIFTING'};
+
+/* ── Mood vocabulary（v0.15 rev1：7 个核心情绪，新增「愉快」） ── */
+const MOODS = ['愉快','平静','好奇','兴奋','困惑','难过','愤怒'];
+// 「愉快」与「平静」同属默认情绪层级：正常聊天愉快更常见、更让人舒服，
+// 平静留给那些愉快明显不贴合语境的场合。
+// 每个 mood 用一个独占机制：
+// 好奇 = 瞳孔强上抬；兴奋 = 瞳孔放大 + sparkle；困惑 = 不对称（右眼眯+瞳孔小）；
+// 难过 = 下眼皮重抬 + 瞳孔下移（看着地面）；愤怒 = 上眼皮斜压（lidSlant，内低外高=怒眉）。
+// 参数：
+//   pr / prR     左/右瞳孔半径
+//   pdy / pdxR   瞳孔 y 偏移 / 右瞳孔额外 x 偏移
+//   esy / esyR   左/右眼椭圆 scaleY
+//   liddy / liddyR / lidty / lidtyR  上/下眼皮遮罩高度（左右独立）
+//   lidSlant     上眼皮内侧额外下压（>0 形成怒眉效果，需 polygon clip）
+//   sparkle      瞳孔上加黑色高光小点（兴奋专用）
+const MOOD_EXPR = {
+  '愉快':   {pr:3.9, pdy:0,    esy:1.00, blink:4.0, liddy:0,   lidty:0   },  // v0.15 rev2: 新月瞳孔+红点腮红（A方案正式版）
+  '平静':   {pr:3.2, pdy: 0.0, esy:1.00, blink:6,   liddy:0,   lidty:0   },
+  '好奇':   {pr:6.5, pdy:-3.2, esy:1.00, blink:3.0, liddy:0,   lidty:0   },
+  '兴奋':   {pr:6.2, pdy:-2.6, esy:1.00, blink:1.8, liddy:0,   lidty:0,  sparkle:true },
+  '困惑':   {pr:3.6, prR:2.7, pdy: 0.0, esy:1.02, esyR:0.60, blink:5.0, liddy:0, lidty:0, liddyR:2.2, question:true },
+  '难过':   {pr:3.0, pdy: 1.8, esy:0.85, blink:8,   liddy:1.0, lidty:6.0 },
+  '愤怒':   {pr:2.2, pdy: 0.0, esy:0.85, blink:7,   liddy:5.0, lidty:2.0, lidSlant:8.0 },
+};
+const DEFAULT_EXPR = {pr:3.2, pdy:0, esy:1.0, pdxR:0, blink:6, liddy:0, lidty:0, lidSlant:0};
+/* asleep 专用形态（与 mood 正交）：眼变细缝、瞳孔下沉变小 */
+const ASLEEP_EXPR = {pr:2.0, pdy:2.4, esy:0.26, blink:8, liddy:0, lidty:0, lidSlant:0};
+/* 思考中专用形态（系统状态驱动，与 mood 正交）：瞳孔上抬、眼睛略放松，配合 .thinking 漂移 */
+const THINKING_EXPR = {pr:3.0, pdy:-1.4, esy:0.95, blink:5, liddy:0, lidty:0, lidSlant:0};
+
+/* ── User-activity context（与 mood 正交，叠加到 Eyes 上） ──
+   normal / long-silence / high-intensity */
+function applyContext(e, ctx){
+  if(ctx==='long-silence'){
+    const r = {...e,
+      blink: e.blink * 1.5,
+      pdy:   (e.pdy||0) + 0.6,
+      esy:   Math.max(0.35, e.esy * 0.78),
+      liddy: (e.liddy||0) + 2.4,
+    };
+    if(e.esyR!==undefined)  r.esyR  = Math.max(0.2, e.esyR * 0.78);
+    if(e.liddyR!==undefined) r.liddyR = (e.liddyR||0) + 2.4;
+    return r;
+  }
+  if(ctx==='high-intensity'){
+    const r = {...e,
+      blink: e.blink * 0.6,
+      pr:    e.pr * 1.08,
+      prR:   (e.prR || e.pr) * 1.08,
+      esy:   Math.min(1.15, e.esy * 1.02),
+    };
+    if(e.esyR!==undefined) r.esyR = Math.min(1.15, e.esyR * 1.02);
+    return r;
+  }
+  return e;
+}
+
+/* ── Intimacy → default mood when no explicit mood ── */
+const INTIMACY_DEFAULT_MOOD = {
+  'stranger':   '好奇',
+  'half-known': '愉快',
+  'fully-known':'愉快',
+};
+
+/* ── Eyes glyph — v0.15: 重构，平静用 CSS class 驱动漂移，无 JS 竞态 ── */
+let _eyesUid = 0;
+function Eyes({size=64, busy=false, color, pupil, mood, context, asleep=false, drifting=false, lookDown=false, waking=false, thinking=false, beatKey=0, errorKey=0}){
+  const uidRef = useRef(null);
+  if(uidRef.current===null){ _eyesUid++; uidRef.current = _eyesUid; }
+  const uid = uidRef.current;
+
+  // ── 第一反应节拍：beatKey 变化 → 加 .first-react 类播放一次（0.74s 后自动还原）──
+  const [beating, setBeating] = useState(false);
+  const beatTimerRef = useRef(null);
+  const prevBeatRef = useRef(beatKey);
+  useEffect(()=>{
+    if(beatKey>0 && beatKey!==prevBeatRef.current){
+      setBeating(true);
+      clearTimeout(beatTimerRef.current);
+      beatTimerRef.current = setTimeout(()=>setBeating(false), 760);
+    }
+    prevBeatRef.current = beatKey;
+    return ()=>clearTimeout(beatTimerRef.current);
+  },[beatKey]);
+
+  // ── P1 · error 摇头节拍：errorKey 上升沿 → 加 .error-shake 播放一次（0.6s 后还原）──
+  const [shaking, setShaking] = useState(false);
+  const shakeTimerRef = useRef(null);
+  const prevErrRef = useRef(errorKey);
+  useEffect(()=>{
+    if(errorKey>0 && errorKey!==prevErrRef.current){
+      setShaking(true);
+      clearTimeout(shakeTimerRef.current);
+      shakeTimerRef.current = setTimeout(()=>setShaking(false), 640);
+    }
+    prevErrRef.current = errorKey;
+    return ()=>clearTimeout(shakeTimerRef.current);
+  },[errorKey]);
+
+  // ── 唤醒动画：esy 从 0.26 插值到目标值（RAF，仅 waking=true 时运行）──
+  const [wakingEsy, setWakingEsy] = useState(null);
+  const wakingRafRef = useRef(null);
+  useEffect(()=>{
+    if(waking){
+      const from = ASLEEP_EXPR.esy;
+      const to   = ((mood && MOOD_EXPR[mood]) || DEFAULT_EXPR).esy;
+      const dur  = 1400;
+      const t0   = performance.now();
+      function step(now){
+        const p    = Math.min(1,(now-t0)/dur);
+        const ease = p<0.5 ? 2*p*p : -1+(4-2*p)*p;
+        setWakingEsy(from+(to-from)*ease);
+        if(p<1) wakingRafRef.current=requestAnimationFrame(step);
+        // 动画完成：保留最终值，眼睛维持睁开状态
+      }
+      cancelAnimationFrame(wakingRafRef.current);
+      wakingRafRef.current=requestAnimationFrame(step);
+    } else {
+      cancelAnimationFrame(wakingRafRef.current);
+      setWakingEsy(null);
+    }
+    return ()=>cancelAnimationFrame(wakingRafRef.current);
+  },[waking]);
+
+  // ── 几何量计算 ──
+  const w    = Math.round(size * 2.2);
+  const h    = size;
+  const fill = color || 'currentColor';
+  const pp   = pupil  || 'var(--bg)';
+  const base = waking
+    ? { ...ASLEEP_EXPR, esy: wakingEsy ?? ASLEEP_EXPR.esy }
+    : asleep ? ASLEEP_EXPR
+    : thinking ? THINKING_EXPR
+    : ((mood && MOOD_EXPR[mood]) || DEFAULT_EXPR);
+  const e        = (asleep||thinking) ? base : applyContext(base, context);
+  const pdxBoth  = e.pdx || 0;
+  // 打字时向下注视（好奇/兴奋专注盯看，不受 lookDown 影响）
+  const pupilShift = (lookDown && !asleep && !waking && !thinking) ? ((mood==='好奇'||mood==='兴奋') ? 7.0 : 4.5) : 0;
+  // L 眼
+  const ryL    = (17 * e.esy).toFixed(2);
+  const prL    = e.pr;
+  const cxL    = 28 + pdxBoth;
+  const cyL    = 22 + (e.pdy || 0) + pupilShift;
+  const liddyL = e.liddy || 0;
+  const lidtyL = e.lidty || 0;
+  // R 眼
+  const esyR   = e.esyR   !== undefined ? e.esyR   : e.esy;
+  const ryR    = (17 * esyR).toFixed(2);
+  const prR    = e.prR    || e.pr;
+  const cyR    = 22 + (e.pdy || 0) + pupilShift;
+  const cxR    = 72 + (e.pdxR || 0) + pdxBoth;
+  const liddyR = e.liddyR !== undefined ? e.liddyR : liddyL;
+  const lidtyR = e.lidtyR !== undefined ? e.lidtyR : lidtyL;
+  const slant  = e.lidSlant || 0;
+  // clip polygon — 动态边界，避免 esy>1 时截边
+  const maskL    = `eyeMaskL_${uid}`;
+  const maskR    = `eyeMaskR_${uid}`;
+  const eyeTopL  = Math.min(5, Math.round(22 - parseFloat(ryL)));
+  const eyeBotL  = Math.max(39, Math.round(22 + parseFloat(ryL)));
+  const eyeTopR  = Math.min(5, Math.round(22 - parseFloat(ryR)));
+  const eyeBotR  = Math.max(39, Math.round(22 + parseFloat(ryR)));
+  const polyL    = `14,${eyeTopL+liddyL} 42,${eyeTopL+liddyL+slant} 42,${eyeBotL-lidtyL} 14,${eyeBotL-lidtyL}`;
+  const polyR    = `58,${eyeTopR+liddyR+slant} 86,${eyeTopR+liddyR} 86,${eyeBotR-lidtyR} 58,${eyeBotR-lidtyR}`;
+  // 平静 / 愉快时才漂移；其他情绪专注，瞳孔固定
+  const calmDrift = mood==='平静' && !drifting && !asleep && !waking && !busy && !lookDown && !thinking;
+  const happyDrift = mood==='愉快' && !drifting && !asleep && !waking && !busy && !lookDown && !thinking;
+  // 愉快：保留小Z的圆眼+瞳孔身份，但下眼睑上扬成笑弧（曲线裁剪）、
+  // 瞳孔换大上移 + 暖颊光 → 一眼辛能看出在笑，又不丢识别度，且与「难过」（直抬下睑+瞳孔下望）截然不同。
+  const happyFace = mood==='愉快' && !asleep && !waking && !thinking && !drifting;
+
+  return(
+    <svg
+      className={`eyes-z${thinking?' thinking':''}${(asleep&&!waking)?' asleep':''}${drifting?' drifting':''}${waking?' waking':''}${calmDrift?' calm':''}${happyDrift?' happy':''}${mood==='难过'&&!drifting&&!asleep&&!lookDown&&!thinking?' sad':''}${beating?' first-react':''}${shaking?' error-shake':''}`}
+      width={w} height={h} viewBox="0 0 100 44" fill="none"
+      style={{'--blink-dur':`${e.blink}s`,'overflow':'visible'}}
+      shapeRendering="geometricPrecision"
+      aria-label={`小Z${mood?'·'+mood:''}`} role="img"
+    >
+      <defs>
+        <clipPath id={maskL}><polygon points={polyL}/></clipPath>
+        <clipPath id={maskR}><polygon points={polyR}/></clipPath>
+
+      </defs>
+      <g className="eye eye-l" clipPath={`url(#${maskL})`} style={{display: happyFace?'none':undefined}}>
+        <ellipse cx="28" cy="22" rx="13" ry={ryL} fill={fill}/>
+        <circle className="pupil pupil-l" cx={cxL} cy={cyL} r={prL} fill={pp}/>
+      </g>
+      <g className="eye eye-r" clipPath={`url(#${maskR})`} style={{display: happyFace?'none':undefined}}>
+        <ellipse cx="72" cy="22" rx="13" ry={ryR} fill={fill}/>
+        <circle className="pupil pupil-r" cx={cxR} cy={cyR} r={prR} fill={pp}/>
+      </g>
+      {happyFace && (
+        <g className="happy-face">
+          <circle className="happy-dot" cx="11" cy="37" r="2.9" fill="var(--blush)"/>
+          <circle className="happy-dot r" cx="89" cy="37" r="2.9" fill="var(--blush)"/>
+          <g className="eye eye-l" clipPath={`url(#${maskL})`}>
+            <ellipse cx="28" cy="22" rx="13" ry={ryL} fill={fill}/>
+            <g className="pupil happy-pupil pupil-l">
+              <circle cx="28" cy="22" r="3.9" fill={pp}/>
+              <circle cx="28" cy="25.1" r="3.55" fill={fill}/>
+            </g>
+          </g>
+          <g className="eye eye-r" clipPath={`url(#${maskR})`}>
+            <ellipse cx="72" cy="22" rx="13" ry={ryR} fill={fill}/>
+            <g className="pupil happy-pupil pupil-r">
+              <circle cx="72" cy="22" r="3.9" fill={pp}/>
+              <circle cx="72" cy="25.1" r="3.55" fill={fill}/>
+            </g>
+          </g>
+        </g>
+      )}
+      {thinking && !asleep && (
+        <g className="z-think-dots">
+          <circle cx="41" cy="-2" r="1.8" fill={fill}/>
+          <circle cx="50" cy="-2" r="1.8" fill={fill}/>
+          <circle cx="59" cy="-2" r="1.8" fill={fill}/>
+        </g>
+      )}
+      {e.sparkle && (
+        <g className="z-sparkle">
+          <polygon points="12,1.5 13,4.3 15.5,5 13,5.7 12,8.5 11,5.7 8.5,5 11,4.3" fill={fill}/>
+          <polygon points="88,1.5 89,4.3 91.5,5 89,5.7 88,8.5 87,5.7 84.5,5 87,4.3" fill={fill}/>
+          <circle cx="17" cy="12.5" r="0.9" fill={fill}/>
+          <circle cx="83" cy="12.5" r="0.9" fill={fill}/>
+        </g>
+      )}
+      {e.question && (
+        <g className="z-question">
+          <path d="M 47,4 Q 50,1 53,4 Q 53,7 50,8.5 L 50,10.5"
+                stroke={fill} strokeWidth="1.1" fill="none"
+                strokeLinecap="round" strokeLinejoin="round"/>
+          <circle cx="50" cy="12.6" r="0.95" fill={fill}/>
+        </g>
+      )}
+      {/* ── Mouth ── */}
+      {!asleep && (()=>{
+        const sp = {fill:'none', stroke:fill, strokeLinecap:'round'};
+        if(thinking)      return <path d="M 46,40 L 54,40" {...sp} strokeWidth="2.0"/>;
+        if(mood==='愉快') return <path d="M 41,40 Q 50,45.5 59,40" {...sp} strokeWidth="2.0"/>;
+        if(mood==='平静') return <path d="M 44,40 Q 50,42 56,40" {...sp} strokeWidth="2.0"/>;
+        if(mood==='好奇') return <ellipse cx="50" cy="43" rx="4.2" ry="3.5" fill={fill}/>;
+        if(mood==='兴奋') return <path d="M 39,40 Q 50,47 61,40" {...sp} strokeWidth="2.2"/>;
+        if(mood==='困惑') return <path d="M 43,41 Q 46.5,39 50,41 Q 53.5,43 57,41" {...sp} strokeWidth="2.0"/>;
+        if(mood==='难过') return <path d="M 43,38 Q 50,33 57,38" {...sp} strokeWidth="2.0"/>;
+        if(mood==='愤怒') return (<g>
+          <rect x="41" y="37.5" width="18" height="6" rx="1.5" fill={fill}/>
+          <rect x="42.5" y="38.5" width="15" height="2" rx="0.5" fill={pp} opacity="0.9"/>
+          <rect x="42.5" y="40.7" width="15" height="1.8" rx="0.5" fill={pp} opacity="0.75"/>
+        </g>);
+        return <path d="M 44,40 Q 50,42 56,40" {...sp} strokeWidth="2.0"/>;
+      })()}
+    </svg>
+  );
+}
+
+/* ── 情绪色查表（与 CSS token 对齐，供光晕冻结自身颜色用，亮/暗各一套） ── */
+const EMOTION_HEX = {
+  light:{'愉快':'#10b981','平静':'#78b4a0','好奇':'#06b6d4','兴奋':'#f59e0b','困惑':'#a855f7','难过':'#5b80c0','愤怒':'#ef4444'},
+  dark: {'愉快':'#34d399','平静':'#8ecabc','好奇':'#22d3ee','兴奋':'#fbbf24','困惑':'#c084fc','难过':'#7d9fde','愤怒':'#f87171'},
+};
+function emotionHex(mood){
+  const t = document.documentElement.getAttribute('data-theme')==='dark'?'dark':'light';
+  return (EMOTION_HEX[t]||EMOTION_HEX.light)[mood] || '#94a3b8';
+}
+
+/* ── 光晕池 + 首反应节拍 hook（PresenceFloat / Home 共用） ──
+   每个 mood 事件（瞬时 / 行内）都会 triggerSpotlight()：
+   · 新增一束"冻结当前情绪色"的单次绽放光晕（池上限 3，onAnimationEnd 即卸）→ 连发时旧束未散完，新束叠加接管，不闪烁
+   · 距上次事件 >600ms 判为"第一反应" → bump beatKey 触发眼睛专属节拍；
+     <600ms 的连发（瞬时+行内转折）只平滑过渡 + 光晕叠加，不重复节拍
+   · mood 与 spotlight 在同一事件里双触发 → 40ms 内去重，避免双光晕 */
+let _glowCounter = 0;
+function useMoodPresence(mood, spotlightKey){
+  const [glows, setGlows] = useState([]);
+  const [beatKey, setBeatKey] = useState(0);
+  const lastFireRef = useRef(0);
+  const prevMoodRef = useRef(mood);
+  const prevSpotRef = useRef(spotlightKey);
+
+  const fire = useCallback((m)=>{
+    const now = performance.now();
+    const gap = now - lastFireRef.current;
+    if(gap < 40) return;            // 同一事件 mood+spotlight 双触发去重
+    lastFireRef.current = now;
+    const id = ++_glowCounter;
+    setGlows(g => [...g.slice(-2), {id, c: emotionHex(m)}]);
+    if(gap > 600) setBeatKey(k => k + 1);   // 仅"第一反应"起节拍
+  },[]);
+
+  useEffect(()=>{
+    if(prevMoodRef.current!==null && mood!==prevMoodRef.current) fire(mood);
+    prevMoodRef.current = mood;
+  },[mood]);
+  useEffect(()=>{
+    if(spotlightKey>0 && spotlightKey!==prevSpotRef.current) fire(mood);
+    prevSpotRef.current = spotlightKey;
+  },[spotlightKey]);
+
+  const glowEls = glows.map(g=>(
+    <div className="mood-glow" key={g.id} style={{'--glow-c':g.c}}
+      onAnimationEnd={()=>setGlows(gg=>gg.filter(x=>x.id!==g.id))}/>
+  ));
+  return {glowEls, beatKey};
+}
+
+function Heartbeat({state, mood}){
+  const [now,setNow]=useState(()=>new Date());
+  useEffect(()=>{ const t=setInterval(()=>setNow(new Date()),60000); return()=>clearInterval(t); },[]);
+  const hour=now.getHours();
+  const isNight = hour>=23 || hour<5;
+  const isIdle = state==='等待输入';
+  const base = MOOD_MAP[state] || MOOD_MAP['等待输入'];
+  const m = (isIdle && isNight) ? ASLEEP : base;
+
+  // mood visibility：只跟随当前状态，不看时间（无过期/衰减）
+  const moodHidden = !mood || m.mood==='error' || m.mood==='asleep' || m.mood==='drifting';
+
+  return(
+    <div className="hb" data-mood={m.mood} data-emotion={mood||''}>
+      <div className="hb-mood">
+        <span className="hb-dot"/>
+        <span className="hb-label">{m.zh}</span>
+        <span className="hb-en">{m.en}</span>
+        {!moodHidden && <>
+          <span className="hb-mood-sep">·</span>
+          <span key={mood} className="hb-mood-label">{mood}</span>
+        </>}
+      </div>
+    </div>
+  );
+}
+
+/* ── Status resolver (shared with Heartbeat) ── */
+function resolveStatus(hbState, idleMs=0){
+  const h=new Date().getHours();
+  const isNight = h>=23 || h<5;
+  const isIdle = hbState==='等待输入';
+  const base = MOOD_MAP[hbState] || MOOD_MAP['等待输入'];
+  if(isIdle && isNight) return ASLEEP;
+  if(isIdle && idleMs > 90000) return DRIFTING;
+  return base;
+}
+// 6 status × 有/无 mood × 有/无 reply 的展示契约：
+const STATUS_HAS_MOOD  = {idle:true, thinking:true, tooling:true, writing:true, error:false, asleep:false, drifting:false};
+const STATUS_HAS_REPLY = {idle:false,thinking:true, tooling:true, writing:true, error:false, asleep:false, drifting:false};
+
+/* ── Lookback modal — 回顾浮层（重要经历 + 承诺，无时间线） ── */
+function LookBackModal({events, commitments, userName, onClose}){
+  const modalRef = useRef(null);
+  useEffect(()=>{
+    const prevFocus = document.activeElement;
+    const node = modalRef.current;
+    const focusables = ()=> node ? [...node.querySelectorAll('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])')].filter(el=>!el.disabled && el.offsetParent!==null) : [];
+    (focusables()[0] || node)?.focus?.();
+    const h = (e)=>{
+      if(e.key==='Escape'){ onClose(); return; }
+      if(e.key==='Tab'){
+        const f=focusables(); if(!f.length){ e.preventDefault(); return; }
+        const i=f.indexOf(document.activeElement);
+        if(e.shiftKey && i<=0){ e.preventDefault(); f[f.length-1].focus(); }
+        else if(!e.shiftKey && i===f.length-1){ e.preventDefault(); f[0].focus(); }
+      }
+    };
+    window.addEventListener('keydown', h);
+    return ()=>{ window.removeEventListener('keydown', h); if(prevFocus && prevFocus.focus) prevFocus.focus(); };
+  },[onClose]);
+  const eventArr = Object.entries(events||{});
+  const commitArr = Object.entries(commitments||{});
+  return(
+    <div className="lb-backdrop" onClick={onClose}>
+      <div className="lb-modal" ref={modalRef} role="dialog" aria-modal="true" aria-label="回顾" tabIndex={-1} onClick={e=>e.stopPropagation()}>
+        <div className="lb-head">
+          <div>
+            <div className="lb-head-tt">Look back · 回顾</div>
+            <div className="lb-head-t">你与我之间</div>
+          </div>
+          <button className="lb-close" onClick={onClose} aria-label="关闭">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+        <div className="lb-body">
+          <div>
+            <div className="lb-col-h">
+              <span>重要经历 · significant events</span>
+              <span className="ct">{eventArr.length}</span>
+            </div>
+            {eventArr.length===0
+              ? <div className="lb-empty">还没有共同记下的事。</div>
+              : eventArr.map(([uuid,text])=>(
+                  <div key={uuid} className="lb-event">{text}</div>
+                ))
+            }
+          </div>
+          <div>
+            <div className="lb-col-h">
+              <span>承诺 · commitments</span>
+              <span className="ct">{commitArr.length}</span>
+            </div>
+            {commitArr.length===0
+              ? <div className="lb-empty">还没立下约定。</div>
+              : commitArr.map(([uuid,text])=>{
+                  const p = parseCommitment(text);
+                  const arrow = p.dir==='ai' ? '→' : p.dir==='user' ? '←' : '↔';
+                  const meta  = p.dir==='ai' ? `我（AI）→ ${p.who||userName||'对方'}`
+                              : p.dir==='user' ? `${p.who||userName||'对方'} → 我`
+                              : '我们 ↔ 一起';
+                  return(
+                    <div key={uuid} className="lb-commit">
+                      <span className={`commit-arrow ${p.dir}`}>{arrow}</span>
+                      <div className="commit-body">
+                        <div className="commit-meta">{meta}</div>
+                        <div>{p.body}</div>
+                      </div>
+                    </div>
+                  );
+                })
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── MemoryAnchors（v0.145 · 三层衰减摘要） ───────────────────────────── */
+function MemoryAnchors({data}){
+  const near = data?.near || [];
+  const mid  = data?.mid  || [];
+  const far  = data?.far;
+  const total = near.length + mid.length + (far?.count||0);
+  const [nearExpanded,setNearExpanded] = useState(false);
+  const [midOpen,setMidOpen]           = useState(false);
+  // empty state
+  if(total===0){
+    return(
+      <div className="sp-section">
+        <div className="sp-section-h"><span>锚点</span></div>
+        <div className="anchor-empty">这是我们的第一次对话。</div>
+      </div>
+    );
+  }
+  const nearVisible = nearExpanded ? near : near.slice(0,2);
+  const nearHidden  = near.length - nearVisible.length;
+  return(
+    <div className="sp-section">
+      <div className="sp-section-h">
+        <span>锚点</span>
+        <span className="count">{total}</span>
+      </div>
+
+      {near.length>0 && (
+        <div className="anchor-tier">
+          <div className="anchor-tier-h">
+            <span>近记忆 · recent</span>
+            <span className="anchor-tier-count">{near.length}</span>
+          </div>
+          {nearVisible.map(a=>(
+            <div key={a.id} className="sp-card anchor-near-card">
+              <div className="anchor-title">{a.title}</div>
+              <div className="anchor-body">{a.body}</div>
+              <div className="anchor-meta">
+                <span>{a.timeLabel}</span>
+                {a.mood && <>
+                  <span>·</span>
+                  <span className="anchor-meta-mood">{a.mood}</span>
+                </>}
+              </div>
+            </div>
+          ))}
+          {nearHidden>0 && (
+            <button className="anchor-near-toggle" onClick={()=>setNearExpanded(true)}>
+              展开剩余 {nearHidden} 条
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+          )}
+          {nearExpanded && near.length>2 && (
+            <button className="anchor-near-toggle" onClick={()=>setNearExpanded(false)}>
+              收起
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="18 15 12 9 6 15"/></svg>
+            </button>
+          )}
+        </div>
+      )}
+
+      {mid.length>0 && (
+        <div className="anchor-tier">
+          <div className={`anchor-tier-h clickable${midOpen?' open':''}`} onClick={()=>setMidOpen(o=>!o)}>
+            <span className="anchor-chev">
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>
+            </span>
+            <span>中记忆 · earlier</span>
+            <span className="anchor-tier-count">{mid.length}</span>
+          </div>
+          {midOpen && mid.map(a=>(
+            <div key={a.id} className="anchor-mid-row">
+              <span className="anchor-mid-title">{a.title}</span>
+              {a.mood && <span className="anchor-mid-mood" title={a.mood}/>}
+              <span className="anchor-mid-time">{a.timeLabel}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {far && far.count>0 && (
+        <div className="anchor-tier">
+          <div className="anchor-tier-h">
+            <span>远记忆 · distant</span>
+          </div>
+          <div className="anchor-far-row">
+            <span className="anchor-far-count">{far.count}</span>
+            个更早的对话
+            {far.summary && <span style={{marginLeft:4}}>· {far.summary.replace(/^更早的 \d+ 个对话[，,]?/,'').trim()}</span>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* Right state panel */
+function StatePanel({hbState,lastUserMsg,currentMood,memories,hotMemory,events,commitments,memoryAnchors,onOpenLookback}){
+  const status = resolveStatus(hbState);
+  const replyVisible= STATUS_HAS_REPLY[status.mood] && lastUserMsg;
+  const trimmedReply = replyVisible ? (lastUserMsg.length>60?lastUserMsg.slice(0,60)+'…':lastUserMsg) : null;
+  const mode = intimacyMode(hotMemory);
+  const filled = filledCount(hotMemory);
+  const outerFilled = HOT_MEMORY_OUTER.filter(f=>hotMemory && hotMemory[f.key]);
+  const innerFilled = HOT_MEMORY_INNER.filter(f=>hotMemory && hotMemory[f.key]);
+  const eventArr = Object.entries(events||{});
+  const commitArr = Object.entries(commitments||{});
+  const hasLookback = eventArr.length>0 || commitArr.length>0;
+
+  return(
+    <div className="sp">
+      <div className="sp-h"><span className="sp-h-t">小Z的记忆</span></div>
+      <div className="sp-body" style={{paddingTop:6}}>
+        {/* 用户印象 — v0.14 档案/印象两区 */}
+        <div className="sp-section">
+          <div className="sp-section-h">
+            <span>印象</span>
+            {mode==='stranger' && <span className="imp-counter">{filled}/{HOT_TOTAL}</span>}
+          </div>
+          <div className="sp-card sp-impression-v14">
+            {/* 档案区 */}
+            <div className="imp-zone">
+              <div className="imp-zone-h">档案 · profile</div>
+              {outerFilled.length===0
+                ? <div className="imp-hint">还没告诉过我。</div>
+                : outerFilled.map(f=>(
+                    <div key={f.key} className="imp-outer-row">
+                      <span className="imp-k">{f.label}</span>
+                      <span className="imp-v">{hotMemory[f.key]}</span>
+                    </div>
+                  ))
+              }
+            </div>
+            {/* 印象区 */}
+            <div className="imp-zone">
+              <div className="imp-zone-h">印象 · impression</div>
+              {innerFilled.length===0
+                ? <div className="imp-hint">{mode==='stranger' ? '还在通过对话认识你。' : '还没观察到稳定特征。'}</div>
+                : innerFilled.map(f=>(
+                    <div key={f.key} className="imp-inner-row">
+                      <div className="imp-inner-k">{f.label}</div>
+                      <div className="imp-inner-v">{hotMemory[f.key]}</div>
+                    </div>
+                  ))
+              }
+            </div>
+          </div>
+        </div>
+
+        {/* 记忆锚点 — v0.145，三层衰减摘要 */}
+        <MemoryAnchors data={memoryAnchors}/>
+
+        {/* 重要经历 — v0.14 */}
+        <div className="sp-section">
+          <div className="sp-section-h">
+            <span>经历</span>
+            <span className="count">{eventArr.length}</span>
+          </div>
+          {eventArr.length===0
+            ? <div className="sp-empty">还没共同的事。</div>
+            : eventArr.slice(0,3).map(([uuid,text])=>(
+                <div key={uuid} className="sp-card sp-event">
+                  <span className="sp-event-mark"/>
+                  <span>{text}</span>
+                </div>
+              ))
+          }
+        </div>
+
+        {/* 承诺 — v0.14，前缀解析方向 */}
+        <div className="sp-section">
+          <div className="sp-section-h">
+            <span>承诺</span>
+            <span className="count">{commitArr.length}</span>
+          </div>
+          {commitArr.length===0
+            ? <div className="sp-empty">还没立下约定。</div>
+            : commitArr.slice(0,3).map(([uuid,text])=>{
+                const p = parseCommitment(text);
+                const arrow = p.dir==='ai' ? '→' : p.dir==='user' ? '←' : '↔';
+                const meta  = p.dir==='ai' ? '我承诺' : p.dir==='user' ? `${p.who}承诺` : '双方约定';
+                return(
+                  <div key={uuid} className="sp-card sp-commit">
+                    <span className={`commit-arrow ${p.dir}`}>{arrow}</span>
+                    <div className="commit-body">
+                      <div className="commit-meta">{meta}</div>
+                      <div className="commit-text">{p.body}</div>
+                    </div>
+                  </div>
+                );
+              })
+          }
+          {hasLookback && (
+            <div style={{display:'flex',justifyContent:'flex-end',marginTop:4}}>
+              <button className="lookback-btn" onClick={onOpenLookback}>
+                回顾全部
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+            </div>
+          )}
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+/* Sidebar */
+function Sidebar({chats,activeId,onSelect,onNew,onDelete,onRename,compact,onToggleCompact}){
+  return(
+    <div style={{
+      width:compact?52:224,
+      background:'var(--sidebar)',
+      borderRight:'1px solid var(--border)',
+      display:'flex',flexDirection:'column',
+      transition:'width .28s ease',overflow:'hidden',flexShrink:0,
+    }}>
+      {/* Logo + collapse */}
+      <div style={{height:58,display:'flex',alignItems:'center',padding:compact?'0 12px':'0 16px 0 18px',gap:9,borderBottom:'1px solid var(--border)',flexShrink:0,justifyContent:'space-between'}}>
+        <div style={{display:'flex',alignItems:'center',gap:9}}>
+          <span className="z-mark" style={{fontSize:17,fontWeight:600,letterSpacing:'-.02em',whiteSpace:'nowrap',fontFamily:'var(--mono)',display:'inline-block'}}>{compact?'Z':'小Z'}</span>
+        </div>
+        <button onClick={onToggleCompact} style={{
+          background:'transparent',border:'none',cursor:'pointer',
+          color:'var(--t3)',padding:4,borderRadius:5,
+          display:'flex',alignItems:'center',justifyContent:'center',
+          transition:'color .15s',flexShrink:0,
+        }}
+        onMouseEnter={e=>e.currentTarget.style.color='var(--t1)'}
+        onMouseLeave={e=>e.currentTarget.style.color='var(--t3)'}
+        title={compact?'展开':'收起'}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+            {compact
+              ?<><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></>
+              :<><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></>
+            }
+          </svg>
+        </button>
+      </div>
+
+      {/* New */}
+      <div style={{padding:compact?'12px 9px 6px':'12px 12px 6px'}}>
+        <button onClick={onNew} style={{
+          width:'100%',display:'flex',alignItems:'center',
+          justifyContent:compact?'center':'flex-start',
+          gap:7,padding:compact?'9px 0':'8px 12px',
+          background:'transparent',border:'1px solid var(--border)',borderRadius:9,
+          color:'var(--t2)',fontSize:12,fontFamily:'inherit',cursor:'pointer',
+        }}
+        onMouseEnter={e=>{e.currentTarget.style.borderColor='var(--accent)';e.currentTarget.style.color='var(--accent)';}}
+        onMouseLeave={e=>{e.currentTarget.style.borderColor='var(--border)';e.currentTarget.style.color='var(--t2)';}}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          {!compact&&'新对话'}
+        </button>
+      </div>
+
+      {/* List */}
+      <div style={{flex:1,overflow:'auto',padding:compact?'0 6px':'0 8px'}}>
+        {!compact&&<div style={{fontSize:10,color:'var(--t3)',padding:'10px 8px 4px',letterSpacing:'.14em',fontWeight:500,fontFamily:'var(--mono)'}}>对话</div>}
+        {chats.map((c,i)=>(
+          compact
+            ? <ChatItemCompact key={c.id} c={c} active={activeId===c.id} onSelect={()=>onSelect(c.id)}/>
+            : <ChatItem key={c.id} c={c} active={activeId===c.id}
+                onSelect={()=>onSelect(c.id)}
+                onDelete={()=>onDelete(c.id)}
+                onRename={t=>onRename(c.id,t)}
+              />
+        ))}
+      </div>
+
+    </div>
+  );
+}
+
+/* Input */
+/* ── v0.2.2 思考深度（effort）能力声明 ──
+   真实产品从 GET /ai/features 拉取并缓存到 store；此处按 profile mock 两种返回，
+   供差异化渲染演示。前端不硬编码档位 —— options 一律遍历渲染。 */
+const FEATURES_BY_PROFILE = {
+  'deepseek-v4': {
+    profile:'deepseek-v4',
+    effort:{ supported:true, defaultValue:'normal', options:[
+      {value:'normal', label:'标准'},
+      {value:'high',   label:'深度'},
+      {value:'max',    label:'极致'},
+    ]},
+  },
+  'MiniMax-M3': {
+    profile:'MiniMax-M3',
+    effort:{ supported:false, defaultValue:null, options:[] },
+  },
+};
+
+/* 思考深度 segmented control —— 仅当思考开启 + 模型支持时渲染；选项遍历 options 生成 */
+function EffortPicker({effort,value,onChange}){
+  if(!effort||!effort.supported||!effort.options.length) return null;
+  return(
+    <div style={{
+      display:'flex',alignItems:'center',gap:2,
+      background:'var(--chip)',border:'1px solid var(--border)',
+      borderRadius:100,padding:2,
+      animation:'up .12s ease both',
+    }} title="思考深度">
+      {effort.options.map(opt=>{
+        const on=opt.value===value;
+        return(
+          <button key={opt.value}
+            onClick={()=>onChange(opt.value)}
+            style={{
+              border:'none',cursor:'pointer',fontFamily:'inherit',
+              fontSize:12,lineHeight:1,padding:'4px 10px',borderRadius:100,
+              background:on?'var(--accent-s)':'transparent',
+              color:on?'var(--accent)':'var(--t2)',
+              fontWeight:on?600:400,transition:'background .12s ease,color .12s ease',
+            }}
+            onMouseEnter={e=>{ if(!on) e.currentTarget.style.color='var(--t1)'; }}
+            onMouseLeave={e=>{ if(!on) e.currentTarget.style.color='var(--t2)'; }}
+          >{opt.label}</button>
+        );
+      })}
+    </div>
+  );
+}
+
+function InputBox({placeholder,onSend,big,onTyping,focusSignal=0,streaming=false,onStop,effort=null,selectedEffort='normal',onEffortChange,prefill=null,stopReady=true,sendBlocked=false}){
+  const [val,setVal]=useState('');
+  const [foc,setFoc]=useState(false);
+  const [menuOpen,setMenuOpen]=useState(false);
+  const [thinkSelected,setThinkSelected]=useState(false);
+  const ref=useRef(null);
+  const menuRef=useRef(null);
+  const typingTimerRef=useRef(null);
+  useEffect(()=>{ if(big&&ref.current) ref.current.focus(); },[big]);
+  // 回复结束后自动聚焦输入框（focusSignal 上升沿驱动），省去手动点击
+  const prevFocusRef=useRef(focusSignal);
+  useEffect(()=>{
+    if(focusSignal>0 && focusSignal!==prevFocusRef.current && ref.current){
+      ref.current.focus();
+    }
+    prevFocusRef.current=focusSignal;
+  },[focusSignal]);
+  // v0.2.3 · 发送失败：把原文放回输入框，聚焦 + 光标置末尾（prefill.key 每次失败都变化，驱动本 effect）
+  // ref 初始化为挂载时的 key：只响应挂载后的变化，重挂载不会把旧 prefill 重新灌回
+  const prevPrefillKeyRef=useRef(prefill?prefill.key:null);
+  useEffect(()=>{
+    if(prefill && prefill.key!==prevPrefillKeyRef.current){
+      prevPrefillKeyRef.current=prefill.key;
+      setVal(prefill.text||'');
+      requestAnimationFrame(()=>{
+        const el=ref.current; if(!el) return;
+        autoGrow(el); el.focus();
+        const len=el.value.length;
+        el.setSelectionRange(len,len);
+      });
+    }
+  },[prefill]);
+  // close menu on outside click
+  useEffect(()=>{
+    if(!menuOpen) return;
+    function handler(e){
+      if(menuRef.current&&!menuRef.current.contains(e.target)) setMenuOpen(false);
+    }
+    document.addEventListener('mousedown',handler);
+    return()=>document.removeEventListener('mousedown',handler);
+  },[menuOpen]);
+
+  function autoGrow(el){ if(!el) return; el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,180)+'px'; }
+  function send(){ if(sendBlocked) return; const v=val.trim(); if(!v) return; const enabled=thinkSelected; const eff=(enabled&&effort&&effort.supported)?selectedEffort:undefined; onSend(v,{enabled,effort:eff}); setVal(''); setThinkSelected(false); if(ref.current){ ref.current.style.height='auto'; } }
+  const active=val.trim().length>0;
+
+  return(
+    <div style={{
+      background:'var(--surface)',
+      border:`1px solid ${foc?'var(--t1)':'var(--border)'}`,
+      borderRadius:16,
+      boxShadow:foc?'none':'var(--shadow)',
+      position:'relative',
+    }}>
+      <textarea ref={ref} value={val}
+        onChange={e=>{
+          setVal(e.target.value);
+          autoGrow(e.target);
+          if(onTyping){
+            onTyping(true);
+            clearTimeout(typingTimerRef.current);
+            typingTimerRef.current=setTimeout(()=>onTyping(false),1200);
+          }
+        }}
+        onFocus={()=>setFoc(true)}
+        onBlur={()=>{
+          setFoc(false);
+          if(onTyping){ clearTimeout(typingTimerRef.current); onTyping(false); }
+        }}
+        onKeyDown={e=>{ if(e.key==='Enter'&&!e.shiftKey&&!e.nativeEvent.isComposing){e.preventDefault(); if(!streaming&&!sendBlocked) send();} }}
+        placeholder={sendBlocked?'上一条还在生成中…':placeholder}
+        rows={1}
+        style={{
+          width:'100%',background:'transparent',border:'none',outline:'none',
+          resize:'none',padding:'14px 18px 6px',
+          fontSize:15,color:'var(--t1)',fontFamily:'inherit',
+          lineHeight:1.7,maxHeight:180,overflow:'auto',
+          letterSpacing:'-.005em',display:'block',
+        }}
+      />
+      {/* Bottom bar */}
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'8px 12px 10px'}}>
+        <div style={{display:'flex',alignItems:'center',gap:8,position:'relative'}} ref={menuRef}>
+          {/* + button */}
+          <button
+            onClick={()=>setMenuOpen(o=>!o)}
+            style={{
+              background:'transparent',border:'none',cursor:'pointer',
+              color:'var(--t2)',fontSize:20,lineHeight:1,padding:'0 4px',
+              display:'flex',alignItems:'center',justifyContent:'center',
+              fontWeight:300,
+            }}
+            onMouseEnter={e=>e.currentTarget.style.color='var(--t1)'}
+            onMouseLeave={e=>e.currentTarget.style.color='var(--t2)'}
+          >+</button>
+
+          {/* Dropdown menu */}
+          {menuOpen&&(
+            <div style={{
+              position:'absolute',bottom:'calc(100% + 8px)',left:0,
+              background:'var(--surface)',border:'1px solid var(--border)',
+              borderRadius:10,boxShadow:'var(--shadow-lg)',
+              padding:'4px',zIndex:200,minWidth:130,
+              animation:'up .12s ease both',
+            }}>
+              <button
+                onClick={()=>{setThinkSelected(true);setMenuOpen(false);}}
+                style={{
+                  display:'flex',alignItems:'center',gap:8,
+                  width:'100%',background:'transparent',border:'none',
+                  cursor:'pointer',padding:'8px 10px',borderRadius:7,
+                  fontSize:13,color:'var(--t1)',fontFamily:'inherit',
+                  textAlign:'left',
+                }}
+                onMouseEnter={e=>e.currentTarget.style.background='var(--surf-hov)'}
+                onMouseLeave={e=>e.currentTarget.style.background='transparent'}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style={{flexShrink:0,color:'var(--t2)'}}>
+                  <path d="M12 2L13.8 10.2L22 12L13.8 13.8L12 22L10.2 13.8L2 12L10.2 10.2Z"/>
+                </svg>
+                思考一下
+              </button>
+            </div>
+          )}
+
+          {/* Think chip */}
+          {thinkSelected&&(
+            <div style={{
+              display:'flex',alignItems:'center',gap:5,
+              background:'var(--accent-s)',border:'1px solid var(--accent-r)',
+              borderRadius:100,padding:'3px 10px 3px 7px',
+              fontSize:12,color:'var(--accent)',cursor:'pointer',
+              animation:'up .12s ease both',
+            }}
+            onClick={()=>setThinkSelected(false)}
+            title="点击取消"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style={{flexShrink:0}}>
+                <path d="M12 2L13.8 10.2L22 12L13.8 13.8L12 22L10.2 13.8L2 12L10.2 10.2Z"/>
+              </svg>
+              思考
+            </div>
+          )}
+
+          {/* 思考深度选择器 —— 思考开启 + 模型支持 effort 时出现，遍历 options 渲染 */}
+          {thinkSelected&&(
+            <EffortPicker effort={effort} value={selectedEffort} onChange={onEffortChange}/>
+          )}
+        </div>
+
+        {/* Send / Stop button */}
+          {/* v0.2.4 · turnId 到达前停止按钮禁用（否则停止请求发不出去，生成会被服务端存下） */}
+          <button onClick={streaming?(stopReady?onStop:undefined):send}
+          disabled={streaming?!stopReady:(!active||sendBlocked)}
+          title={streaming?(stopReady?'停止生成':'连接建立中…'):(sendBlocked?'上一条还在生成中':'发送')}
+          aria-label={streaming?'停止生成':'发送'}
+          style={{
+            width:36,height:36,borderRadius:'50%',
+            background:streaming?(stopReady?'var(--t1)':'var(--border)'):((active&&!sendBlocked)?'var(--accent)':'var(--border)'),
+            border:'none',cursor:(streaming?(stopReady?'pointer':'default'):((active&&!sendBlocked)?'pointer':'default')),
+            display:'flex',alignItems:'center',justifyContent:'center',
+            boxShadow:(!streaming&&active&&!sendBlocked)?'0 2px 8px var(--accent-s)':'none',
+            flexShrink:0,transition:'background .15s ease',
+          }}>
+          {streaming
+            ? <span style={{width:10,height:10,borderRadius:2,background:'var(--bg)'}}/>
+            : <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                stroke={active?'#fff':'var(--t3)'} strokeWidth="2.5">
+                <line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>
+              </svg>}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* Home */
+function timeGreet(){
+  const h=new Date().getHours();
+  if(h<5)  return {tag:'凌晨',  line:'还醒着？我陪你。'};
+  if(h<9)  return {tag:'清晨',  line:'今天打算干点什么？'};
+  if(h<12) return {tag:'上午',  line:'早上的脑子最清楚，开始吧。'};
+  if(h<14) return {tag:'午后',  line:'吃过了吗？吃过我们就继续。'};
+  if(h<18) return {tag:'下午',  line:'下午容易走神，需要我提醒你聚焦吗？'};
+  if(h<22) return {tag:'傍晚',  line:'今天怎么样？想聊点什么？'};
+  return         {tag:'深夜',  line:'夜深了。别熬太晚，我也是。'};
+}
+/* v0.14 — intimacy 档位副文案（覆盖时间 greeting） */
+const INTIMACY_GREET = {
+  'stranger':   '我们才刚认识。先随便聊聊？',
+  'half-known': '继续聊吧——我还在慢慢认识你。',
+  // fully-known 走时间 greeting，不特殊化
+};
+function Home({onSend, mood, context, intimacy, forceAsleep=false, idleMs=0, lookDown=false, waking=false, onTypingStart, spotlightKey=0, effort=null, selectedEffort='normal', onEffortChange}){
+  const chipsByMode = {
+    'stranger':   ['你想聊点什么？','你怎么称呼自己','介绍一下你自己'],
+    'half-known': ['帮我梳理一个方案','把这段写得更好','解释一个复杂概念'],
+    'fully-known':['帮我梳理一个方案','把这段写得更好','解释一个复杂概念','深度分析'],
+  };
+  const chips = chipsByMode[intimacy] || chipsByMode['fully-known'];
+  const line = INTIMACY_GREET[intimacy] || timeGreet().line;
+  // 起始页：state 永远是 idle / asleep；resolveStatus 已处理夜间切换
+  const status = forceAsleep ? ASLEEP : resolveStatus('等待输入', idleMs);
+  const showMood = STATUS_HAS_MOOD[status.mood] && mood;
+  // 双圈脉冲 + 首反应节拍（与 PresenceFloat 共用 hook）
+  const {glowEls, beatKey} = useMoodPresence(mood, spotlightKey);
+  return(
+    <div className="page-enter home-page" style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'0 48px',position:'relative'}}>
+      <div style={{width:'100%',maxWidth:620}}>
+        {/* Nameplate · 眼睛即小Z的脸；小Z 是它的署名 */}
+        <div className="home-nameplate" data-mood={status.mood} data-emotion={mood||''}>
+          <div className="home-eyes">
+            <div className={`mood-ambient${showMood?' on':''}`}/>
+            <Eyes size={80} mood={mood} context={context} beatKey={beatKey}
+                  asleep={status.mood==='asleep'}
+                  drifting={status.mood==='drifting'}
+                  lookDown={lookDown} waking={waking}
+                  color="var(--accent)" pupil="var(--bg)"/>
+            {glowEls}
+          </div>
+          <div className="home-sig">
+            <span className="home-sig-rule"/>
+            <span className="home-sig-name">小&thinsp;Z</span>
+            <span className="home-sig-rule"/>
+          </div>
+          <div className="home-status">
+            <span className="home-status-dot"/>
+            <span className="home-status-zh">{status.zh}</span>
+            <span className="home-status-en">{status.en}</span>
+            {showMood && <>
+              <span className="home-status-sep">·</span>
+              <span key={mood} className="home-status-mood">{mood}</span>
+            </>}
+          </div>
+          <div className="home-line">{line}</div>
+        </div>
+
+        <div className="home-input-slot" style={{marginBottom:16}}>
+          <InputBox placeholder="尽管问…" onSend={onSend} big={true} onTyping={onTypingStart} effort={effort} selectedEffort={selectedEffort} onEffortChange={onEffortChange}/>
+        </div>
+        <div style={{display:'flex',justifyContent:'center',flexWrap:'wrap',gap:6}}>
+          {chips.map((s,i)=>(
+            <button key={i} onClick={()=>onSend(s)} style={{
+              background:'transparent',border:'1px solid var(--border)',
+              borderRadius:100,padding:'9px 16px',fontSize:12,minHeight:36,
+              color:'var(--t2)',fontFamily:'inherit',cursor:'pointer',
+              letterSpacing:'-.01em',
+            }}
+            onMouseEnter={e=>{e.currentTarget.style.borderColor='var(--t1)';e.currentTarget.style.color='var(--t1)';}}
+            onMouseLeave={e=>{e.currentTarget.style.borderColor='var(--border)';e.currentTarget.style.color='var(--t2)';}}
+            >{s}</button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Presence 组件（v0.15：无 banner，大眼睛悬浮，mood 变化用双环脉冲）── */
+function PresenceFloat({mood, context, hbState, forceAsleep=false, idleMs=0, lookDown=false, waking=false, spotlightKey=0, flyFrom=null}){
+  const status = forceAsleep ? ASLEEP : resolveStatus(hbState, idleMs);
+  const {glowEls, beatKey} = useMoodPresence(mood, spotlightKey);
+  // 思考中 = 系统处于思考 / 调用工具状态（与 LLM 情绪正交）。
+  const thinkingState = status.mood==='thinking' || status.mood==='tooling';
+  // 情绪最小播放锁：情绪事件（spotlightKey 上升沿）一到立即播放并锁定；
+  // 锁内情绪优先于思考中。锁过期后若系统仍在思考态，则让位给思考中；否则维持情绪。
+  const [moodLocked,setMoodLocked]=useState(false);
+  const lockRef=useRef(null);
+  const prevSpotRef=useRef(spotlightKey);
+  useEffect(()=>{
+    if(spotlightKey>0 && spotlightKey!==prevSpotRef.current){
+      setMoodLocked(true);
+      clearTimeout(lockRef.current);
+      lockRef.current=setTimeout(()=>setMoodLocked(false), MOOD_MIN_MS);
+    }
+    prevSpotRef.current=spotlightKey;
+    return ()=>clearTimeout(lockRef.current);
+  },[spotlightKey]);
+  const showThinking = thinkingState && !moodLocked;
+  const moodVisible = STATUS_HAS_MOOD[status.mood] && mood && !showThinking;
+
+  // P1 · 进入 error 系统态时触发一次摇头（errorKey 上升沿驱动 Eyes）
+  const [errKey,setErrKey]=useState(0);
+  const prevErrStateRef=useRef(false);
+  useEffect(()=>{
+    const isErr = status.mood==='error';
+    if(isErr && !prevErrStateRef.current) setErrKey(k=>k+1);
+    prevErrStateRef.current=isErr;
+  },[status.mood]);
+
+  // FLIP：挂载时若带 flyFrom（来自起始页眼睛），把眼睛 wrap 从旧位置 80px 补间到此处 60px
+  const eyesWrapRef=useRef(null);
+  useLayoutEffect(()=>{
+    if(flyFrom && eyesWrapRef.current) runFlip(eyesWrapRef.current, flyFrom, {scale:true});
+  // eslint-disable-next-line
+  },[]);
+
+  return(
+    <div className="presence-float" data-mood={status.mood} data-emotion={mood||''}>
+      <div className="presence-eyes-wrap" ref={eyesWrapRef}>
+        <div className={`mood-ambient${moodVisible?' on':''}`}/>
+        <Eyes size={60} mood={mood} context={context} thinking={showThinking} beatKey={beatKey} errorKey={errKey}
+              asleep={status.mood==='asleep'}
+              drifting={status.mood==='drifting'}
+              lookDown={lookDown} waking={waking}
+              color="var(--accent)" pupil="var(--bg)"/>
+        {showThinking && <span className="think-dots"><i/><i/><i/></span>}
+        {glowEls}
+      </div>
+      <div className="presence-label">
+        <span className="presence-dot"/>
+        <span className="presence-status">
+          <span className="status-zh">{status.zh}</span>
+          <span className="status-en">{status.en}</span>
+        </span>
+        {moodVisible && <>
+          <span className="presence-sep">·</span>
+          <span key={mood} className="presence-mood">{mood}</span>
+        </>}
+      </div>
+    </div>
+  );
+}
+
+/* Chat */
+function Chat({msgs,onSend,mood,context,hbState,forceAsleep=false,idleMs=0,lookDown=false,waking=false,onTypingStart,spotlightKey=0,focusSignal=0,flyEyesFrom=null,flyInputFrom=null,streaming=false,stopReady=true,sendBlocked=false,onStop,effort=null,selectedEffort='normal',onEffortChange,prefill=null}){
+  const listRef=useRef(null);
+  const contentRef=useRef(null);
+  const inputSlotRef=useRef(null);
+  const flying = !!(flyEyesFrom || flyInputFrom);
+  const [atBottom,setAtBottom]=useState(true);
+
+  // 跟踪用户是否已离底；离底则停止自动跟随
+  useEffect(()=>{
+    const el=listRef.current; if(!el) return;
+    const onScroll=()=>{
+      const dist=el.scrollHeight-el.scrollTop-el.clientHeight;
+      setAtBottom(dist<80);
+    };
+    el.addEventListener('scroll',onScroll,{passive:true});
+    return ()=>el.removeEventListener('scroll',onScroll);
+  },[]);
+
+  // 仅当贴底时跟随；用 instant 写 scrollTop 避免每个 chunk 的 smooth 抖动
+  useEffect(()=>{
+    const el=listRef.current; if(!el||!atBottom) return;
+    el.scrollTop=el.scrollHeight;
+  },[msgs,atBottom]);
+
+  // ResizeObserver 盯内容容器的实际高度变化：揭示引擎用 rAF 直接写 DOM 长高，
+  // 不会触发 msgs 更新，必须直接监听实际尺寸才能跟手贴底，不然会“卡一下再追”。
+  useEffect(()=>{
+    const inner=contentRef.current; if(!inner) return;
+    const ro=new ResizeObserver(()=>{
+      if(!atBottom) return;
+      const el=listRef.current; if(!el) return;
+      el.scrollTop=el.scrollHeight;
+    });
+    ro.observe(inner);
+    return ()=>ro.disconnect();
+  },[atBottom]);
+
+  function scrollToBottom(){
+    const el=listRef.current; if(!el) return;
+    el.scrollTo({top:el.scrollHeight,behavior:'smooth'});
+    setAtBottom(true);
+  }
+
+  // FLIP：输入框从起始页居中大框位置滑到底部（仅平移，不缩放以保圆角）
+  useLayoutEffect(()=>{
+    if(flyInputFrom && inputSlotRef.current) runFlip(inputSlotRef.current, flyInputFrom, {scale:false});
+  // eslint-disable-next-line
+  },[]);
+
+  return(
+    <div className={flying?'chat-flying':'page-enter'} style={{flex:1,display:'flex',flexDirection:'column',minWidth:0,minHeight:0}}>
+      <PresenceFloat mood={mood} context={context} hbState={hbState} forceAsleep={forceAsleep} idleMs={idleMs} lookDown={lookDown} waking={waking} spotlightKey={spotlightKey} flyFrom={flyEyesFrom}/>
+      <div ref={listRef} className="chat-scroll-area" style={{flex:1,minHeight:0,overflow:'auto',padding:'8px 56px 36px'}}>
+        <div ref={contentRef} style={{maxWidth:720,margin:'0 auto'}}>
+          {(()=>{
+            // P6: 呼吸分段 + 消息间距
+            const items = [];
+            let roundIdx = 0; // 每个 user message 开启新一轮
+            msgs.forEach((m,i)=>{
+              const prev = msgs[i-1];
+              if(m.role==='user') roundIdx++;
+              // 每 3 轮前插入呼吸线（从第 4 轮起）
+              if(m.role==='user' && roundIdx>1 && (roundIdx-1)%3===0){
+                const t=new Date(m.id);
+                const tlabel=`${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`;
+                items.push(
+                  <div key={`br-${m.id}`} className="breath-divider">
+                    <svg width="40" height="1"><line x1="0" y1="0.5" x2="40" y2="0.5" stroke="var(--border)" strokeWidth="1" strokeDasharray="2 4"/></svg>
+                    <span className="breath-time">{tlabel}</span>
+                    <svg width="40" height="1"><line x1="0" y1="0.5" x2="40" y2="0.5" stroke="var(--border)" strokeWidth="1" strokeDasharray="2 4"/></svg>
+                  </div>
+                );
+              }
+              const sameAuthor = prev && prev.role===m.role;
+              const sameMin = prev && Math.floor(prev.id/60000)===Math.floor(m.id/60000);
+              const crossAuthor = prev && prev.role!==m.role;
+              // 间距规则：同分钟同作者 8px，跨作者 28px，其余 18px
+              const mt = !prev ? 0 : crossAuthor ? 28 : sameMin ? 8 : 18;
+              items.push(<div key={m.id} className="chat-msg-wrap" style={{marginTop:mt}}><Msg m={m} i={i}/></div>);
+            });
+            return items;
+          })()}
+        </div>
+      </div>
+      <div className="chat-input-area" style={{padding:'0 56px 24px',flexShrink:0,position:'relative'}}>
+        {!atBottom && (
+          <button onClick={scrollToBottom} title="回到底部" style={{
+            position:'absolute',top:-46,left:'50%',transform:'translateX(-50%)',
+            width:36,height:36,borderRadius:'50%',
+            background:'var(--surface)',border:'1px solid var(--border)',
+            boxShadow:'var(--shadow-lg)',cursor:'pointer',color:'var(--t2)',
+            display:'flex',alignItems:'center',justifyContent:'center',zIndex:50,
+            animation:'up .14s ease both',
+          }}
+            onMouseEnter={e=>{e.currentTarget.style.color='var(--t1)';e.currentTarget.style.borderColor='var(--t1)';}}
+            onMouseLeave={e=>{e.currentTarget.style.color='var(--t2)';e.currentTarget.style.borderColor='var(--border)';}}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+          </button>
+        )}
+        <div ref={inputSlotRef} style={{maxWidth:720,margin:'0 auto'}}>
+          <InputBox placeholder="继续提问…" onSend={onSend} onTyping={onTypingStart} focusSignal={focusSignal} streaming={streaming} onStop={onStop} stopReady={stopReady} sendBlocked={sendBlocked} effort={effort} selectedEffort={selectedEffort} onEffortChange={onEffortChange} prefill={prefill}/>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* App */
+function App(){
+  // ── Responsive sidebar ──
+  const [autoMode,setAutoMode]=useState('full'); // 'full' | 'compact' | 'hidden'
+  const [manualOverride,setManualOverride]=useState(null); // null = follow auto
+  const [rightHidden,setRightHidden]=useState(false); // P1·13 · 右栏窄屏自动收起
+  const rootRef=useRef(null);
+
+  useEffect(()=>{
+    const el=document.getElementById('root');
+    const obs=new ResizeObserver(entries=>{
+      const w=entries[0].contentRect.width;
+      if(w<560) setAutoMode('hidden');
+      else if(w<860) setAutoMode('compact');
+      else setAutoMode('full');
+      setRightHidden(w<1080); // 右栏 280px 在窄屏挤占正文 → 收起
+    });
+    obs.observe(el);
+    return()=>obs.disconnect();
+  },[]);
+
+  // When auto changes, clear manual override if it matches auto
+  useEffect(()=>{ setManualOverride(null); },[autoMode]);
+
+  const sidebarMode = manualOverride ?? autoMode; // 'full' | 'compact' | 'hidden'
+  const sidebarCompact = sidebarMode==='compact';
+  const sidebarHidden  = sidebarMode==='hidden';
+  const [mobileOpen,setMobileOpen]=useState(false);
+
+  const [tweak,setTweak]=useState(()=>{
+    try{ const s=localStorage.getItem('zoufx'); return s?{...TWEAK_DEFAULTS,...JSON.parse(s)}:TWEAK_DEFAULTS; }
+    catch{ return TWEAK_DEFAULTS; }
+  });
+  const [showTp,setShowTp]=useState(false);
+  const [chats,setChats]=useState(MOCK);
+  const [activeId,setActiveId]=useState(1);
+  const [chatMsgs,setChatMsgs]=useState({});
+  const [isHome,setIsHome]=useState(true);
+  const [pageKey,setPageKey]=useState(0);
+  const [userName,setUserName]=useState(()=>{
+    try{
+      const v=localStorage.getItem('zUserName');
+      // Reset legacy values that were captured from first message (too long / contains punctuation)
+      if(!v || v.length>4) { localStorage.setItem('zUserName','星'); return '星'; }
+      return v;
+    }catch{return '星';}
+  });
+  useEffect(()=>{ window.__zUserName=userName; },[userName]);
+  const [convAnchorOpen,setConvAnchorOpen]=useState(false);
+  const [hbState,setHbState]=useState('等待输入');
+  // 回复结束 → 自增，驱动输入框自动 refocus
+  const [focusKey,setFocusKey]=useState(0);
+  // 流式生成状态 + 计时器登记（供 Stop 中断、防止叠加）
+  const [streaming,setStreaming]=useState(false);
+  const streamRef=useRef({timers:new Set(),rid:null,chatId:null,uid:null,prompt:''});
+  const armErrorRef=useRef(false); // P1·8 · 调试：让下一条回复出错
+  const [armError,setArmError]=useState(false);
+  // ── v0.2.4 · consumeStream 语义 ──
+  // turnId：后端每轮流最开头下发（turn 事件，早于 anchor_created）。到达前停止按钮禁用；
+  // 极端时序下若仍点了停止（pendingStop 兜底），turnId 一到立即补发停止请求。
+  const turnRef=useRef({turnId:null,pendingStop:false});
+  const [turnReady,setTurnReady]=useState(false);
+  const stopReqRef=useRef(false); // 停止请求在途去重
+  const pollRef=useRef({timers:new Set()}); // 轮询计时器（watchdog 恢复 / 在建轮），独立于流 timers
+  // mock 服务端：consumeStream 生成脱离连接后，readyAt 时刻"落库"完整回复（供 loadMessages 轮询）
+  const mockServerRef=useRef(null); // {chatId,uid,rid,turnId,prompt,reply,readyAt}
+  // 当前锚点在建轮（GET /ai/anchors/{id}/pending 非空）→ 禁用发送，避免同锚两个在建轮相撞
+  const [pendingTurn,setPendingTurn]=useState(null); // {turnId,prompt}
+  const armTimeoutRef=useRef(false); const [armTimeout,setArmTimeout]=useState(false); // 调试：下一条超时（watchdog→轮询恢复）
+  const armStopLateRef=useRef(false); const [armStopLate,setArmStopLate]=useState(false); // 调试：停止时生成刚好完成 → stopped:false
+  // v0.2.3 · 失败重试新交互：把失败轮的原文放回输入框 + 顶部轻提示
+  const [prefill,setPrefill]=useState(null); // {text,key}
+  const [toast,setToast]=useState(null); // {text,key}
+  useEffect(()=>{
+    if(!toast) return;
+    const t=setTimeout(()=>setToast(null),3200);
+    return ()=>clearTimeout(t);
+  },[toast&&toast.key]);
+  // FLIP 转场：起始页发送时采集眼睛/输入框旧位置，传给 Chat 做连续位移
+  const [flyEyesFrom,setFlyEyesFrom]=useState(null);
+  const [flyInputFrom,setFlyInputFrom]=useState(null);
+  const [currentMood,setCurrentMood]=useState(null);
+  // P2 spotlight：mood 变化 → 触发双圈扩散
+  const [spotlightKey,setSpotlightKey]=useState(0);
+  const [mockNight,setMockNight]=useState(false);
+  // ── v0.2.2 思考深度能力（mock /ai/features → store）──
+  const [profile,setProfile]=useState('deepseek-v4');
+  const features = FEATURES_BY_PROFILE[profile] || FEATURES_BY_PROFILE['deepseek-v4'];
+  const effortCap = features.effort;
+  // 当前选中档位，初始化为 defaultValue；profile 变化时重置
+  const [selectedEffort,setSelectedEffort]=useState(effortCap.defaultValue||'normal');
+  useEffect(()=>{ setSelectedEffort(effortCap.defaultValue||'normal'); },[profile]);
+  const triggerSpotlight=()=>setSpotlightKey(k=>k+1);
+  // 打字注视 + 唤醒
+  const [typingActive,setTypingActive]=useState(false);
+  const _wakeH=new Date().getHours();
+  const isWaking = typingActive && (_wakeH>=23||_wakeH<5||mockNight);
+  function handleTypingStart(active){ setTypingActive(active); }
+  // Presence 布局 state 已弃用（v0.14 rev6 固定 B 顶部 sticky）
+  // const [presenceLayout,setPresenceLayout]=useState('sticky');
+  const [memories,setMemories]=useState([
+    {tag:'偏好',text:'喜欢 Vercel / Linear 风格的冷淡 UI。'},
+    {tag:'项目',text:'正在搭建 Zoufx AI 前端，采用 Next.js + Tailwind。'},
+  ]);
+  const [lastUserMsg,setLastUserMsg]=useState('');
+  // hot memory 白名单 10 字段（demo 初值：stranger 档，仅 2 个外显字段）
+  const [hotMemory,setHotMemory]=useState({
+    display_name:'星',
+    role:'程序员',
+  });
+  // significant-event / commitment — v0.14 新增（Map<uuid, description>，无时间序）
+  const [events,setEvents]=useState({});
+  const [commitments,setCommitments]=useState({});
+  const [memoryAnchors,setMemoryAnchors]=useState(null); // v0.145 · 默认空（first conversation 文案）
+  const [lookbackOpen,setLookbackOpen]=useState(false);
+
+  // 用户活跃态 — 派生 Eyes context（normal / long-silence / high-intensity）
+  const [lastInputAt,setLastInputAt]=useState(Date.now());
+  const [recentMsgTimes,setRecentMsgTimes]=useState([]);
+  const [nowTick,setNowTick]=useState(Date.now());
+  useEffect(()=>{
+    // 15 秒一次时钟刻度，用于刷新 context 派生
+    const t=setInterval(()=>setNowTick(Date.now()),10000);
+    return()=>clearInterval(t);
+  },[]);
+  // 监听全局交互（鼠标移动 / 键盘按键）刷新 lastInputAt
+  useEffect(()=>{
+    const refresh = ()=>setLastInputAt(Date.now());
+    window.addEventListener('mousemove',refresh,{passive:true});
+    window.addEventListener('keydown',refresh,{passive:true});
+    window.addEventListener('click',refresh,{passive:true});
+    return()=>{
+      window.removeEventListener('mousemove',refresh);
+      window.removeEventListener('keydown',refresh);
+      window.removeEventListener('click',refresh);
+    };
+  },[]);
+  // 派生 context
+  const intimacy = intimacyMode(hotMemory);
+  const eyesContextAuto = (()=>{
+    const silentMs = nowTick - lastInputAt;
+    const win = nowTick - 2*60*1000;
+    const recentCount = recentMsgTimes.filter(t=>t>=win).length;
+    if(recentCount >= 3) return 'high-intensity';
+    if(silentMs > 90*1000) return 'long-silence';
+    return 'normal';
+  })();
+  const [contextOverride,setContextOverride]=useState(null); // tweaks 强制覆盖
+  const eyesContext = contextOverride || eyesContextAuto;
+  // 派生默认 mood（若无显式 mood，按 intimacy 兜底）
+  const effectiveMood = currentMood || INTIMACY_DEFAULT_MOOD[intimacy];
+
+  const isLight=tweak.theme==='light';
+
+  useEffect(()=>{
+    document.documentElement.setAttribute('data-theme',tweak.theme);
+  },[tweak.theme]);
+
+  useEffect(()=>{
+    const h=e=>{
+      if(e.data?.type==='__activate_edit_mode') setShowTp(true);
+      if(e.data?.type==='__deactivate_edit_mode') setShowTp(false);
+    };
+    window.addEventListener('message',h);
+    window.parent.postMessage({type:'__edit_mode_available'},'*');
+    return()=>window.removeEventListener('message',h);
+  },[]);
+
+  function applyTw(k,v){
+    const n={...tweak,[k]:v};
+    setTweak(n);
+    localStorage.setItem('zoufx',JSON.stringify(n));
+    window.parent.postMessage({type:'__edit_mode_set_keys',edits:{[k]:v}},'*');
+  }
+
+  function toggleSidebar(){
+    if(sidebarHidden){
+      setMobileOpen(o=>!o);
+    } else if(sidebarMode==='full'){
+      setManualOverride('compact');
+    } else {
+      setManualOverride('full');
+    }
+  }
+
+  function newChat(){
+    const id=Date.now();
+    setChats(p=>[{id,title:'新对话',t:'刚刚'},...p]);
+    setActiveId(id);
+    setIsHome(true);
+    setPageKey(k=>k+1);
+  }
+
+  function selChat(id){
+    const prev=activeId;
+    setActiveId(id);
+    const m=chatMsgs[id];
+    const goHome=!m||!m.length;
+    if(prev!==id || isHome!==goHome){ setPageKey(k=>k+1); }
+    setIsHome(goHome);
+  }
+
+  function deleteChat(id){
+    setChats(p=>p.filter(c=>c.id!==id));
+    if(activeId===id){
+      const remaining=chats.filter(c=>c.id!==id);
+      if(remaining.length){ selChat(remaining[0].id); }
+      else { newChat(); }
+    }
+  }
+
+  function renameChat(id,title){
+    setChats(p=>p.map(c=>c.id===id?{...c,title}:c));
+  }
+
+  // v0.2.4 · 主动停止 = 先请求、依响应决定（不乐观地先删本轮）：
+  // POST /ai/chat/stop {turnId} → {stopped}
+  //   stopped:true  → 移除本轮 + 回填输入框（中性提示，不摇头，不重置 activeId）
+  //   stopped:false → 生成刚好已完成落库 → 保留该轮不动（否则刷新又冒出来，自相矛盾）
+  function stopStream(){
+    const s=streamRef.current;
+    if(s.rid==null) return;
+    if(!turnRef.current.turnId){ turnRef.current.pendingStop=true; return; } // turnId 未到：记待停止（按钮本应禁用，兜底）
+    if(stopReqRef.current) return;
+    stopReqRef.current=true;
+    const turnId=turnRef.current.turnId;
+    console.log('[POST /ai/chat/stop] →',{turnId});
+    // mock：~150ms 返回；生成已完成（或调试开关）→ stopped:false，否则 true
+    setTimeout(()=>{
+      stopReqRef.current=false;
+      const st=streamRef.current;
+      const naturallyDone = st.rid==null; // 150ms 内流已自然完成
+      const stopped = !(naturallyDone || armStopLateRef.current);
+      console.log('[POST /ai/chat/stop] ←',{stopped});
+      if(!stopped){
+        setToast({text:'生成刚好已完成，本条已保留',key:Date.now()});
+        return; // 保留该轮不动；若流还在收尾，让它自然跑完
+      }
+      // stopped:true → 掐断本地流 + 移除本轮 user+assistant + 回填
+      st.timers.forEach(t=>{clearTimeout(t);clearInterval(t);});
+      st.timers.clear();
+      clearPolls();
+      const {rid,chatId,uid,prompt}=st;
+      if(rid!=null&&chatId!=null){
+        setChatMsgs(p=>({...p,[chatId]:(p[chatId]||[]).filter(m=>m.id!==rid&&m.id!==uid)}));
+      }
+      st.rid=null;
+      mockServerRef.current=null;
+      setPendingTurn(null);
+      setStreaming(false);
+      setTurnReady(false);
+      setHbState('等待输入'); // 中性：不触发眼睛 error 摇头
+      setPrefill({text:prompt||'',key:Date.now()});
+      setToast({text:'已停止，消息已放回输入框',key:Date.now()});
+    },150);
+  }
+
+  function clearPolls(){
+    pollRef.current.timers.forEach(t=>{clearTimeout(t);clearInterval(t);});
+    pollRef.current.timers.clear();
+  }
+
+  // v0.2.4 · 轮询 loadMessages：等服务端（consumeStream 脱离连接后）落库的完整回复。
+  // 拿到 → 整体替换占位（按 turnId 对齐）；窗口耗尽且 pending 已空 → 才按失败回填。
+  function pollLoadMessages(opts){ // {chatId,rid,uid,turnId,prompt,capMs}
+    clearPolls();
+    const started=Date.now();
+    const iv=setInterval(()=>{
+      const srv=mockServerRef.current;
+      const ready = srv && srv.turnId===opts.turnId && Date.now()>=srv.readyAt;
+      console.log('[GET loadMessages] poll',ready?'→ 已落库':'→ 尚未');
+      if(ready){ clearPolls(); finishTurnWithFullReply(opts,srv.reply); return; }
+      if(Date.now()-started>opts.capMs){
+        clearPolls();
+        mockServerRef.current=null;
+        setPendingTurn(null);
+        setChatMsgs(p=>({...p,[opts.chatId]:(p[opts.chatId]||[]).filter(m=>m.id!==opts.rid&&m.id!==opts.uid)}));
+        streamRef.current.rid=null;
+        setStreaming(false);
+        setTurnReady(false);
+        setHbState('出错了');
+        setTimeout(()=>setHbState(h=>h==='出错了'?'等待输入':h),1600);
+        setPrefill({text:opts.prompt,key:Date.now()});
+        setToast({text:'发送失败，消息已放回输入框，可修改后重发',key:Date.now()});
+      }
+    },2000);
+    pollRef.current.timers.add(iv);
+  }
+
+  // 轮询拿到完整回复 → 用 loadMessages 结果整体替换占位两条（避免两条一样的问题气泡）。
+  // 该回复是历史消息（非流式）：揭示引擎走非流式路径整条显示，不逐块揭示。
+  function finishTurnWithFullReply(opts,reply){
+    setChatMsgs(p=>({...p,[opts.chatId]:(p[opts.chatId]||[]).map(m=>{
+      if(m.id===opts.uid) return {...m,content:opts.prompt};
+      if(m.id!==opts.rid) return m;
+      const parts=(m.parts||[]).filter(pt=>pt.type!=='pending');
+      return {...m,parts:[...parts,{type:'content',text:reply,streaming:false}]};
+    })}));
+    mockServerRef.current=null;
+    setPendingTurn(null);
+    streamRef.current.rid=null;
+    setStreaming(false);
+    setTurnReady(false);
+    setHbState('等待输入');
+    setFocusKey(k=>k+1);
+    setToast({text:'已同步服务端完成的回复',key:Date.now()});
+  }
+
+  // v0.2.4 · 模拟「打开有在建轮的对话」：GET pending 非空 → 历史后补 user 气泡 + 生成中占位，
+  // 期间禁用发送（同锚约束），轮询到落库 → 整体替换。
+  function simulateOpenWithPending(){
+    const prompt='帮我把上周聊的方案整理成三步计划';
+    const cid=Date.now();
+    setChats(p=>[{id:cid,title:prompt.slice(0,20)+'…',t:'刚刚'},...p]);
+    const uid=cid+1, rid=cid+2;
+    const turnId='turn_'+rid.toString(36);
+    console.log('[GET /ai/anchors/{id}/pending] →',{turnId,prompt});
+    setChatMsgs(p=>({...p,[cid]:[
+      {id:uid,role:'user',content:prompt},
+      {id:rid,role:'assistant',parts:[{type:'pending'}]},
+    ]}));
+    setActiveId(cid);
+    setIsHome(false);
+    setPageKey(k=>k+1);
+    setPendingTurn({turnId,prompt});
+    setHbState('正在回复…');
+    streamRef.current={timers:new Set(),rid,chatId:cid,uid,prompt};
+    turnRef.current={turnId,pendingStop:false};
+    const reply=REPLIES[replyIdx%REPLIES.length]; replyIdx++;
+    mockServerRef.current={chatId:cid,uid,rid,turnId,prompt,reply,readyAt:Date.now()+5000};
+    pollLoadMessages({chatId:cid,rid,uid,turnId,prompt,capMs:20000});
+  }
+
+  function send(text,thinking){
+    if(streaming) return;
+    // v0.2.4 · 同锚并发约束：该锚点有在建轮（pending 非空）→ 禁发，等 pending 清空再放行
+    if(pendingTurn){ setToast({text:'上一条还在生成中',key:Date.now()}); return; }
+    // v0.2.3 · 新一轮发送：清掉上一次失败的回填/提示残留（否则 Chat 重挂载时 InputBox 会把旧文本灌回输入框）
+    setPrefill(null);
+    setToast(null);
+    const id=activeId;
+    // ── v0.2.2 构造 POST /ai/chat 请求体（thinking 由布尔改为对象）──
+    // effort 仅在 enabled 且模型支持时携带；否则省略，后端按默认/未开启处理。
+    const thinkingPayload = thinking
+      ? { enabled: !!thinking.enabled,
+          ...(thinking.enabled && effortCap.supported && thinking.effort
+              ? { effort: thinking.effort } : {}) }
+      : { enabled:false };
+    const requestBody = {
+      prompt: text, userId:'demo', anchorId:String(Date.now()), prevAnchorId:null,
+      thinking: thinkingPayload,
+    };
+    console.log('[POST /ai/chat] profile=%s →', profile, JSON.stringify(requestBody.thinking), requestBody);
+    setChats(p=>p.map(c=>c.id===id?{...c,title:text.length>20?text.slice(0,20)+'…':text}:c));
+    const uid=Date.now(), rid=uid+1;
+    const userMsg={id:uid,role:'user',content:text};
+
+    // Identity capture removed — username is set explicitly (demo: "星")
+
+    setChatMsgs(p=>({...p,[id]:[...(p[id]||[]),userMsg]}));
+    setLastUserMsg(text);
+    setLastInputAt(Date.now());
+    setRecentMsgTimes(p=>[...p.slice(-9), Date.now()]);
+    // FLIP 转场：仅起始页→聊天页的那一次，同步测量眼睛/输入框当前 rect（DOM 仍是 Home）
+    let flyEyes=null, flyInput=null;
+    if(isHome){
+      const eEl=document.querySelector('.home-page .eyes-z');
+      const iEl=document.querySelector('.home-input-slot');
+      if(eEl){const r=eEl.getBoundingClientRect(); flyEyes={left:r.left,top:r.top,width:r.width,height:r.height};}
+      if(iEl){const r=iEl.getBoundingClientRect(); flyInput={left:r.left,top:r.top,width:r.width,height:r.height};}
+    }
+    setFlyEyesFrom(flyEyes);
+    setFlyInputFrom(flyInput);
+    setIsHome(false);
+    setPageKey(k=>k+1);
+
+    runStream(id, uid, rid, text, thinking);
+  }
+
+  // v0.2.3 · 流式生成（后端「只有完整对话才落库」——失败轮不留痕迹，无需 regenerate/原位重跑）
+  function runStream(id, uid, rid, text, thinking, opts={}){
+    const forceError = opts.forceError ?? armErrorRef.current;
+    armErrorRef.current = false; setArmError(false);
+    const forceTimeout = opts.forceTimeout ?? armTimeoutRef.current;
+    armTimeoutRef.current = false; setArmTimeout(false);
+    // Mock structured streaming response
+    const thinkStyle='C';
+    const _thinkBase='用户提出了一个开放性问题。先判断意图：是要“推荐”还是“梳理”。\n判定为后者。需要调用记忆查询看看过去是否谈过相关话题，避免重复。';
+    // effort 只影响 thinking 内容的多少：normal 默认；high 多一段；max 最充分。
+    const _eff=(thinking&&thinking.enabled&&effortCap.supported)?(thinking.effort||effortCap.defaultValue):'normal';
+    const _thinkExtra={
+      high:'\n再核对一下边界条件：用户没有给出明确约束，我应当主动补全可能的前提，并在回答里点明假设。',
+      max:'\n再核对一下边界条件：用户没有给出明确约束，我应当主动补全可能的前提，并在回答里点明假设。\n进一步推演：把方案拆成 3 个层级，逐层验证可行性与代价，挑出性价比最高的一条路径，再反向检查有无遗漏。',
+    };
+    const thinkText=_thinkBase+(_thinkExtra[_eff]||'');
+    setHbState('正在思考…');
+    // 思考中：思考 + 调用工具阶段脸显示"思考中"（系统状态驱动）。
+    // LLM 情绪在开始吐回复正文那一刻才落定 → 届时立即切到对应情绪。
+    // ⚠️ 仅原型演示用：真实产品里情绪完全由后端决定（MoodService 瞬时情绪 / 行内 <!--mood:xx-->
+    // → SSE mood 事件），前端只是按 keyword 原样消费、不做任何挑选。这里没有后端，
+    // 故用一张加权表模拟"正常聊天的情绪分布"让 demo 更真实：愉快/平静为默认层（愉快最常见、
+    // 平静次之），其余更强烈的情绪只偶尔出现。接后端时整段删除，mood 直接取自 SSE。
+    const MOOD_WEIGHTS = {'愉快':42,'平静':24,'好奇':12,'兴奋':9,'困惑':6,'难过':4,'愤怒':3};
+    const picked = (()=>{
+      const total = MOODS.reduce((s,m)=>s+(MOOD_WEIGHTS[m]||1),0);
+      let r = Math.random()*total;
+      for(const m of MOODS){ r -= (MOOD_WEIGHTS[m]||1); if(r<=0) return m; }
+      return '愉快';
+    })();
+    const toolPart={type:'tool',tool:'search_cold_memory',toolDisplay:'记忆检索',status:'running',duration:'—',params:`{\n  scope: "long_term",\n  query: ${JSON.stringify((text||'').slice(0,30))},\n  limit: 5\n}`,result:null};
+    const initialMsg={id:rid,role:'assistant',parts:[
+      {type:thinkStyle==='A'?'thinking-a':'thinking-c',text:'',streaming:true,startIdx:0},
+      toolPart,
+    ]};
+    setChatMsgs(p=>({...p,[id]:[...(p[id]||[]),initialMsg]}));
+    streamRef.current={timers:new Set(),rid,chatId:id,uid,prompt:text};
+    setStreaming(true);
+    const reg=t=>{ streamRef.current.timers.add(t); return t; };
+
+    // ── v0.2.4 · turn 事件：后端在流最开头先发 turnId（早于 anchor_created）──
+    // mock：~120ms 到达。到达前停止按钮禁用（InputBox stopReady）；pendingStop 兜底补发。
+    turnRef.current={turnId:null,pendingStop:false};
+    setTurnReady(false);
+    const turnId='turn_'+rid.toString(36);
+    reg(setTimeout(()=>{
+      if(streamRef.current.rid!==rid) return;
+      turnRef.current.turnId=turnId;
+      setTurnReady(true);
+      console.log('[SSE turn]',{turnId});
+      if(turnRef.current.pendingStop){ turnRef.current.pendingStop=false; stopStream(); }
+    },120));
+
+    // ── v0.2.4 · watchdog：无数据超时不再当失败回填（consumeStream：生成已脱离连接）──
+    // 触发时：abort 死连接 → 该轮标"生成中"（保留问题气泡）→ 轮询 loadMessages 等落库回复。
+    // 真实为 90_000ms / 轮询上限 90s；mock 缩短为 3s / 20s 便于演示。
+    const WATCHDOG_MS = forceTimeout ? 3000 : 90000;
+    const reply=REPLIES[replyIdx%REPLIES.length]; replyIdx++; // 提前取：watchdog 恢复路径也用同一条
+    let watchdogT=null;
+    function feedWatchdog(){
+      if(watchdogT){ clearTimeout(watchdogT); streamRef.current.timers.delete(watchdogT); }
+      watchdogT=reg(setTimeout(onWatchdogTimeout,WATCHDOG_MS));
+    }
+    function onWatchdogTimeout(){
+      if(streamRef.current.rid!==rid) return;
+      console.log('[watchdog] 无数据超时 → abort 连接，标"生成中"，转轮询 loadMessages');
+      // 1) abort 死连接（掐掉本地流 timers），保留已显示的气泡
+      const st=streamRef.current;
+      st.timers.forEach(t=>{clearTimeout(t);clearInterval(t);});
+      st.timers.clear();
+      // 2) 该轮 assistant 标"生成中"
+      setChatMsgs(p=>({...p,[id]:(p[id]||[]).map(m=>{
+        if(m.id!==rid)return m;
+        const parts=m.parts
+          .filter(pt=>!(pt.type==='content'&&!pt.text))
+          .map(pt=>{
+            if(pt.streaming) return {...pt,streaming:false};
+            if(pt.type==='tool'&&pt.status==='running') return {...pt,status:'done',duration:'—'};
+            return pt;
+          });
+        return {...m,parts:[...parts,{type:'pending'}]};
+      })}));
+      setHbState('正在回复…');
+      setPendingTurn({turnId,prompt:text}); // 在建轮 → 禁发
+      // 3) mock 服务端：生成脱离连接继续跑，~5s 后落库完整回复
+      mockServerRef.current={chatId:id,uid,rid,turnId,prompt:text,reply,readyAt:Date.now()+5000};
+      // 4) 轮询（2s 间隔；mock 上限 20s，真实 90s）
+      pollLoadMessages({chatId:id,rid,uid,turnId,prompt:text,capMs:20000});
+    }
+    feedWatchdog();
+
+    // Stream thinking
+    let ti=0;
+    const tiv=reg(setInterval(()=>{
+      ti++; feedWatchdog(); // 有数据到达 → 喂狗
+      const slice=thinkText.slice(0,ti);
+      setChatMsgs(p=>({...p,[id]:(p[id]||[]).map(m=>{
+        if(m.id!==rid)return m;
+        const parts=[...m.parts];
+        parts[0]={...parts[0],text:slice,streaming:true,startIdx:Math.max(0,ti-12)};
+        return{...m,parts};
+      })}));
+      if(ti>=thinkText.length){
+        clearInterval(tiv);
+        setHbState('调用工具…');
+        // Finish thinking, run tool, then stream content（留出 ~0.9s 让 running 计时跳动可见）
+        reg(setTimeout(()=>{
+          // v0.2.4 · 超时演示：连接假死 —— 不再有任何数据到达，等 watchdog 触发
+          if(forceTimeout){
+            console.log('[mock] 连接假死：停止下发数据，等待 watchdog');
+            return;
+          }
+          // v0.2.3 · 失败分支：后端未落库 → 前端撤回本轮（用户气泡 + 助手占位），
+          // 把用户原文放回输入框，顶部轻提示；不再原地生成错误条 / 重试按钮。
+          if(forceError){
+            setChatMsgs(p=>({...p,[id]:(p[id]||[]).filter(m=>m.id!==rid&&m.id!==uid)}));
+            setHbState('出错了');
+            // 带守卫的复位：若用户已在 1.6s 内重发（hbState 已被新一轮改写），不要覆盖
+            setTimeout(()=>setHbState(h=>h==='出错了'?'等待输入':h),1600);
+            setStreaming(false);
+            streamRef.current.rid=null;
+            streamRef.current.timers.clear();
+            setPrefill({text,key:Date.now()});
+            setToast({text:'发送失败，消息已放回输入框，可修改后重发',key:Date.now()});
+            return;
+          }
+          setChatMsgs(p=>({...p,[id]:(p[id]||[]).map(m=>{
+            if(m.id!==rid)return m;
+            const parts=[...m.parts];
+            parts[0]={...parts[0],streaming:false};
+            parts[1]={...parts[1],status:'done',duration:'0.92s',result:'找到 2 条相关记忆。\n  · 全部来自昨天凌晨。'};
+            return{...m,parts:[...parts,{type:'content',text:'',streaming:true}]};
+          })}));
+          // 开始回复 → LLM 情绪落定，立即切到对应情绪（触发节拍 + 光晕 + 最小播放锁）
+          setHbState('正在回复…');
+          setCurrentMood(picked); triggerSpotlight();
+
+          // reply 已在 runStream 顶部取好（watchdog 恢复路径共用同一条）
+          // 模拟真实的“极快输出”：整段回复在很短时间内分几大块到达（像真实 token 突发）。
+          // 渲染节奏完全交给 StreamingContent 的揭示引擎（rAF 追赶 + 逐块淡入 bloom），
+          // 不再用逐字打字机 —— 因此无论后端多快，都不会出现“打一点然后瞬间刷全”的闪屏。
+          const streamMood = picked;
+          // 情绪只轻微影响到达节奏：好奇/兴奋更急促，难过更从容。
+          const PACE = {'好奇':26,'兴奋':22,'愉快':34,'平静':44,'愤怒':34,'难过':64,'困惑':46};
+          const gap = PACE[streamMood] || 40;
+          const CHUNKS = 7;
+          let ci=0;
+          function pushChunk(){
+            ci++; feedWatchdog();
+            const upto = ci>=CHUNKS ? reply.length : Math.round(reply.length*ci/CHUNKS);
+            setChatMsgs(p=>({...p,[id]:(p[id]||[]).map(m=>{
+              if(m.id!==rid)return m;
+              const parts=[...m.parts];
+              parts[parts.length-1]={...parts[parts.length-1],text:reply.slice(0,upto)};
+              return{...m,parts};
+            })}));
+            if(ci>=CHUNKS){
+              /* 到达完毕：标记 streaming:false。揭示引擎会继续把缓冲揭示完再收尾
+                 （parser_end + shiki），不会闪屏 */
+              setChatMsgs(p=>({...p,[id]:(p[id]||[]).map(m=>{
+                if(m.id!==rid)return m;
+                const parts=[...m.parts];
+                const last=parts.length-1;
+                if(parts[last]?.type==='content') parts[last]={...parts[last],streaming:false};
+                return{...m,parts};
+              })}));
+              setHbState('等待输入');
+              setFocusKey(k=>k+1);
+              setStreaming(false);
+              streamRef.current.rid=null;
+              streamRef.current.timers.clear();
+              setTurnReady(false);
+              return;
+            }
+            reg(setTimeout(pushChunk, gap + Math.random()*gap*0.5));
+          }
+          reg(setTimeout(pushChunk, gap));
+        },900));
+      }
+    },18));
+  }
+
+  const curMsgs=chatMsgs[activeId]||[];
+
+  return(
+    <div style={{display:'flex',height:'100vh',overflow:'hidden'}}>
+      <Rail
+        convAnchorOpen={convAnchorOpen}
+        onConvAnchorClick={()=>setConvAnchorOpen(o=>!o)}
+        onNewChat={()=>{ newChat(); setConvAnchorOpen(false); }}
+      />
+
+      {/* Conversation-anchor drawer (会话锦点抽屉) */}
+      {convAnchorOpen&&(<>
+        <div className="drawer-bg" onClick={()=>setConvAnchorOpen(false)}/>
+        <div className="drawer">
+          <div style={{padding:'14px 16px 8px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+            <span style={{fontFamily:'var(--mono)',fontSize:10,letterSpacing:'.16em',textTransform:'uppercase',color:'var(--t3)'}}>对话</span>
+            <button onClick={()=>{newChat();setConvAnchorOpen(false);}} style={{background:'transparent',border:'1px solid var(--border)',borderRadius:7,padding:'3px 10px',fontSize:11,color:'var(--t2)',cursor:'pointer',fontFamily:'inherit'}}
+              onMouseEnter={e=>{e.currentTarget.style.borderColor='var(--t1)';e.currentTarget.style.color='var(--t1)';}}
+              onMouseLeave={e=>{e.currentTarget.style.borderColor='var(--border)';e.currentTarget.style.color='var(--t2)';}}
+            >+ 新</button>
+          </div>
+          <div style={{flex:1,overflow:'auto',padding:'0 10px 12px'}}>
+            {chats.map(c=>(
+              <ChatItem key={c.id} c={c} active={activeId===c.id}
+                onSelect={()=>{selChat(c.id);setConvAnchorOpen(false);}}
+                onDelete={()=>deleteChat(c.id)}
+                onRename={t=>renameChat(c.id,t)}
+              />
+            ))}
+          </div>
+          <div style={{padding:'10px 16px',borderTop:'1px solid var(--border)',fontFamily:'var(--mono)',fontSize:10,color:'var(--t3)',letterSpacing:'.08em'}}>
+            底层为连续记忆流，上方仅为分组。
+          </div>
+        </div>
+      </>)}
+
+      <div style={{flex:1,display:'flex',flexDirection:'column',minWidth:0,minHeight:0}}>
+        {/* Page */}
+        {isHome
+          ? <Home key={`home-${pageKey}`} onSend={send} mood={effectiveMood} context={eyesContext} intimacy={intimacy} forceAsleep={mockNight} idleMs={nowTick-lastInputAt} lookDown={typingActive} waking={isWaking} onTypingStart={handleTypingStart} spotlightKey={spotlightKey} effort={effortCap} selectedEffort={selectedEffort} onEffortChange={setSelectedEffort}/>
+          : <Chat key={`chat-${pageKey}`} msgs={curMsgs} onSend={send}
+                  mood={effectiveMood} context={eyesContext}
+                  hbState={hbState} forceAsleep={mockNight} idleMs={nowTick-lastInputAt} lookDown={typingActive} waking={isWaking} onTypingStart={handleTypingStart} spotlightKey={spotlightKey} focusSignal={focusKey}
+                  flyEyesFrom={flyEyesFrom} flyInputFrom={flyInputFrom} streaming={streaming} onStop={stopStream} stopReady={turnReady} sendBlocked={!!pendingTurn} effort={effortCap} selectedEffort={selectedEffort} onEffortChange={setSelectedEffort} prefill={prefill}/>
+        }
+      </div>
+
+      {toast && (
+        <div className="top-toast" key={toast.key} role="status" aria-live="polite">
+          <span className="tt-dot"/>
+          <span>{toast.text}</span>
+        </div>
+      )}
+
+      {!rightHidden && <StatePanel
+        hbState={hbState}
+        lastUserMsg={lastUserMsg}
+        currentMood={currentMood}
+        memories={memories}
+        hotMemory={hotMemory}
+        events={events}
+        commitments={commitments}
+        memoryAnchors={memoryAnchors}
+        onOpenLookback={()=>setLookbackOpen(true)}
+      />}
+
+      {lookbackOpen && (
+        <LookBackModal
+          events={events}
+          commitments={commitments}
+          userName={userName}
+          onClose={()=>setLookbackOpen(false)}
+        />
+      )}
+
+      {showTp&&(
+        <div className="tp">
+          <div className="tp-title">Tweaks</div>
+          <div className="tp-row">
+            <span className="tp-label">主题</span>
+            <select style={{background:'var(--chip)',border:'1px solid var(--border)',color:'var(--t1)',borderRadius:7,padding:'3px 8px',fontSize:12,fontFamily:'inherit',cursor:'pointer',outline:'none'}}
+              value={tweak.theme} onChange={e=>applyTw('theme',e.target.value)}>
+              <option value="light">亮色</option>
+              <option value="dark">深色</option>
+            </select>
+          </div>
+
+          <div style={{height:1,background:'var(--border-lt)',margin:'10px 0 14px'}}/>
+          <div className="tp-title" style={{marginBottom:10}}>Thinking · 思考深度</div>
+          <div className="tp-row" style={{flexDirection:'column',alignItems:'stretch',gap:6}}>
+            <span className="tp-label">模型 profile（/ai/features）</span>
+            <select
+              value={profile} onChange={e=>setProfile(e.target.value)}
+              style={{background:'var(--chip)',border:'1px solid var(--border)',color:'var(--t1)',borderRadius:7,padding:'4px 8px',fontSize:12,fontFamily:'inherit',cursor:'pointer',outline:'none'}}
+            >
+              <option value="deepseek-v4">deepseek-v4（支持 effort）</option>
+              <option value="MiniMax-M3">MiniMax-M3（不支持）</option>
+            </select>
+          </div>
+          <div className="tp-row" style={{marginTop:2}}>
+            <span className="tp-label" style={{color:'var(--t3)',fontSize:11}}>
+              {effortCap.supported?`已选档位：${selectedEffort}`:'当前模型隐藏选择器'}
+            </span>
+          </div>
+
+          <div style={{height:1,background:'var(--border-lt)',margin:'10px 0 14px'}}/>
+          <div className="tp-title" style={{marginBottom:10}}>Mood · 情感</div>
+          <div className="tp-row">
+            <span className="tp-label">模拟深夜（asleep 眼）</span>
+            <label className="tog"><input type="checkbox" checked={mockNight} onChange={e=>setMockNight(e.target.checked)}/><span className="tog-track"/></label>
+          </div>
+          <div className="tp-row" style={{marginTop:4}}>
+            <span className="tp-label">模拟走神（idle 90s+）</span>
+            <button onClick={(e)=>{ e.stopPropagation(); setLastInputAt(Date.now()-100000); }}
+              style={{background:'transparent',border:'1px solid var(--border)',color:'var(--t2)',borderRadius:7,padding:'3px 10px',fontSize:11,fontFamily:'inherit',cursor:'pointer'}}>触发 →</button>
+          </div>
+          <div className="tp-row" style={{flexDirection:'column',alignItems:'stretch',gap:6}}>
+            <span className="tp-label">当前 mood</span>
+            <select
+              value={hbState==='正在思考…'?'__think__':(currentMood||'')}
+              onChange={e=>{
+                const v=e.target.value;
+                if(v==='__think__'){
+                  setCurrentMood(null);
+                  if(isHome){ setIsHome(false); setPageKey(k=>k+1); setTimeout(()=>setHbState('正在思考…'),350); }
+                  else setHbState('正在思考…');
+                  return;
+                }
+                if(hbState==='正在思考…') setHbState('等待输入');
+                setCurrentMood(v||null);
+                if(v) triggerSpotlight();
+              }}
+              style={{background:'var(--chip)',border:'1px solid var(--border)',color:'var(--t1)',borderRadius:7,padding:'4px 8px',fontSize:12,fontFamily:'inherit',cursor:'pointer',outline:'none'}}
+            >
+              <option value="">— 无 —</option>
+              <option value="__think__">思考（系统态）</option>
+              {MOODS.map(m=><option key={m} value={m}>{m}</option>)}
+            </select>
+          </div>
+          <div className="tp-row" style={{marginTop:10}}>
+            <span className="tp-label">触发聚光灯</span>
+            <button onClick={()=>{
+              if(isHome){ setIsHome(false); setPageKey(k=>k+1); setTimeout(()=>{ if(!currentMood){ setCurrentMood('好奇'); } triggerSpotlight(); },350); }
+              else { if(!currentMood){ setCurrentMood('好奇'); } triggerSpotlight(); }
+            }} style={{background:'transparent',border:'1px solid var(--border)',color:'var(--t2)',borderRadius:7,padding:'3px 10px',fontSize:11,fontFamily:'inherit',cursor:'pointer'}}>
+              触发 →
+            </button>
+          </div>
+          <div className="tp-row" style={{marginTop:6}}>
+            <span className="tp-label">连发 3 次情绪 · 250ms</span>
+            <button onClick={()=>{
+              const seq=['好奇','兴奋','困惑'];
+              const run=()=>{ seq.forEach((m,k)=>setTimeout(()=>{ setCurrentMood(m); triggerSpotlight(); }, k*250)); };
+              if(isHome){ setIsHome(false); setPageKey(p=>p+1); setTimeout(run,350); } else run();
+            }} style={{background:'transparent',border:'1px solid var(--border)',color:'var(--t2)',borderRadius:7,padding:'3px 10px',fontSize:11,fontFamily:'inherit',cursor:'pointer'}}>
+              连发 →
+            </button>
+          </div>
+          <div className="tp-row" style={{marginTop:6}}>
+            <span className="tp-label">模拟出错（error 摇头）</span>
+            <button onClick={()=>{
+              const fire=()=>{ setHbState('出错了'); setTimeout(()=>setHbState('等待输入'), 1600); };
+              if(isHome){ setIsHome(false); setPageKey(k=>k+1); setTimeout(fire,350); } else fire();
+            }} style={{background:'transparent',border:'1px solid var(--border)',color:'var(--t2)',borderRadius:7,padding:'3px 10px',fontSize:11,fontFamily:'inherit',cursor:'pointer'}}>
+              出错 →
+            </button>
+          </div>
+          <div className="tp-row" style={{marginTop:6}}>
+            <span className="tp-label">下一条回复出错（回填输入框）</span>
+            <label className="tog"><input type="checkbox" checked={armError} onChange={e=>{ armErrorRef.current=e.target.checked; setArmError(e.target.checked); }}/><span className="tog-track"/></label>
+          </div>
+
+          <div style={{height:1,background:'var(--border-lt)',margin:'14px 0 14px'}}/>
+          <div className="tp-title" style={{marginBottom:10}}>v0.2.4 · consumeStream</div>
+          <div className="tp-row">
+            <span className="tp-label">下一条超时（watchdog→轮询恢复）</span>
+            <label className="tog"><input type="checkbox" checked={armTimeout} onChange={e=>{ armTimeoutRef.current=e.target.checked; setArmTimeout(e.target.checked); }}/><span className="tog-track"/></label>
+          </div>
+          <div className="tp-row" style={{marginTop:6}}>
+            <span className="tp-label">停止时已完成（stopped:false）</span>
+            <label className="tog"><input type="checkbox" checked={armStopLate} onChange={e=>{ armStopLateRef.current=e.target.checked; setArmStopLate(e.target.checked); }}/><span className="tog-track"/></label>
+          </div>
+          <div className="tp-row" style={{marginTop:6}}>
+            <span className="tp-label">打开有在建轮的对话</span>
+            <button onClick={simulateOpenWithPending} style={{background:'transparent',border:'1px solid var(--border)',color:'var(--t2)',borderRadius:7,padding:'3px 10px',fontSize:11,fontFamily:'inherit',cursor:'pointer'}}>模拟 →</button>
+          </div>
+
+          <div style={{height:1,background:'var(--border-lt)',margin:'14px 0 14px'}}/>
+          <div className="tp-title" style={{marginBottom:10}}>v0.14 · 关系 / 记忆</div>
+
+          <div className="tp-row" style={{flexDirection:'column',alignItems:'stretch',gap:6}}>
+            <span className="tp-label">Intimacy 档位 · 当前 {intimacy} ({filledCount(hotMemory)}/{HOT_TOTAL})</span>
+            <div style={{display:'flex',gap:4}}>
+              {[
+                {k:'stranger',  l:'初识',  data:{display_name:'星'}},
+                {k:'half-known',l:'半熟',  data:{display_name:'星',role:'程序员',language:'中文',interests:'AI/独立游戏',personality:'慢热，初识时话少',communication_style:'喜欢直接、多举例'}},
+                {k:'fully-known',l:'熟人', data:{display_name:'星',role:'程序员',language:'中文',timezone:'UTC+8',interests:'AI/独立游戏',personality:'慢热，初识时话少',communication_style:'喜欢直接、多举例',habits:'习惯先列清单再开始',values:'真诚比客套重要',hobbies:'弹钢琴 / 爬山'}},
+              ].map(o=>(
+                <button key={o.k} onClick={()=>setHotMemory(o.data)} style={{
+                  flex:1,background:intimacy===o.k?'var(--accent-s)':'transparent',
+                  border:`1px solid ${intimacy===o.k?'var(--accent-r)':'var(--border)'}`,
+                  color:intimacy===o.k?'var(--accent)':'var(--t2)',
+                  borderRadius:7,padding:'4px 0',fontSize:11,fontFamily:'inherit',cursor:'pointer',
+                }}>{o.l}</button>
+              ))}
+            </div>
+          </div>
+
+          <div className="tp-row" style={{flexDirection:'column',alignItems:'stretch',gap:6,marginTop:10}}>
+            <span className="tp-label">用户活跃态 (Eyes 反应)</span>
+            <div style={{display:'flex',gap:4}}>
+              {[
+                {k:null,             l:'自动'},
+                {k:'normal',         l:'正常'},
+                {k:'long-silence',   l:'静默'},
+                {k:'high-intensity', l:'连击'},
+              ].map(o=>{
+                const active = contextOverride===o.k;
+                return(
+                <button key={String(o.k)} onClick={()=>setContextOverride(o.k)} style={{
+                  flex:1,background:active?'var(--accent-s)':'transparent',
+                  border:`1px solid ${active?'var(--accent-r)':'var(--border)'}`,
+                  color:active?'var(--accent)':'var(--t2)',
+                  borderRadius:7,padding:'4px 0',fontSize:10.5,fontFamily:'inherit',cursor:'pointer',
+                }}>{o.l}</button>
+              );})}
+            </div>
+            <span style={{fontSize:10.5,color:'var(--t3)',marginTop:2}}>当前生效：{eyesContext}{!contextOverride&&' · 自动'}</span>
+          </div>
+
+          <div className="tp-row" style={{marginTop:10}}>
+            <span className="tp-label">记忆锚点 mock</span>
+            <button onClick={()=>setMemoryAnchors(memoryAnchors?null:MOCK_MEMORY_ANCHORS)} style={{background:'transparent',border:'1px solid var(--border)',color:'var(--t2)',borderRadius:7,padding:'3px 10px',fontSize:11,fontFamily:'inherit',cursor:'pointer'}}>
+              {memoryAnchors?'清空':'灌入分层摘要'}
+            </button>
+          </div>
+          <div className="tp-row" style={{marginTop:6}}>
+            <span className="tp-label">重要经历 mock</span>
+            <button onClick={()=>setEvents(Object.keys(events).length?{}:MOCK_EVENTS)} style={{background:'transparent',border:'1px solid var(--border)',color:'var(--t2)',borderRadius:7,padding:'3px 10px',fontSize:11,fontFamily:'inherit',cursor:'pointer'}}>
+              {Object.keys(events).length?'清空':'灌入 3 条'}
+            </button>
+          </div>
+          <div className="tp-row" style={{marginTop:6}}>
+            <span className="tp-label">承诺 mock</span>
+            <button onClick={()=>setCommitments(Object.keys(commitments).length?{}:MOCK_COMMITMENTS)} style={{background:'transparent',border:'1px solid var(--border)',color:'var(--t2)',borderRadius:7,padding:'3px 10px',fontSize:11,fontFamily:'inherit',cursor:'pointer'}}>
+              {Object.keys(commitments).length?'清空':'灌入 3 条'}
+            </button>
+          </div>
+          <div className="tp-row" style={{marginTop:6}}>
+            <span className="tp-label">打开回顾浮层</span>
+            <button onClick={()=>setLookbackOpen(true)} style={{background:'transparent',border:'1px solid var(--border)',color:'var(--t2)',borderRadius:7,padding:'3px 10px',fontSize:11,fontFamily:'inherit',cursor:'pointer'}}>
+              回顾 →
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

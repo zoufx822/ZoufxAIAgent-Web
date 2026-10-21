@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Eyes 表情矩阵 · 验证页</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#ffffff; --surface:#fafafa; --border:#e8e8e8; --border-lt:#f0f0f0;
+  --t1:#0a0a0a; --t2:#737373; --t3:#c0c0c0;
+  --mono:'JetBrains Mono',ui-monospace,monospace;
+}
+[data-theme="dark"]{
+  --bg:#0c0c0c; --surface:#161616; --border:#282828; --border-lt:#1f1f1f;
+  --t1:#ededed; --t2:#737373; --t3:#3d3d3d;
+}
+body{
+  font-family:'Space Grotesk','Noto Sans SC',sans-serif;
+  background:var(--bg); color:var(--t1);
+  padding:40px 48px 80px;
+  min-height:100vh;
+}
+.head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:32px;flex-wrap:wrap;gap:16px;}
+.head-l h1{font-size:24px;font-weight:500;letter-spacing:-.01em;margin-bottom:4px;}
+.head-l p{font-size:13px;color:var(--t2);line-height:1.6;max-width:560px;}
+.head-r{display:flex;gap:8px;flex-wrap:wrap;}
+.btn{
+  background:transparent;border:1px solid var(--border);border-radius:8px;
+  padding:5px 12px;font-size:12px;color:var(--t2);
+  font-family:inherit;cursor:pointer;
+}
+.btn.active{background:var(--t1);color:var(--bg);border-color:var(--t1);}
+.btn:hover:not(.active){border-color:var(--t1);color:var(--t1);}
+
+.section-h{
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--t3);
+  margin:36px 0 14px;padding-bottom:8px;border-bottom:1px solid var(--border-lt);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.section-h .sub{font-family:'Space Grotesk',sans-serif;font-size:11px;text-transform:none;letter-spacing:0;color:var(--t2);font-style:italic;}
+
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill, minmax(190px, 1fr));
+  gap:18px;
+}
+.cell{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:12px;padding:24px 16px 16px;
+  display:flex;flex-direction:column;align-items:center;
+  position:relative;
+}
+.cell .eyes-wrap{
+  height:120px;display:flex;align-items:center;justify-content:center;
+  margin-bottom:14px;
+}
+.cell .label-zh{font-size:14px;font-weight:500;letter-spacing:-.005em;}
+.cell .label-en{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;color:var(--t3);margin-top:2px;text-transform:uppercase;}
+.cell.neutral{background:transparent;border-color:var(--border-lt);}
+.cell-stamp{
+  position:absolute;top:8px;right:10px;
+  font-family:var(--mono);font-size:9px;letter-spacing:.1em;
+  color:var(--t3);text-transform:uppercase;
+}
+
+/* — context overlay panel — */
+.ctx-grid{
+  display:grid;grid-template-columns:repeat(4, 1fr);gap:18px;
+}
+.ctx-cell{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:12px;padding:24px 16px;
+  display:flex;flex-direction:column;align-items:center;
+}
+.ctx-cell .eyes-wrap{height:100px;display:flex;align-items:center;}
+.ctx-cell .ctx-zh{font-size:13.5px;font-weight:500;margin-top:10px;}
+.ctx-cell .ctx-desc{font-size:11px;color:var(--t2);margin-top:3px;letter-spacing:0;text-align:center;line-height:1.5;}
+
+/* — side-by-side compare strip — */
+.compare{
+  display:flex;gap:14px;flex-wrap:wrap;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:12px;padding:20px;
+  align-items:center;
+}
+.compare-item{
+  display:flex;flex-direction:column;align-items:center;flex-shrink:0;
+  padding:0 8px;
+}
+.compare-item .eyes-wrap{height:70px;}
+.compare-item span{font-size:11px;color:var(--t2);margin-top:4px;}
+
+/* ── Eyes (复刻自主文件) ── */
+.eyes-z{display:inline-block;color:var(--t1);}
+.eyes-z .eye{transform-box:fill-box;transform-origin:center;animation:eye-blink var(--blink-dur,6s) ease-in-out infinite;}
+.eyes-z .eye.eye-r{animation-delay:.04s;}
+.eyes-z .pupil{transform-box:fill-box;transform-origin:center;animation:pupil-glance 14s ease-in-out infinite;transition:cx .4s ease,cy .4s ease,r .4s ease;}
+.eyes-z ellipse{transition:ry .4s ease;}
+@keyframes eye-blink{
+  0%,40%,46%,92%,100%{transform:scaleY(1);}
+  43%{transform:scaleY(.05);}
+  95%{transform:scaleY(.05);}
+  97%{transform:scaleY(1);}
+}
+@keyframes pupil-glance{
+  0%,28%,72%,100%{transform:translate(0,0);}
+  34%,44%{transform:translate(2.2px,-1px);}
+  56%,66%{transform:translate(-2.2px,.5px);}
+}
+.eyes-z .z-sparkle{animation:sparkle-twinkle 1.4s ease-in-out infinite;}
+@keyframes sparkle-twinkle{
+  0%,100%{opacity:1;}
+  45%,55%{opacity:.35;}
+}
+.eyes-z .z-question{animation:question-bob 2s ease-in-out infinite;transform-origin:center;transform-box:fill-box;}
+@keyframes question-bob{
+  0%,100%{transform:translateY(0);opacity:.9;}
+  50%{transform:translateY(-1.2px);opacity:1;}
+}
+.legend{
+  margin-top:24px;font-size:11.5px;color:var(--t2);line-height:1.7;
+  background:var(--surface);border:1px solid var(--border-lt);
+  border-radius:10px;padding:14px 18px;max-width:760px;
+}
+.legend code{font-family:var(--mono);font-size:10.5px;color:var(--t1);background:var(--border-lt);padding:1px 5px;border-radius:3px;}
+</style>
+</head>
+<body>
+<div class="head">
+  <div class="head-l">
+    <h1>Eyes 表情矩阵</h1>
+    <p>用于验证 v0.14 rev3 的 6 个核心情绪。每个 mood 用一个<strong>独占机制</strong>区分（视线 / sparkle / 不对称 / 下沉 / 怒眉），避免"同方向不同强度"的混淆。</p>
+  </div>
+  <div class="head-r">
+    <button class="btn" data-size="64">小 · 64</button>
+    <button class="btn active" data-size="88">中 · 88</button>
+    <button class="btn" data-size="128">大 · 128</button>
+    <button class="btn" data-theme="light">亮色</button>
+    <button class="btn" data-theme="dark">深色</button>
+    <a class="btn" href="../Zoufx AI.html" style="text-decoration:none;display:inline-block;">← 返回主页</a>
+  </div>
+</div>
+
+<div class="section-h">
+  <span>6 mood · 基准（context = normal）</span>
+  <span class="sub">悬停查看参数 · 表情持续动画</span>
+</div>
+<div class="grid" id="moodGrid"></div>
+
+<div class="section-h">
+  <span>3 context · 叠加到「平静」mood 上</span>
+  <span class="sub">看 context 是否能稳定地区分</span>
+</div>
+<div class="ctx-grid" id="ctxGrid"></div>
+
+<div class="section-h">
+  <span>容易混淆的对比组</span>
+  <span class="sub">如果这几组难以区分，需要进一步拉大幅度</span>
+</div>
+<div id="compareBlock" style="display:flex;flex-direction:column;gap:14px;"></div>
+
+<div class="legend">
+  <strong>v0.14 rev3 · 6 个核心情绪</strong><br>
+  · <code>平静</code> 基准 · 不带任何调整<br>
+  · <code>好奇</code> 瞳孔强上抬（看上方）── 唯一靠"视线方向"识别<br>
+  · <code>兴奋</code> 瞳孔放大 + 黑色 sparkle 高光点（双层眼，"亮起来"的感觉）<br>
+  · <code>困惑</code> 右眼独立眯起 + 左右瞳孔大小不一（不对称识别）<br>
+  · <code>难过</code> 下眼皮重抬 + 瞳孔下移（"看着地面"）<br>
+  · <code>愤怒</code> 上眼皮内侧斜压（lidSlant → 怒眉效果）+ 瞳孔变小（聚焦/紧绷）<br>
+  · 如果某两个仍然撞了，告诉我具体哪对，我针对性拉幅度。
+</div>
+
+<script>
+/* ── 复刻自主文件（v0.14 rev3：6 个核心情绪） ── */
+const MOODS = ['平静','好奇','兴奋','困惑','难过','愤怒'];
+const MOOD_EN = {'平静':'CALM','好奇':'CURIOUS','兴奋':'EXCITED','困惑':'PUZZLED','难过':'SAD','愤怒':'ANGRY'};
+const MOOD_EXPR = {
+  '平静':   {pr:3.2, pdy: 0.0, esy:1.00, blink:6,   liddy:0,   lidty:0   },
+  '好奇':   {pr:5.0, pdy:-3.2, esy:1.00, blink:3.0, liddy:0,   lidty:0   },
+  '兴奋':   {pr:5.4, pdy:-3.0, esy:1.08, blink:2.0, liddy:0,   lidty:0,  sparkle:true },
+  '困惑':   {pr:3.2, pdy: 0.0, esy:1.00, blink:5.0, liddy:0,   lidty:0,  pdx:1.8, question:true },
+  '难过':   {pr:3.0, pdy: 1.8, esy:0.85, blink:8,   liddy:1.0, lidty:6.0 },
+  '愤怒':   {pr:2.2, pdy: 0.0, esy:0.85, blink:7,   liddy:5.0, lidty:2.0, lidSlant:8.0 },
+};
+const DEFAULT_EXPR = {pr:3.2, pdy:0, esy:1.0, pdxR:0, blink:6, liddy:0, lidty:0, lidSlant:0};
+function applyContext(e, ctx){
+  if(ctx==='long-silence'){
+    const r = {...e, blink:e.blink*1.5, pdy:(e.pdy||0)+0.6, esy:Math.max(0.35,e.esy*0.78), liddy:(e.liddy||0)+2.4};
+    if(e.esyR!==undefined) r.esyR = Math.max(0.2, e.esyR*0.78);
+    if(e.liddyR!==undefined) r.liddyR = (e.liddyR||0) + 2.4;
+    return r;
+  }
+  if(ctx==='high-intensity'){
+    const r = {...e, blink:e.blink*0.6, pr:e.pr*1.08, prR:(e.prR||e.pr)*1.08, esy:Math.min(1.15,e.esy*1.02)};
+    if(e.esyR!==undefined) r.esyR = Math.min(1.15, e.esyR*1.02);
+    return r;
+  }
+  return e;
+}
+
+let _uid = 0;
+function eyesSVG({size=88, mood, context, color='currentColor', pupil='var(--bg)'}){
+  const uid = ++_uid;
+  const w = Math.round(size*2.2), h=size;
+  const base = (mood && MOOD_EXPR[mood]) || DEFAULT_EXPR;
+  const e = applyContext(base, context);
+  const pdxBoth = e.pdx || 0;
+  // L eye
+  const ryL  = (17 * e.esy).toFixed(2);
+  const prL  = e.pr;
+  const cxL  = 28 + pdxBoth;
+  const cyL  = 22 + (e.pdy || 0);
+  const liddyL = e.liddy || 0;
+  const lidtyL = e.lidty || 0;
+  // R eye (asymmetric fallback)
+  const esyR   = e.esyR   !== undefined ? e.esyR   : e.esy;
+  const ryR    = (17 * esyR).toFixed(2);
+  const prR    = e.prR    || e.pr;
+  const cyR    = 22 + (e.pdy || 0);
+  const cxR    = 72 + (e.pdxR || 0) + pdxBoth;
+  const liddyR = e.liddyR !== undefined ? e.liddyR : liddyL;
+  const lidtyR = e.lidtyR !== undefined ? e.lidtyR : lidtyL;
+  const slant = e.lidSlant || 0;
+  const polyL = `14,${5+liddyL} 42,${5+liddyL+slant} 42,${39-lidtyL} 14,${39-lidtyL}`;
+  const polyR = `58,${5+liddyR+slant} 86,${5+liddyR} 86,${39-lidtyR} 58,${39-lidtyR}`;
+  const sparkleDeco = e.sparkle ? `
+    <g class="z-sparkle">
+      <polygon points="12,1.5 13,4.3 15.5,5 13,5.7 12,8.5 11,5.7 8.5,5 11,4.3" fill="${color}"/>
+      <polygon points="88,1.5 89,4.3 91.5,5 89,5.7 88,8.5 87,5.7 84.5,5 87,4.3" fill="${color}"/>
+      <circle cx="17" cy="12.5" r="0.9" fill="${color}"/>
+      <circle cx="83" cy="12.5" r="0.9" fill="${color}"/>
+    </g>` : '';
+  const questionDeco = e.question ? `
+    <g class="z-question">
+      <path d="M 47,4 Q 50,1 53,4 Q 53,7 50,8.5 L 50,10.5"
+            stroke="${color}" stroke-width="1.1" fill="none"
+            stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="50" cy="12.6" r="0.95" fill="${color}"/>
+    </g>` : '';
+  return `<svg class="eyes-z" width="${w}" height="${h}" viewBox="0 0 100 44" fill="none" style="--blink-dur:${e.blink}s">
+    <defs>
+      <clipPath id="m${uid}L"><polygon points="${polyL}"/></clipPath>
+      <clipPath id="m${uid}R"><polygon points="${polyR}"/></clipPath>
+    </defs>
+    <g class="eye eye-l" clip-path="url(#m${uid}L)">
+      <ellipse cx="28" cy="22" rx="13" ry="${ryL}" fill="${color}"/>
+      <circle class="pupil pupil-l" cx="${cxL}" cy="${cyL}" r="${prL}" fill="${pupil}"/>
+    </g>
+    <g class="eye eye-r" clip-path="url(#m${uid}R)">
+      <ellipse cx="72" cy="22" rx="13" ry="${ryR}" fill="${color}"/>
+      <circle class="pupil pupil-r" cx="${cxR}" cy="${cyR}" r="${prR}" fill="${pupil}"/>
+    </g>
+    ${sparkleDeco}
+    ${questionDeco}
+  </svg>`;
+}
+function fmtExpr(e){
+  const f = (n)=>(typeof n==='number'?n.toFixed(2):n);
+  return `pr ${f(e.pr)} · esy ${f(e.esy)} · pdy ${f(e.pdy||0)} · blink ${f(e.blink)}s${e.liddy?` · liddy ${f(e.liddy)}`:''}${e.lidty?` · lidty ${f(e.lidty)}`:''}${e.pdxR?` · pdxR ${f(e.pdxR)}`:''}${e.prR?` · prR ${f(e.prR)}`:''}`;
+}
+
+let curSize = 88;
+function render(){
+  // mood grid
+  const mg = document.getElementById('moodGrid');
+  mg.innerHTML = MOODS.map(m=>`
+    <div class="cell" title="${fmtExpr(MOOD_EXPR[m])}">
+      <span class="cell-stamp">${MOOD_EN[m]}</span>
+      <div class="eyes-wrap">${eyesSVG({size:curSize, mood:m})}</div>
+      <div class="label-zh">${m}</div>
+      <div class="label-en">${MOOD_EN[m]}</div>
+    </div>
+  `).join('');
+
+  // context grid (on 平静 + 兴奋 / 疲惫 for visibility)
+  const cg = document.getElementById('ctxGrid');
+  const CTX = [
+    {k:null, zh:'normal', desc:'基准 · 不叠加 context'},
+    {k:'long-silence', zh:'long-silence', desc:'>90s 无交互 · 眼皮下沉 + 眨眼变慢'},
+    {k:'high-intensity', zh:'high-intensity', desc:'近 2 min ≥3 条消息 · 瞳孔放大 + 眨眼加快'},
+  ];
+  cg.innerHTML = CTX.map(c=>`
+    <div class="ctx-cell">
+      <div class="eyes-wrap">${eyesSVG({size:Math.round(curSize*0.85), mood:'平静', context:c.k})}</div>
+      <div class="ctx-zh">${c.zh}</div>
+      <div class="ctx-desc">${c.desc}</div>
+    </div>
+    <div class="ctx-cell">
+      <div class="eyes-wrap">${eyesSVG({size:Math.round(curSize*0.85), mood:'好奇', context:c.k})}</div>
+      <div class="ctx-zh">好奇 + ${c.zh}</div>
+      <div class="ctx-desc">叠加在「好奇」上的效果</div>
+    </div>
+  `).join('');
+
+  // compare strips
+  const cmp = document.getElementById('compareBlock');
+  const STRIPS = [
+    {title:'视线 / 高光', items:[['平静','基准'],['好奇','瞳孔强上抬'],['兴奋','放大 + 黑高光']]},
+    {title:'下沉 vs 怒眉',items:[['平静','基准'],['难过','下眼皮重抬 + 瞳孔下移'],['愤怒','上眼皮内侧斜压']]},
+    {title:'对称 vs 不对称',items:[['平静','基准'],['困惑','右眼独立眯起'],['愤怒','上眼皮斜压（对称）']]},
+  ];
+  cmp.innerHTML = STRIPS.map(s=>`
+    <div class="compare">
+      <div style="width:120px;flex-shrink:0;font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);">${s.title}</div>
+      ${s.items.map(([m,d])=>`
+        <div class="compare-item">
+          <div class="eyes-wrap">${eyesSVG({size:60, mood:m})}</div>
+          <span><strong style="color:var(--t1)">${m}</strong> · ${d}</span>
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+}
+
+document.querySelectorAll('.btn[data-size]').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('.btn[data-size]').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    curSize = +b.dataset.size;
+    render();
+  });
+});
+document.querySelectorAll('.btn[data-theme]').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.documentElement.setAttribute('data-theme', b.dataset.theme);
+  });
+});
+render();
+</script>
+</body>
+</html>
