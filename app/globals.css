@@ -1003,7 +1003,6 @@ button {
   .eyes-z.calm .pupil,
   .eyes-z.sad .pupil,
   .eyes-z.asleep .eye,
-  .eyes-sparkle circle,
   .eyes-question,
   .mood-ambient.on {
     animation: none !important;
@@ -1011,10 +1010,6 @@ button {
   .presence-mood,
   .home-status-mood {
     animation: none !important;
-  }
-  .mood-glow {
-    animation: none !important;
-    opacity: 0 !important;
   }
   .mood-ambient.on {
     opacity: 0.24 !important; /* 只留静态淡色 */
@@ -1025,15 +1020,16 @@ button {
  * PresenceFloat — 无边框浮动存在感指示器
  * ─────────────────────────────────────── */
 .presence-float {
-  position: sticky;
-  top: 0;
+  position: relative;
   z-index: 5;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
-  padding: 10px 24px 18px;
-  background: var(--bg);
+  justify-content: flex-end;
+  gap: 4px;
+  min-height: 58px;
+  padding: 2px 24px 6px;
+  background: transparent;
   flex-shrink: 0;
   pointer-events: none;
 }
@@ -1043,54 +1039,15 @@ button {
   justify-content: center;
   position: relative;
   color: var(--accent);
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  transform-origin: center center;
 }
-/* Gemini 风格柔和光晕——径向渐变，z-index:-1 晕在眼睛后方。
- * 光晕"池化"：每束冻结自身情绪色（--glow-c），单次绽放、播完即由 JS 卸载；
- * 多束叠加接管——上一束没散完时新束接上，连发不闪烁（池上限 3）。 */
-.mood-glow {
-  position: absolute;
-  width: 380px;
-  height: 200px;
-  left: 50%;
-  top: 50%;
-  border-radius: 50%;
-  background: radial-gradient(
-    ellipse at center,
-    var(--glow-c, var(--emotion-color, #94a3b8)) 0%,
-    color-mix(in oklch, var(--glow-c, var(--emotion-color, #94a3b8)), transparent 55%) 32%,
-    transparent 70%
-  );
-  filter: blur(16px);
-  pointer-events: none;
-  opacity: 0;
-  z-index: -1;
-  animation: mood-glow-bloom 2.2s cubic-bezier(0.22, 1, 0.36, 1) 1 forwards; /* 单次绽放 */
+/* spotlight：强度越高放得越大，配合输入框上方的固定位置不挤动消息区 */
+.presence-float.spotlight .presence-eyes-wrap {
+  transform: scale(calc(1.35 + 0.55 * var(--presence-i, 0.6)));
+  z-index: 6;
 }
-/* home 页光晕横向更宽，适配 size=80 */
-.home-eyes .mood-glow {
-  width: 500px;
-  height: 250px;
-}
-@keyframes mood-glow-bloom {
-  0% {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(0.6);
-  }
-  26% {
-    opacity: 0.6;
-    transform: translate(-50%, -50%) scale(0.95);
-  }
-  55% {
-    opacity: 0.42;
-    transform: translate(-50%, -50%) scale(1.06);
-  }
-  100% {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(1.28);
-  }
-}
-
-/* 常驻呼吸光晕——情绪保持期底层垫的一层很淡、缓慢明灭的余韵（burst 绽放叠在其上）。
+/* 常驻呼吸光晕——情绪保持期底层垫的一层很淡、缓慢明灭的余韵。
  * 用实时 var(--emotion-color)，换情绪时颜色随 @property 融变；情绪消失时 0.6s 淡出。 */
 .mood-ambient {
   position: absolute;
@@ -1222,27 +1179,10 @@ button {
   }
 }
 
-/* eyes 兴奋星芒 / 困惑问号 */
-.eyes-sparkle circle {
-  animation: sparkle-twinkle 1.6s ease-in-out infinite;
-}
-.eyes-sparkle circle:nth-child(2) {
-  animation-delay: 0.35s;
-}
+/* eyes 困惑问号 */
 .eyes-question {
   animation: question-bob 1.8s ease-in-out infinite;
   opacity: 0.7;
-}
-@keyframes sparkle-twinkle {
-  0%,
-  100% {
-    opacity: 0;
-    transform: scale(0.5);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.2);
-  }
 }
 @keyframes question-bob {
   0%,
@@ -2200,9 +2140,6 @@ button {
 [data-emotion='好奇'] {
   --emotion-color: #06b6d4;
 }
-[data-emotion='兴奋'] {
-  --emotion-color: #f59e0b;
-}
 [data-emotion='困惑'] {
   --emotion-color: #a855f7;
 }
@@ -2221,9 +2158,6 @@ button {
 }
 .dark [data-emotion='好奇'] {
   --emotion-color: #22d3ee;
-}
-.dark [data-emotion='兴奋'] {
-  --emotion-color: #fbbf24;
 }
 .dark [data-emotion='困惑'] {
   --emotion-color: #c084fc;

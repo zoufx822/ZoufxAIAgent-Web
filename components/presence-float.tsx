@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useStore } from '@/lib/store'
 import { STATUS_LABELS, MOOD_HIDDEN_STATUSES } from '@/lib/status-labels'
-import { useMoodPresence } from '@/hooks/use-mood-presence'
+import { usePresence } from '@/hooks/use-presence'
 import { runFlip, type FlipRect } from '@/lib/flip'
 import type { EyesContext } from './eyes'
 import { Eyes } from './eyes'
@@ -16,6 +16,10 @@ interface PresenceFloatProps {
   flyFrom?: FlipRect | null
 }
 
+/**
+ * 输入框上方的存在感指示器——眼睛贴住打字/阅读焦点，不再占页面顶部。
+ * 只在后端发 presence 时变脸；强度驱动 spotlight 的缩放与停留时长。
+ */
 export function PresenceFloat({
   context,
   lookDown = false,
@@ -23,16 +27,15 @@ export function PresenceFloat({
   flyFrom = null,
 }: PresenceFloatProps) {
   const currentStatus = useStore((s) => s.currentStatus)
-  const currentMood = useStore((s) => s.currentMood)
+  const presence = useStore((s) => s.presence)
 
   const label = STATUS_LABELS[currentStatus] ?? STATUS_LABELS.idle
-  const moodVisible = !!currentMood && !MOOD_HIDDEN_STATUSES.has(currentStatus)
+  const { expression, intensity, spotlight, beatKey } = usePresence(presence)
+  const moodVisible = !!expression && !MOOD_HIDDEN_STATUSES.has(currentStatus)
 
-  // 情绪连发 → 光晕池叠加 + 第一反应节拍 + 最小播放锁
-  const { glowEls, beatKey, moodLocked } = useMoodPresence(currentMood)
-  // 思考中 = 系统处于思考/调用工具态（与 LLM 情绪正交）；锁内情绪优先，故思考让位
+  // 思考中 = 系统处于思考/调用工具态；spotlight 期间让位给表情
   const thinkingState = currentStatus === 'thinking' || currentStatus === 'tooling'
-  const showThinking = thinkingState && !moodLocked
+  const showThinking = thinkingState && !spotlight
 
   // error 系统态上升沿触发一次摇头（errorKey 驱动 Eyes）
   const [errKey, setErrKey] = useState(0)
@@ -43,8 +46,7 @@ export function PresenceFloat({
     prevErrRef.current = isErr
   }, [currentStatus])
 
-  // 起始页→聊天页：眼睛从起始页中央位置连续飞到顶部并缩小（80→60），无"先消失再出现"。
-  // 仅挂载时跑一次（PresenceFloat 在首条消息时才挂载，chat→chat 不重挂载）。
+  // 起始页→聊天页：眼睛从起始页中央位置连续飞到输入框上方并缩小。
   const eyesWrapRef = useRef<HTMLDivElement>(null)
   useLayoutEffect(() => {
     if (flyFrom && eyesWrapRef.current) runFlip(eyesWrapRef.current, flyFrom, { scale: true })
@@ -53,19 +55,19 @@ export function PresenceFloat({
 
   return (
     <div
-      className="presence-float"
+      className={`presence-float${spotlight ? ' spotlight' : ''}`}
       data-mood={currentStatus}
-      data-emotion={currentMood ?? undefined}
+      data-emotion={expression ?? undefined}
+      style={{ ['--presence-i' as string]: String(intensity / 5) } as React.CSSProperties}
       role="status"
       aria-live="polite"
     >
       <div className="presence-eyes-wrap" ref={eyesWrapRef}>
         <div className={`mood-ambient${moodVisible ? ' on' : ''}`} />
-        {glowEls}
         <Eyes
-          size={60}
+          size={40}
           busy={currentStatus === 'writing'}
-          mood={currentMood}
+          mood={expression}
           context={context}
           color="var(--accent)"
           pupil="var(--bg)"
@@ -87,8 +89,8 @@ export function PresenceFloat({
         {moodVisible && (
           <>
             <span className="presence-sep">·</span>
-            <span key={currentMood} className="presence-mood">
-              {currentMood}
+            <span key={expression} className="presence-mood">
+              {expression}
             </span>
           </>
         )}

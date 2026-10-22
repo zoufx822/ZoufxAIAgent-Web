@@ -147,6 +147,7 @@ export function MemoryAnchorDrawer({ open, onClose }: DrawerProps) {
           title: a.title ?? '新对话',
           lastActiveAt: a.lastActiveAt,
           createdAt: a.createdAt,
+          lastExpression: a.lastExpression,
         }))
         if (mapped.length > 0) setAnchors(mapped)
       })

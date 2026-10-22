@@ -5,13 +5,13 @@ import { useEffect, useMemo, useRef, useState, useId } from 'react'
 /**
  * Eyes SVG 字标——v0.14 rev7（设计同步）。
  *
- * 七词情绪谱：平静 / 愉快 / 好奇 / 兴奋 / 困惑 / 难过 / 愤怒。
+ * 六词情绪谱：平静 / 愉快 / 好奇 / 困惑 / 难过 / 愤怒。
  * 一个表情 = 一套 Expr 配置（眼睛几何 + 嘴型 mouth + 标记），统一继承 BASE 基底：
  * 改全局只动 BASE，新增表情只加一条 face({...})，嘴型为纯数据 MouthSpec 由 <Mouth> 渲染。
  * （愉快的新月眼替代渲染、calm/sad/happy 的 CSS 动效 class 本质是渲染策略/动画，仍按 mood 处理。）
  * 几何驱动：pr 瞳孔半径，pdy 瞳孔下移，esy 眼眶纵向缩放，blink 眨眼周期，
  *           liddy 上睑下垂，lidty 下睑上抬，lidSlant 上眼睑斜率（愤怒 angry brow），
- *           pdx 瞳孔水平偏移，sparkle 兴奋星芒，question 困惑问号。
+ *           pdx 瞳孔水平偏移。
  * 右眼专用属性 prR / esyR / liddyR / pdxR：左右不等时单独覆盖右眼，缺省回落左眼值——困惑的不对称发懵靠它。
  * 系统态 thinking（与情绪正交）：瞳孔上抬出神，由 CSS .thinking 驱动游移，跳过 applyContext 保持形态干净。
  * 次级 context（applyContext）：long-silence 半闭眼放慢眨眼；high-intensity 瞳孔放大、眨眼加快。
@@ -45,7 +45,6 @@ interface Expr {
   prR?: number
   esyR?: number
   liddyR?: number
-  sparkle?: boolean
   question?: boolean
 }
 
@@ -65,7 +64,6 @@ const MOOD_EXPR: Record<string, Expr> = {
   平静: face({}),
   愉快: face({ pr: 3.9, blink: 4.0, mouth: { kind: 'arc', x1: 41, x2: 59, y: 40, cy: 45.5, w: 2.0 } }),
   好奇: face({ pr: 6.5, pdy: -3.2, blink: 3.0, mouth: { kind: 'ellipse', cx: 50, cy: 43, rx: 4.2, ry: 3.5 } }),
-  兴奋: face({ pr: 6.2, pdy: -2.6, blink: 1.8, sparkle: true, mouth: { kind: 'arc', x1: 39, x2: 61, y: 40, cy: 47, w: 2.2 } }),
   困惑: face({
     pr: 3.6,
     prR: 2.7,
@@ -129,7 +127,7 @@ interface EyesProps {
   drifting?: boolean
   /** 系统态「思考中」占位脸（正在思考/调用工具），与 LLM 情绪正交；优先级低于已落定情绪 */
   thinking?: boolean
-  /** 打字时瞳孔向下注视：好奇/兴奋 +7px，其余 +4.5px；睡眠/唤醒时屏蔽 */
+  /** 打字时瞳孔向下注视：好奇 +7px，其余 +4.5px；睡眠/唤醒时屏蔽 */
   lookDown?: boolean
   /** 深夜 + 打字时触发唤醒动画：esy 从 0.26 插值到目标情绪值（1.4s） */
   waking?: boolean
@@ -256,10 +254,10 @@ export function Eyes({
   const prL = expr.pr
   const prR = expr.prR ?? expr.pr
 
-  // lookDown：睡眠/唤醒/思考态屏蔽；好奇/兴奋 +7px 抵消其负 pdy
+  // lookDown：睡眠/唤醒/思考态屏蔽；好奇 +7px 抵消其负 pdy
   const lookDownOffset =
     lookDown && !asleep && !waking && !thinking
-      ? mood === '好奇' || mood === '兴奋'
+      ? mood === '好奇'
         ? 7.0
         : 4.5
       : 0
@@ -373,12 +371,6 @@ export function Eyes({
         </g>
       )}
 
-      {expr.sparkle && (
-        <g className="eyes-sparkle" fill={fill}>
-          <circle cx="20" cy="9" r="1.2" />
-          <circle cx="80" cy="9" r="1.2" />
-        </g>
-      )}
       {expr.question && (
         <text
           className="eyes-question"

@@ -24,7 +24,7 @@ export function useChatStream() {
     markRunningToolCallsFailed,
     setLoading,
     setStatus,
-    setMood,
+    setPresence,
     claimAnchor,
     bumpHotMemoryVersion,
     bumpFocusInput,
@@ -46,7 +46,7 @@ export function useChatStream() {
       markRunningToolCallsFailed: s.markRunningToolCallsFailed,
       setLoading: s.setLoading,
       setStatus: s.setStatus,
-      setMood: s.setMood,
+      setPresence: s.setPresence,
       claimAnchor: s.claimAnchor,
       bumpHotMemoryVersion: s.bumpHotMemoryVersion,
       bumpFocusInput: s.bumpFocusInput,
@@ -242,8 +242,8 @@ export function useChatStream() {
           })
         },
 
-        onMood: (payload) => {
-          setMood(payload.keyword)
+        onPresence: (payload) => {
+          setPresence({ expression: payload.expression, intensity: payload.intensity, at: Date.now() })
         },
 
         onAnchorCreated: (realId) => {
@@ -316,7 +316,7 @@ export function useChatStream() {
       markRunningToolCallsFailed,
       setLoading,
       setStatus,
-      setMood,
+      setPresence,
       claimAnchor,
       bumpHotMemoryVersion,
       bumpFocusInput,

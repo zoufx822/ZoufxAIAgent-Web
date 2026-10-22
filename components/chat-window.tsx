@@ -21,7 +21,6 @@ import { useContextDetector } from '@/hooks/use-context-detector'
 import { useMemoryHot } from '@/hooks/use-memory-hot'
 import { useIntimacy } from '@/hooks/use-intimacy'
 import { useAsleepDetector } from '@/hooks/use-asleep-detector'
-import { useMoodPresence } from '@/hooks/use-mood-presence'
 import { runFlip, type FlipRect } from '@/lib/flip'
 import { cn } from '@/lib/utils'
 
@@ -298,20 +297,45 @@ export function ChatWindow() {
     }))
   )
   const currentStatus = useStore((s) => s.currentStatus)
-  const currentMood = useStore((s) => s.currentMood)
+  const presence = useStore((s) => s.presence)
+  const expression = presence?.expression ?? null
+  const anchors = useStore((s) => s.anchors)
+  const setPresence = useStore((s) => s.setPresence)
   const prefill = useStore((s) => s.prefill)
   const pendingTurn = useStore((s) => s.pendingTurn)
   // 同锚有在建轮 → 禁发（consumeStream 放大了同锚并发边界）
   const sendBlocked = !!pendingTurn && pendingTurn.anchorId === currentAnchorId
   const context = useContextDetector()
 
+  // 刷新/切锚恢复最后表情：低强度（2）只更新 dock，不 spotlight；有实时 presence 时不覆盖。
+  const lastAnchorRef = useRef<string | null>(null)
+  useEffect(() => {
+    const anchor = anchors.find((a) => a.id === currentAnchorId)
+    if (!anchor) {
+      lastAnchorRef.current = currentAnchorId
+      setPresence(null)
+      return
+    }
+    const switched = lastAnchorRef.current !== currentAnchorId
+    lastAnchorRef.current = currentAnchorId
+    if (switched) {
+      setPresence(
+        anchor.lastExpression
+          ? { expression: anchor.lastExpression, intensity: 2, at: Date.now() }
+          : null
+      )
+      return
+    }
+    if (!useStore.getState().presence && anchor.lastExpression) {
+      setPresence({ expression: anchor.lastExpression, intensity: 2, at: Date.now() })
+    }
+  }, [currentAnchorId, anchors, setPresence])
+
   // 唤醒动画：深夜（asleep 态）+ 打字中
   const isWaking = typingActive && currentStatus === 'asleep'
 
-  // 情绪连发 → home 页光晕池叠加 + 第一反应节拍 + 最小播放锁
-  const { glowEls: homeGlowEls, beatKey: homeBeatKey, moodLocked } = useMoodPresence(currentMood)
-  // 思考中 = 系统处于思考/调用工具态；锁内情绪优先于思考占位脸
-  const showThinking = (currentStatus === 'thinking' || currentStatus === 'tooling') && !moodLocked
+  // 思考中 = 系统处于思考/调用工具态；与情绪正交
+  const showThinking = currentStatus === 'thinking' || currentStatus === 'tooling'
 
   const { data: hot } = useMemoryHot('user-impression')
   const intimacy = useIntimacy(hot)
@@ -451,7 +475,7 @@ export function ChatWindow() {
   const greeting = useMemo(() => INTIMACY_GREET[intimacy] ?? timeGreet(), [intimacy])
 
   const statusLabel = STATUS_LABELS[currentStatus] ?? STATUS_LABELS.idle
-  const showMood = !MOOD_HIDDEN_STATUSES.has(currentStatus) && !!currentMood
+  const showMood = !MOOD_HIDDEN_STATUSES.has(currentStatus) && !!expression
 
   const suggestions = SUGGESTIONS_BY_INTIMACY[intimacy] ?? SUGGESTIONS_BY_INTIMACY.stranger
 
@@ -476,15 +500,14 @@ export function ChatWindow() {
             <div
               className="home-nameplate"
               data-mood={currentStatus}
-              data-emotion={currentMood ?? undefined}
+              data-emotion={expression ?? undefined}
             >
               <div className="home-eyes">
                 <div className={`mood-ambient${showMood ? ' on' : ''}`} />
-                {homeGlowEls}
                 <Eyes
                   size={80}
                   busy={currentStatus === 'writing'}
-                  mood={currentMood}
+                  mood={expression}
                   context={context}
                   color="var(--accent)"
                   pupil="var(--bg)"
@@ -493,7 +516,7 @@ export function ChatWindow() {
                   thinking={showThinking}
                   lookDown={typingActive}
                   waking={isWaking}
-                  beatKey={homeBeatKey}
+                  beatKey={0}
                 />
               </div>
               <div className="home-sig">
@@ -508,8 +531,8 @@ export function ChatWindow() {
                 {showMood && (
                   <>
                     <span className="home-status-sep">·</span>
-                    <span key={currentMood ?? ''} className="home-status-mood">
-                      {currentMood}
+                    <span key={expression ?? ''} className="home-status-mood">
+                      {expression}
                     </span>
                   </>
                 )}
@@ -572,12 +595,6 @@ export function ChatWindow() {
         </div>
       ) : (
         <>
-          <PresenceFloat
-            context={context}
-            lookDown={typingActive}
-            waking={isWaking}
-            flyFrom={flyEyesFrom}
-          />
           <div
             ref={scrollRef}
             className="chat-scroll-area flex-1 overflow-y-auto"
@@ -648,6 +665,12 @@ export function ChatWindow() {
                 <ArrowDown className="size-4" strokeWidth={2} />
               </button>
             )}
+            <PresenceFloat
+              context={context}
+              lookDown={typingActive}
+              waking={isWaking}
+              flyFrom={flyEyesFrom}
+            />
             <div ref={inputSlotRef} className="mx-auto" style={{ maxWidth: '720px' }}>
               <ChatInput
                 input={input}

@@ -25,6 +25,7 @@ export function useEnsureAnchor() {
               title: a.title ?? '新对话',
               lastActiveAt: a.lastActiveAt,
               createdAt: a.createdAt,
+              lastExpression: a.lastExpression,
             }))
           )
         }

@@ -39,8 +39,9 @@ export interface ToolResultPayload {
   resultPreview: string
 }
 
-export interface MoodPayload {
-  keyword: string
+export interface PresencePayload {
+  expression: string
+  intensity: number
 }
 
 /**
@@ -69,10 +70,10 @@ export interface StreamChatOptions {
   onToolCall?: (payload: ToolCallPayload) => void
   onToolResult?: (payload: ToolResultPayload) => void
   /**
-   * mood 情感词事件——后端从 content 流剥离 ⟦mood:KEYWORD⟧ 标记后独立发送。
-   * 一轮 1~N 次：开头必有一个（第一反应），情绪转折处再追加；相同情绪连发前端会去重不变脸。
+   * presence 存在状态事件——后端由独立情绪分类器映射后发送，一轮最多一次。
+   * 不是 AI 自报情绪：expression 是页面该显示的表情，intensity 是 1–5 的强度。
    */
-  onMood?: (payload: MoodPayload) => void
+  onPresence?: (payload: PresencePayload) => void
   /** 后端创建锚点后返回新 anchorId——新对话首条消息的第一个 SSE 事件。 */
   onAnchorCreated?: (anchorId: string) => void
   /**
@@ -122,7 +123,7 @@ function dispatchEvent(
   data: string,
   opts: StreamChatOptions
 ): 'continue' | 'terminated' {
-  const { onTurn, onThinking, onContent, onToolCall, onToolResult, onMood, onAnchorCreated, onError } = opts
+  const { onTurn, onThinking, onContent, onToolCall, onToolResult, onPresence, onAnchorCreated, onError } = opts
   if (event === 'turn_started') {
     onTurn?.(data)
   } else if (event === 'anchor_created') {
@@ -141,11 +142,11 @@ function dispatchEvent(
     } catch (e) {
       console.warn('tool_result parse failed', e, data)
     }
-  } else if (event === 'mood') {
+  } else if (event === 'presence') {
     try {
-      onMood?.(JSON.parse(data) as MoodPayload)
+      onPresence?.(JSON.parse(data) as PresencePayload)
     } catch (e) {
-      console.warn('mood parse failed', e, data)
+      console.warn('presence parse failed', e, data)
     }
   } else if (event === 'error') {
     onError?.(parseErrorData(data))

@@ -45,9 +45,18 @@ export interface MemoryAnchor {
   title: string
   lastActiveAt: number
   createdAt: number
+  /** 该对话最后显示的表情词——切锚/刷新时恢复用，来自后端 lastExpression。 */
+  lastExpression?: string | null
 }
 
 export type Status = 'idle' | 'thinking' | 'tooling' | 'writing' | 'error' | 'asleep' | 'drifting'
+
+/** 页面要显示的存在状态——后端 presence 事件带过来，含强度。 */
+export interface Presence {
+  expression: string
+  intensity: number
+  at: number
+}
 
 interface Store {
   userId: string
@@ -63,7 +72,7 @@ interface Store {
 
   // 情绪状态（非持久化）
   currentStatus: Status
-  currentMood: string | null
+  presence: Presence | null
 
   // UI 状态（非持久化）
   lookbackOpen: boolean
@@ -111,7 +120,7 @@ interface Store {
 
   setLoading: (v: boolean) => void
   setStatus: (s: Status) => void
-  setMood: (keyword: string | null) => void
+  setPresence: (p: Presence | null) => void
   setLookbackOpen: (v: boolean) => void
   bumpHotMemoryVersion: () => void
   bumpFocusInput: () => void
@@ -129,7 +138,7 @@ export const useStore = create<Store>()(
       messages: {},
       isLoading: false,
       currentStatus: 'idle',
-      currentMood: '平静',
+      presence: null,
       lookbackOpen: false,
       hotMemoryVersion: 0,
       focusInputSignal: 0,
@@ -308,8 +317,8 @@ export const useStore = create<Store>()(
         if (get().currentStatus !== s) set({ currentStatus: s })
       },
 
-      setMood: (keyword) => {
-        set({ currentMood: keyword })
+      setPresence: (p) => {
+        set({ presence: p })
       },
 
       setLookbackOpen: (v) => set({ lookbackOpen: v }),
