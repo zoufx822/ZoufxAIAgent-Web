@@ -5,7 +5,7 @@ export interface AnchorEntry {
   userId: string
   title: string | null
   summary: string | null
-  lastMood: string | null
+  lastExpression: string | null
   lastActiveAt: number
   createdAt: number
 }
@@ -20,7 +20,7 @@ export interface AnchorSummary {
   id: string
   title: string | null
   body: string | null
-  mood: string | null
+  lastExpression: string | null
   lastActiveAt: number
 }
 

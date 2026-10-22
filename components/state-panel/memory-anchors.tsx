@@ -110,7 +110,7 @@ export function MemoryAnchorsPanel() {
             view.mid.map((a) => (
               <div key={a.id} className="anchor-mid-row" onClick={() => switchAnchor(a.id)}>
                 <span className="anchor-mid-title">{a.title ?? '新对话'}</span>
-                {a.mood && <span className="anchor-mid-mood" title={a.mood} />}
+                {a.lastExpression && <span className="anchor-mid-mood" title={a.lastExpression} />}
                 <span className="anchor-mid-time">{fmtAge(a.lastActiveAt)}</span>
               </div>
             ))}
@@ -140,10 +140,10 @@ function NearCard({ anchor, onClick }: { anchor: AnchorSummary; onClick: () => v
       {anchor.body && <div className="anchor-body">{truncate(anchor.body, 60)}</div>}
       <div className="anchor-meta">
         <span>{fmtAge(anchor.lastActiveAt)}</span>
-        {anchor.mood && (
+        {anchor.lastExpression && (
           <>
             <span>·</span>
-            <span className="anchor-meta-mood">{anchor.mood}</span>
+            <span className="anchor-meta-mood">{anchor.lastExpression}</span>
           </>
         )}
       </div>
