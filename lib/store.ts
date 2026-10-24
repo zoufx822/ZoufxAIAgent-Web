@@ -1,6 +1,24 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 
+/**
+ * rehydrate 完成前禁止 persist 写 localStorage。
+ * 否则子组件 effect 先 setState 会把初始空状态写回，覆盖磁盘上的 userId/anchors。
+ */
+let persistReady = false
+
+export function markPersistReady() {
+  persistReady = true
+}
+
+const guardedStorage = createJSONStorage(() => ({
+  getItem: (name: string) => localStorage.getItem(name),
+  setItem: (name: string, value: string) => {
+    if (persistReady) localStorage.setItem(name, value)
+  },
+  removeItem: (name: string) => localStorage.removeItem(name),
+}))
+
 export interface ToolCall {
   id: string
   tool: string
@@ -169,7 +187,10 @@ export const useStore = create<Store>()(
           return {
             currentAnchorId: id,
             messages: pending ? { ...newMessages, [id]: pending } : newMessages,
-            anchors: [{ id, title: '新对话', lastActiveAt: now, createdAt: now }, ...state.anchors],
+            // 幂等：onAnchorCreated 可能重复到达，已有同 id 时不再追加
+            anchors: state.anchors.some((a) => a.id === id)
+              ? state.anchors
+              : [{ id, title: '新对话', lastActiveAt: now, createdAt: now }, ...state.anchors],
           }
         })
       },
@@ -332,7 +353,7 @@ export const useStore = create<Store>()(
     {
       name: 'zoufx-chat-sessions',
       version: 5,
-      storage: createJSONStorage(() => localStorage),
+      storage: guardedStorage,
       partialize: (state) => ({
         userId: state.userId,
         anchors: state.anchors,
