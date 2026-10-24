@@ -49,7 +49,7 @@ export function MemoryAnchorsPanel() {
         <div className="sp-section-h">
           <span>锚点</span>
         </div>
-        <div className="anchor-empty">这是我们的第一次对话。</div>
+        <div className="anchor-empty">这是第一条对话。聊过的内容会在这里慢慢形成记忆。</div>
       </div>
     )
   }
