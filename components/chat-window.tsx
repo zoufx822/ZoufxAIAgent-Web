@@ -654,7 +654,7 @@ export function ChatWindow() {
                 type="button"
                 aria-label="回到底部"
                 onClick={scrollToBottomSmooth}
-                className="absolute left-1/2 top-0 z-20 inline-flex size-8 -translate-x-1/2 -translate-y-[calc(100%+10px)] items-center justify-center rounded-full transition-all hover:opacity-90"
+                className="absolute right-4 top-0 z-20 inline-flex size-8 -translate-y-[calc(100%+10px)] items-center justify-center rounded-full transition-all hover:opacity-90"
                 style={{
                   backgroundColor: 'var(--surface)',
                   border: '1px solid var(--border)',
