@@ -223,7 +223,7 @@ export function useChatStream() {
 
         onToolCall: (payload) => {
           setStatus('tooling')
-          updateLastAssistantMessage(anchorId, { content: '' })
+          // 保留工具调用前已流出的正文：清空会让用户看到"刚出现的一句话消失"。
           appendToolCall(anchorId, {
             id: crypto.randomUUID(),
             tool: payload.tool,
